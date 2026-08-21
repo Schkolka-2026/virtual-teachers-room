@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075b3f">
+  <title>Школа решений — Виртуальная учительская</title>
+  <style>
+    :root{
+      --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
+      --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
+      --yellow:#f4c542; --yellow-100:#fff6cf;
+      --red:#d9343a; --red-100:#fde9ea;
+      --ink:#183229; --muted:#6b7d76; --line:#e2ebe6;
+      --white:#fff; --bg:#f5f8f6; --shadow:0 12px 35px rgba(6,61,43,.09);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    .hidden{display:none!important}
+
+    /* AUTH */
+    #authScreen{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:#fff}
+    .auth-brand{position:relative;overflow:hidden;background:linear-gradient(145deg,var(--green-950),var(--green-800));color:#fff;padding:55px 7vw;display:flex;flex-direction:column;justify-content:center}
+    .auth-brand:after{content:"";position:absolute;width:500px;height:500px;border:80px solid rgba(244,197,66,.10);border-radius:50%;right:-230px;bottom:-220px}
+    .brand-logo{width:145px;height:145px;object-fit:contain;background:#fff;border-radius:30px;padding:8px;margin-bottom:28px;display:block}
+    .auth-brand h1{font-size:clamp(42px,5vw,72px);line-height:.98;margin:0 0 18px;font-weight:800;letter-spacing:-2px}
+    .auth-brand p{font-size:20px;line-height:1.5;max-width:570px;color:#e6f3ed;margin:0}
+    .slogan{margin-top:45px;font-weight:700;color:#ffe98b}
+    .auth-panel{display:flex;align-items:center;justify-content:center;padding:35px}
+    .login-card{width:min(470px,100%);background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:28px;padding:38px}
+    .login-card h2{margin:0 0 8px;font-size:30px}
+    .login-card .sub{margin:0 0 28px;color:var(--muted)}
+    label{display:block;font-size:13px;font-weight:700;margin:16px 0 7px}
+    input{width:100%;border:1px solid #ccd9d3;border-radius:13px;padding:13px 14px;outline:none;background:#fbfdfc}
+    input:focus{border-color:var(--green-700);box-shadow:0 0 0 4px rgba(21,148,90,.10)}
+    .primary{border:0;border-radius:13px;background:var(--green-900);color:#fff;padding:14px 18px;font-weight:800;width:100%;margin-top:22px}
+    .primary:hover{background:var(--green-800)}
+    .demo{margin-top:24px;padding:14px;background:var(--green-50);border:1px solid #d8eee2;border-radius:14px;font-size:12px;color:#49655a}
+    .demo strong{color:var(--green-900)}
+    .error{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+
+    /* APP */
+    #app{min-height:100vh;display:flex}
+    .sidebar{width:282px;background:var(--green-950);color:#fff;position:fixed;left:0;top:0;bottom:0;overflow:auto;padding:18px 14px;z-index:10}
+    .side-brand{display:flex;align-items:center;gap:12px;padding:8px 10px 20px}
+    .side-brand img{width:58px;height:58px;object-fit:contain;background:#fff;border-radius:13px;padding:3px;display:block}
+    .side-brand strong{font-size:17px;line-height:1.05}.side-brand span{font-size:11px;color:#b9d8ca}
+    .date-title{padding:14px 14px 10px;color:#f7df76;font-weight:800;font-size:14px}
+    .nav-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#9dc2b2;padding:14px 14px 6px}
+    .nav-item{width:100%;border:0;background:transparent;color:#e8f4ef;text-align:left;padding:11px 12px;border-radius:12px;display:flex;align-items:center;gap:10px;margin:2px 0;font-size:14px}
+    .nav-item:hover,.nav-item.active{background:rgba(255,255,255,.10)}
+    .nav-item.active{box-shadow:inset 3px 0 0 var(--yellow);color:#fff}
+    .nav-icon{width:22px;text-align:center}
+    .badge{margin-left:auto;min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:var(--red);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+    .badge.new{background:var(--yellow);color:#4c3b00}
+    .main{margin-left:282px;min-width:0;flex:1}
+    .topbar{height:74px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 30px;position:sticky;top:0;z-index:5}
+    .search{flex:1;max-width:560px;position:relative}.search input{padding-left:42px}
+    .search span{position:absolute;left:14px;top:12px}
+    .top-actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+    .icon-btn{width:42px;height:42px;border:1px solid var(--line);background:#fff;border-radius:12px;position:relative}
+    .profile{display:flex;align-items:center;gap:10px;padding-left:8px}.avatar{width:40px;height:40px;border-radius:50%;background:var(--green-100);color:var(--green-900);display:grid;place-items:center;font-weight:900}
+    .profile small{display:block;color:var(--muted);font-size:11px}
+    .content{padding:28px;max-width:1500px;margin:auto}
+    .hero{background:linear-gradient(135deg,#fff,#eef8f2);border:1px solid #dcece3;border-radius:24px;padding:28px;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:22px}
+    .hero h1{margin:0 0 6px;font-size:30px}.hero p{margin:0;color:var(--muted)}
+    .hero-date{text-align:right;font-weight:800;color:var(--green-900)} .hero-date span{display:block;font-size:13px;color:var(--muted);font-weight:500;margin-top:4px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 20px rgba(6,61,43,.04);padding:20px}
+    .card h3{margin:0 0 5px;font-size:17px}.muted{color:var(--muted);font-size:13px}
+    .task-card{grid-column:span 7}.transport-card{grid-column:span 5}.wide{grid-column:span 8}.side-card{grid-column:span 4}
+    .progress{height:8px;background:#edf2ef;border-radius:99px;overflow:hidden;margin:14px 0}.progress i{display:block;height:100%;background:var(--green-700);border-radius:99px}
+    .task{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #edf2ef}.task:last-child{border-bottom:0}
+    .task input{width:18px;height:18px;accent-color:var(--green-700)}
+    .task-link{margin-left:auto;color:var(--green-800);font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap}
+    .task-link:hover{text-decoration:underline}
+    .auto-check{opacity:.55;cursor:not-allowed}
+    .task.done span{text-decoration:line-through;color:#91a19a}
+    .required{font-size:10px;color:var(--red);font-weight:800;margin-left:auto}
+    .transport{border-left:4px solid var(--yellow);padding:10px 12px;background:#fffbec;border-radius:0 12px 12px 0;margin-top:12px}
+    .transport strong{display:block}.transport p{margin:5px 0 0;font-size:13px;color:#655b36}
+    .empty{padding:25px;text-align:center;color:var(--muted)}
+    .notice{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #edf2ef}.notice:last-child{border:0}
+    .notice .dot{width:10px;height:10px;border-radius:50%;background:var(--yellow);margin-top:5px;flex:0 0 auto}.notice.unread .dot{background:var(--red)}
+    .notice strong{font-size:13px}.notice p{margin:3px 0 0;font-size:12px;color:var(--muted)}
+    .section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.section-title h2{margin:0;font-size:26px}
+    .btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:10px 14px;font-weight:700}.btn.green{background:var(--green-900);color:#fff;border-color:var(--green-900)}
+    .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.chip{padding:6px 9px;border-radius:99px;background:var(--green-100);color:var(--green-900);font-size:11px;font-weight:800}
+    .profile-menu{position:absolute;right:28px;top:62px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;width:210px;z-index:20}.profile-menu button{width:100%;border:0;background:#fff;text-align:left;padding:10px;border-radius:9px}.profile-menu button:hover{background:var(--green-50)}
+    .settings-row{display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid #edf2ef}.settings-row input{max-width:560px}
+    @media(max-width:1000px){.sidebar{width:80px}.side-brand div,.date-title,.nav-title,.nav-item span:not(.nav-icon),.badge{display:none}.side-brand{justify-content:center}.main{margin-left:80px}.task-card,.transport-card,.wide,.side-card{grid-column:span 12}.profile .meta{display:none}}
+    @media(max-width:680px){.sidebar{display:none}.main{margin-left:0}.content{padding:16px}.topbar{padding:0 16px}.search{display:none}.hero{padding:20px;display:block}.hero-date{text-align:left;margin-top:15px}.grid{display:block}.card{margin-bottom:15px}}
+    .olymp-embed{width:100%;overflow:hidden;border-radius:16px;background:#fff}
+    .olymp-embed iframe{display:block;width:100%;min-height:1100px;height:78vh;border:0;border-radius:16px;background:#fff}
+    @media(max-width:680px){.olymp-embed iframe{min-height:1600px;height:calc(100vh - 110px)}}
+  </style>
+
+<style>
+.form-card{max-width:1100px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.form-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.form-grid label{margin:0}.form-grid .field{margin:0}
+.field small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.readonly{background:#f1f6f3!important}
+.section-band{padding:12px 14px;border-radius:12px;background:var(--green-100);border-left:4px solid var(--green-700);font-weight:800;margin:18px 0 12px}
+.reason-band{padding:13px 14px;border-radius:12px;background:var(--yellow-100);border-left:4px solid var(--yellow);font-weight:800;margin:20px 0 12px}
+.present-box{padding:14px;border-radius:12px;background:var(--green-50);border:1px solid #d8eee2;font-weight:900;color:var(--green-900);margin-top:12px}
+.warning-box{padding:12px;border-radius:12px;background:var(--red-100);color:#8d2025;font-weight:700;margin-top:12px}
+.success-box{padding:12px;border-radius:12px;background:var(--green-100);color:var(--green-900);font-weight:700;margin-top:12px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.table-wrap{overflow:auto}.data-table{width:100%;border-collapse:collapse;min-width:780px}.data-table th,.data-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;vertical-align:top}.data-table th{background:var(--green-50);color:var(--green-950)}
+.icon-actions{display:flex;gap:5px}.small-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:700}.small-btn.danger{color:var(--red)}
+.file-input{border:1px dashed #b9cfc3;padding:12px;border-radius:12px;background:var(--green-50)}
+.notice-card{border-left:4px solid var(--yellow);background:#fffbec;padding:12px;border-radius:0 12px 12px 0;margin:8px 0}
+.unread-marker{color:var(--red);font-weight:900}
+.checkbox-list{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px}
+.checkbox-list label{display:flex;gap:8px;align-items:center;padding:7px;margin:0;border-bottom:1px solid #edf2ef}
+.checkbox-list input{width:auto}
+@media(max-width:800px){.form-grid,.form-grid.three{grid-template-columns:1fr}}
+.yellow-btn{background:var(--yellow)!important;border-color:var(--yellow)!important;color:#4c3b00!important}.analytics-workspace{max-width:1050px;display:grid;grid-template-columns:1fr 1fr;gap:18px}.analytics-workspace .card{min-width:0}.link-button{border:0;background:transparent;color:var(--green-800);font-weight:900;cursor:pointer;text-decoration:underline}.vacation-box{margin-top:14px;padding:12px;border-top:1px solid var(--line);background:#fffbec;border-radius:12px}.vacation-box h3{margin-bottom:6px}.vacation-text{font-size:12px;white-space:pre-wrap;color:#655b36}.module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.module-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;min-height:130px;box-shadow:0 6px 20px rgba(6,61,43,.04);cursor:pointer}.module-card-title{font-size:17px;font-weight:800;margin-bottom:8px}.module-folder{margin-top:16px;color:var(--green-800);font-size:12px;font-weight:800}.module-new{border-color:var(--yellow);box-shadow:0 0 0 2px rgba(244,197,66,.15)}.new-dot{float:right;color:var(--red);font-size:11px}.normative-card{grid-column:1/-1;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}.normative-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);margin-top:12px}.normative-cols>div{background:var(--green-50);padding:16px;min-height:90px}.normative-cols p{color:var(--green-800);font-size:12px}.gia-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.gia-half{padding:18px;border-radius:20px;border:1px solid var(--line)}.gia-half.grade9{background:#fffaf0}.gia-half.grade11{background:#f0f8f4}.gia-half h3{margin-top:0}.gia-half .module-card,.gia-half .normative-card{margin-bottom:14px}.bell-editor{display:grid;grid-template-columns:1fr 1fr;gap:16px}.bell-row{display:grid;grid-template-columns:48px 1fr 12px 1fr 30px;gap:5px;align-items:center;margin-bottom:7px}.bell-row input{padding:8px 6px}.bell-row .small-btn{padding:6px}.module-card.right{}.module-card.left{}
+@media(max-width:1000px){.analytics-workspace,.module-grid,.gia-grid,.bell-editor{grid-template-columns:1fr}.normative-cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<section id="authScreen">
+  <div class="auth-brand">
+    <img class="brand-logo" src="assets/logo.png" alt="Логотип Школы Экодолье">
+    <h1>Школа<br>решений</h1>
+    <p>Виртуальная учительская МАОУ «Школа Экодолье»</p>
+    <div class="slogan">Меньше рутины. Больше времени для детей.</div>
+  </div>
+  <div class="auth-panel">
+    <form class="login-card" id="loginForm">
+      <h2>Добро пожаловать</h2>
+      <p class="sub">Войдите в виртуальную учительскую</p>
+      <label for="login">Логин</label>
+      <input id="login" autocomplete="username" placeholder="Введите логин" required>
+      <label for="password">Пароль</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Введите пароль" required>
+      <button class="primary" type="submit">Войти</button>
+      <div class="error" id="loginError"></div>
+      <div class="demo">
+        <strong>Демо-доступ для MVP</strong><br><br>
+        Администратор: <b>admin / admin123</b><br>
+        Директор: <b>director / 1234</b><br>
+        Заместитель: <b>deputy / 1234</b><br>
+        Учитель: <b>teacher / 1234</b><br>
+        Гость: <b>guest / 1234</b>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <img src="assets/logo.png" alt="Логотип">
+      <div class="side-brand-text"><strong>Школа решений</strong><span>Виртуальная<br>учительская</span></div>
+    </div>
+    <div class="date-title" id="sideDate"></div>
+
+    <div class="nav-title">Сегодня</div>
+    <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>Главная</span></button>
+    <button class="nav-item" data-page="tasks"><span class="nav-icon">✅</span><span>Текущие задачи</span><span class="badge" id="taskBadge">!</span></button>
+    <button class="nav-item" data-page="attendance"><span class="nav-icon">🧾</span><span>Посещаемость</span></button>
+    <button class="nav-item" data-page="transport"><span class="nav-icon">🚌</span><span>Подвоз</span><span class="badge new hidden" id="transportBadge">0</span></button>
+    <button class="nav-item" data-page="plan"><span class="nav-icon">📅</span><span>План работы</span></button>
+    <button class="nav-item" data-page="notifications"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="badge new" id="notificationBadge">0</span></button>
+
+    <div class="nav-title">Учительская</div>
+    <button class="nav-item" data-page="vseobuch"><span class="nav-icon">📁</span><span>Всеобуч</span></button>
+    <button class="nav-item" data-page="education"><span class="nav-icon">📚</span><span>Учебная работа</span></button>
+    <button class="nav-item" data-page="journal"><span class="nav-icon">📘</span><span>Электронный журнал</span></button>
+    <button class="nav-item" data-page="upbringing"><span class="nav-icon">❤️</span><span>Воспитательная работа</span></button>
+    <button class="nav-item" data-page="ovz"><span class="nav-icon">♿</span><span>Обучающиеся с ОВЗ и инвалидностью</span></button>
+    <button class="nav-item" data-page="olymp"><span class="nav-icon">🏆</span><span>Олимпиадное и конкурсное движение</span></button>
+    <button class="nav-item" data-page="gia"><span class="nav-icon">📝</span><span>ЕГЭ / ОГЭ</span></button>
+    <button class="nav-item" data-page="attestation"><span class="nav-icon">👩‍🏫</span><span>Методическая работа</span></button>
+    <button class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>Отчеты</span></button>
+    <button class="nav-item" data-page="archive"><span class="nav-icon">📦</span><span>Архив</span></button>
+
+    <div class="nav-title">Моя статистика</div>
+    <button class="nav-item" data-page="analytics"><span class="nav-icon">📈</span><span>Аналитика</span></button>
+    <button class="nav-item" data-page="mydata"><span class="nav-icon">👤</span><span>Мои данные</span></button>
+
+    <div class="nav-title">Система</div>
+    <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span><span>Настройки</span></button>
+<button class="nav-item" data-page="admin"><span class="nav-icon">🛠</span><span>Администрирование</span></button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="search"><span>🔎</span><input id="globalSearch" placeholder="Поиск по виртуальной учительской"></div>
+      <div class="top-actions">
+        <button class="icon-btn" id="topNotify" title="Уведомления">🔔<span class="badge new" id="topNotifyBadge">0</span></button>
+        <div class="profile" id="profileToggle">
+          <div class="avatar" id="avatar">Е</div>
+          <div class="meta"><b id="profileName">Пользователь</b><small id="profileRole">Роль</small></div>
+        </div>
+      </div>
+      <div class="profile-menu hidden" id="profileMenu">
+        <button data-page="home">🏠 Рабочий стол</button>
+        <button data-page="settings">⚙ Настройки</button>
+        <button id="logoutBtn">↪ Выйти</button>
+      </div>
+    </header>
+
+    <div class="content" id="content"></div>
+  </main>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(() => {
+  const USERS = {
+    admin:{login:"admin",password:"admin123",name:"Администратор",role:"Администратор",roleKey:"admin"},
+    director:{login:"director",password:"1234",name:"Ирина Сергеевна",role:"Директор",roleKey:"director"},
+    deputy:{login:"deputy",password:"1234",name:"Елена Александровна",role:"Заместитель директора",roleKey:"deputy"},
+    teacher:{login:"teacher",password:"1234",name:"Марина Ивановна",role:"Учитель",roleKey:"teacher"},
+    guest:{login:"guest",password:"1234",name:"Гость",role:"Родитель / обучающийся",roleKey:"guest"}
+  };
+
+
+  const defaultState = {
+    currentUser:null,
+    tasks:[
+      {id:"attendance",title:"Посещаемость",required:true,done:false,kind:"attendance"},
+      {id:"food",title:"Питание",required:false,done:false,kind:"food"},
+      {id:"journal",title:"Электронный журнал",required:false,done:false,kind:"journal"},
+      {id:"schedule",title:"Расписание на сегодня",required:false,done:false,kind:"schedule"}
+    ],
+    transport:[
+      {id:1,level:"important",title:"Маршрут №3",text:"Сегодня утренний рейс отправится на 15 минут позже.",date:"Сегодня",read:false}
+    ],
+    notifications:[
+      {id:1,type:"visit",title:"К вам завтра придут на урок",text:"3 урок, 7Б, посещение заместителем директора.",date:"Сегодня",read:false,teacher:"teacher"},
+      {id:2,type:"text",title:"Новое сообщение",text:"Подготовить сведения к оперативному совещанию.",date:"Сегодня",read:false,teacher:"teacher"}
+    ],
+    plan:[
+      {id:1,date:"Сегодня",time:"14:00",title:"Оперативная работа педагогов",place:"Актовый зал",participants:"5–11 классы",responsible:"Елена Александровна",status:"Опубликовано",author:"Заместитель"},
+      {id:2,date:"Завтра",time:"10:15",title:"Посещение урока",place:"Каб. 204",participants:"7Б",responsible:"Елена Александровна",status:"Опубликовано",author:"Заместитель"},
+      {id:3,date:"Через 3 дня",time:"12:00",title:"Классный час 5А",place:"Каб. 205",participants:"5А",responsible:"",status:"На согласовании",author:"teacher"}
+    ],
+    attendance:[],
+    journalOverdue:[],
+    vacationsText:"Каникулы: сроки будут опубликованы администратором.",
+    schedule:{
+      bellSchedules:{monday:[{n:1,start:"08:30",end:"09:15"},{n:2,start:"09:25",end:"10:10"},{n:3,start:"10:30",end:"11:15"},{n:4,start:"11:25",end:"12:10"},{n:5,start:"12:30",end:"13:15"},{n:6,start:"13:25",end:"14:10"},{n:7,start:"14:20",end:"15:05"}],weekdays:[{n:1,start:"08:30",end:"09:15"},{n:2,start:"09:25",end:"10:10"},{n:3,start:"10:30",end:"11:15"},{n:4,start:"11:25",end:"12:10"},{n:5,start:"12:30",end:"13:15"},{n:6,start:"13:25",end:"14:10"},{n:7,start:"14:20",end:"15:05"}]},
+      bells:[
+        {n:1,start:"08:30",end:"09:15"},{n:2,start:"09:25",end:"10:10"},{n:3,start:"10:30",end:"11:15"},
+        {n:4,start:"11:25",end:"12:10"},{n:5,start:"12:30",end:"13:15"},{n:6,start:"13:25",end:"14:10"},{n:7,start:"14:20",end:"15:05"}
+      ],
+      today:[
+        {lesson:1,time:"08:30",className:"5А",subject:"Биология",room:"204"},
+        {lesson:2,time:"09:25",className:"6Б",subject:"Биология",room:"312"},
+        {lesson:3,time:"10:30",className:"7А",subject:"Биология",room:"204"}
+      ],
+      classes:{
+        "5А":[{lesson:1,time:"08:30",subject:"Русский язык",room:"201"},{lesson:2,time:"09:25",subject:"Математика",room:"201"}],
+        "6Б":[{lesson:1,time:"08:30",subject:"История",room:"312"},{lesson:2,time:"09:25",subject:"Биология",room:"312"}]
+      }
+    },
+    users:[
+      {id:1,name:"Марина Ивановна",login:"teacher",roleKeys:["teacher"],roles:"Учитель",classes:["5А","6Б"],shift:{ "5А":1,"6Б":2 },attendanceClasses:["5А","6Б"],replacement:[]},
+      {id:2,name:"Елена Александровна",login:"deputy",roleKeys:["deputy","teacher"],roles:"Заместитель директора + учитель",classes:["7А"],shift:{"7А":1},attendanceClasses:["7А"],replacement:["5А"]},
+      {id:3,name:"Ирина Сергеевна",login:"director",roleKeys:["director","teacher"],roles:"Директор + учитель",classes:[],shift:{},attendanceClasses:[],replacement:[]},
+      {id:4,name:"Администратор",login:"admin",roleKeys:["admin"],roles:"Администратор",classes:[],shift:{},attendanceClasses:[],replacement:[]},
+      {id:5,name:"Гость",login:"guest",roleKeys:["guest"],roles:"Родитель / обучающийся",classes:[],shift:{},attendanceClasses:[],replacement:[]}
+    ],
+    dispatcherIds:[1],
+    adminBellTimes:true,
+    myData:{}
+  };
+
+  const clone = obj => JSON.parse(JSON.stringify(obj));
+  let state = loadState();
+
+  function loadState(){
+    try{
+      const saved=localStorage.getItem("schoolSolutionsMVP_v4");
+      return saved ? deepMerge(clone(defaultState),JSON.parse(saved)) : clone(defaultState);
+    }catch(e){return clone(defaultState);}
+  }
+  function deepMerge(a,b){Object.keys(b||{}).forEach(k=>{if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k]) a[k]=deepMerge(a[k],b[k]); else a[k]=b[k];});return a;}
+  function save(){localStorage.setItem("schoolSolutionsMVP_v4",JSON.stringify(state));}
+  function dateInfo(){const d=new Date(),days=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"],months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];return {day:days[d.getDay()],full:`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,iso:d.toISOString().slice(0,10)};}
+  function roleLabel(k){return USERS[k]?.role||"Пользователь";}
+  function initials(name){return name.split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase();}
+  function isManager(){return ["admin","director","deputy"].some(r=>state.currentUser?.roleKeys?.includes(r));}
+  function isAdmin(){return state.currentUser?.roleKeys?.includes("admin");}
+  function isGuest(){return state.currentUser?.roleKeys?.includes("guest");}
+  function unread(){return state.notifications.filter(n=>!n.read).length;}
+  function pendingTasks(){return state.tasks.filter(t=>t.required&&!t.done).length;}
+  function newTransport(){return state.transport.filter(t=>!t.read).length;}
+  function updateBadges(){
+    const p=pendingTasks(),n=unread(),tr=newTransport();
+    const tb=document.getElementById("taskBadge"),nb=document.getElementById("notificationBadge"),tnb=document.getElementById("topNotifyBadge"),trb=document.getElementById("transportBadge");
+    tb.textContent=p?"!":"✓";tb.style.background=p?"var(--red)":"var(--green-700)";
+    nb.textContent=n;tnb.textContent=n;nb.classList.toggle("hidden",!n);tnb.classList.toggle("hidden",!n);
+    trb.textContent=tr;trb.classList.toggle("hidden",!tr);
+  }
+  function render(){
+    const d=dateInfo();
+    document.getElementById("sideDate").textContent=`${d.day}, ${d.full}`;
+    document.getElementById("profileName").textContent=state.currentUser.name;
+    document.getElementById("profileRole").textContent=state.currentUser.roles||state.currentUser.role||"Пользователь";
+    document.getElementById("avatar").textContent=initials(state.currentUser.name);
+    updateBadges();
+    document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===state.currentPage));
+    const pages={home:renderHome,tasks:renderTasks,attendance:renderAttendance,transport:renderTransport,plan:renderPlan,notifications:renderNotifications,
+      vseobuch:renderPlaceholder,education:renderPlaceholder,journal:renderPlaceholder,upbringing:renderPlaceholder,ovz:renderPlaceholder,olymp:renderPlaceholder,
+      gia:renderPlaceholder,attestation:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:renderAnalytics,
+      mydata:renderMyData,settings:renderSettings,admin:renderAdmin,schedule:renderSchedule};
+    pages[state.currentPage]?.();
+  }
+  function shell(title,subtitle,body){document.getElementById("content").innerHTML=`<div class="section-title"><div><h2>${title}</h2><div class="muted">${subtitle||""}</div></div></div>${body}`;}
+  function taskHtml(t){
+    if(t.kind==="food") return `<div class="task"><span style="font-size:18px">🍽️</span><span>${t.title}</span><a class="task-link" href="${state.foodUrl||'https://www.avangard.ru/SchoolFeedingJournal/login.xhtml'}" target="_blank" rel="noopener">Открыть ↗</a></div>`;
+    if(t.kind==="journal"){
+      const overdue=state.journalOverdue.filter(x=>x.login===state.currentUser.login).reduce((s,x)=>s+x.count,0);
+      return `<div class="task"><span style="font-size:18px">📘</span><span>${t.title}</span>${overdue?`<span class="required">⚠ Просрочено: ${overdue} стр.</span>`:""}<a class="task-link" href="${state.journalUrl||'https://de.edu.orb.ru/#journals'}" target="_blank" rel="noopener">Открыть ↗</a></div>`;
+    }
+    if(t.kind==="schedule") return `<div class="task"><span style="font-size:18px">🕒</span><span>${t.title}</span><a class="task-link" href="#" onclick="event.preventDefault();navigate('schedule')">Просмотреть →</a></div>`;
+    return `<div class="task ${t.done?'done':''}"><input type="checkbox" class="auto-check" ${t.done?'checked':''} disabled><span>${t.title}</span><a class="task-link" href="#" onclick="event.preventDefault();navigate('attendance')">Заполнить →</a></div>`;
+  }
+  function noticeHtml(n){return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${n.id})"><div class="dot"></div><div><strong>${n.title}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${n.text}</p><small class="muted">${n.date}</small></div></div>`;}
+  function renderHome(){
+    const d=dateInfo(), transport=state.transport.find(x=>!x.read)||state.transport[0], bell=(d.day==="понедельник"?state.schedule.bellSchedules?.monday:state.schedule.bellSchedules?.weekdays)||state.schedule.bells||[];
+    document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в «Школе решений».</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>
+      <div class="grid">
+      <section class="card task-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>
+      <section class="card transport-card"><h3>🕘 Расписание звонков</h3>${bell.map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.n} урок</strong><p>${x.start} — ${x.end}</p></div></div>`).join("")}<div class="vacation-box"><h3>🏖 Сроки каникул</h3><div class="vacation-text">${escapeHtml(state.vacationsText||"")}</div></div></section>
+      <section class="card wide"><h3>📅 Ближайшее в плане работы</h3>${state.plan.filter(x=>x.status==="Опубликовано").slice(0,4).map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.date} · ${x.time}</strong><p>${x.title} · ${x.place} · ${x.participants}</p></div></div>`).join("")||'<div class="empty">Нет опубликованных мероприятий.</div>'}<button class="btn" style="margin-top:10px" onclick="navigate('plan')">Открыть план →</button></section>
+      <section class="card side-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,3).map(noticeHtml).join("")}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
+      </div>`;
+  }
+  function renderTasks(){
+    shell("Текущие задачи","Питание и электронный журнал открываются на внешних ресурсах; расписание доступно только для просмотра.",
+      `<div class="card" style="max-width:950px">${state.tasks.map(taskHtml).join("")}<div style="margin-top:15px"><button class="btn green" onclick="navigate('attendance')">Открыть форму посещаемости</button></div></div>`);
+  }
+  function renderAttendance(){
+    const classes=(state.currentUser.attendanceClasses||[]).concat(state.currentUser.replacement||[]).filter((v,i,a)=>a.indexOf(v)===i);
+    const cls=classes[0]||"5А", rec=state.attendance.find(x=>x.date===dateInfo().iso&&x.className===cls);
+    shell("Посещаемость","Форма заполняется по назначенному классу. После отправки задача за сегодня выполняется автоматически.",
+      `<div class="card form-card">
+      <div class="section-band">Общая информация</div>
+      <div class="form-grid three">
+        <div class="field"><label>Класс</label><select id="attClass" class="readonly" onchange="recalcAttendance()">${classes.map(c=>`<option>${c}</option>`).join("")}</select></div>
+        <div class="field"><label>Количество обучающихся</label><input id="attTotal" class="readonly" value="${classes.length?28:0}" readonly></div>
+        <div class="field"><label>Отстранены на утреннем фильтре по причине заболевания</label><input id="attFiltered" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
+        <div class="field"><label>Количество присутствующих</label><input id="attPresent" class="readonly" value="28" readonly></div>
+        <div class="field"><label>Количество надомников</label><input id="attHome" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
+        <div class="field"><label>Количество питающихся</label><input id="attFood" type="number" min="0" value="0"></div>
+        <div class="field"><label>Количество детей на дистанте по заявлению родителей</label><input id="attRemote" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
+      </div>
+      <div class="present-box" id="attSummary">Присутствуют: 28 · Не явились: 0</div>
+      <div class="reason-band">Количество детей, неявившихся по причине:</div>
+      <div class="section-band">Заболевания</div>
+      <div class="form-grid three">
+        ${attField("Грипп","flu")}${attField("ОРВИ","orvi")}${attField("ОРЗ","orz")}${attField("Острокишечные заболевания","intestinal")}${attField("Энтеровирусная инфекция","enterovirus")}${attField("Ветряная оспа","chickenpox")}${attField("Семейные обстоятельства","family")}
+      </div>
+      <div class="section-band">Прочие заболевания — всего: <span id="otherTotal">0</span></div>
+      <div class="form-grid three">${attField("Пневмония","pneumonia","other")}${attField("Травмы","trauma","other")}${attField("Зубная боль","toothache","other")}${attField("ЖКТ","gi","other")}${attField("Аллергия","allergy","other")}${attField("Другое","other","other")}</div>
+      <div class="section-band">Другие причины</div>
+      <div class="form-grid three">${attField("Выезды на конкурсы, соревнования, лагерь","events")}${attField("Без уважительной причины","noReason")}${attField("Погодные условия","weather")}</div>
+      <div id="attValidation"></div>
+      <div class="toolbar" style="justify-content:flex-end;margin-top:18px"><button class="btn green" onclick="submitAttendance()">Отправить посещаемость</button></div>
+      </div>`);
+    recalcAttendance();
+  }
+  function attField(label,id,cls="reason"){return `<div class="field"><label>${label}</label><input class="att-input ${cls}" data-key="${id}" type="number" min="0" value="0" oninput="recalcAttendance()"></div>`;}
+  function renderTransport(){
+    const can=isManager();
+    shell("Подвоз","Оперативная информация об изменениях маршрутов.",
+      `<div class="card" style="max-width:1000px">${state.transport.map(t=>`<div class="transport" style="border-left-color:${t.level==='important'?'var(--red)':'var(--yellow)'}"><strong>${t.title}${t.read?'':' · новое'}</strong><p>${t.text}</p><small class="muted">${t.date}</small></div>`).join("")}
+      ${can?`<div class="toolbar" style="margin-top:18px"><button class="btn green" onclick="addTransport()">＋ Новое уведомление о подвозе</button></div>`:""}</div>`);
+  }
+  function renderPlan(){
+    const canEdit=isManager(), teacherAdd=!isGuest();
+    shell("План работы","Общий план формируют заместители. Учитель может предложить мероприятие для своего класса.",
+      `<div class="card"><div class="toolbar">${teacherAdd?`<button class="btn green" onclick="addPlan()">＋ Добавить мероприятие</button>`:""}${canEdit?`<span class="chip">Режим редактирования заместителя/директора</span>`:""}</div>
+      <div class="table-wrap"><table class="data-table"><tr><th>Дата</th><th>Время</th><th>Мероприятие</th><th>Место</th><th>Участники</th><th>Ответственный</th><th>Статус</th><th>Действия</th></tr>
+      ${state.plan.map(x=>`<tr><td>${x.date}</td><td>${x.time}</td><td>${x.title}</td><td>${x.place}</td><td>${x.participants}</td><td>${x.responsible||"—"}</td><td><span class="chip">${x.status}</span></td><td>${canEdit?`<div class="icon-actions">${x.status==="На согласовании"?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:""}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:"—"}</td></tr>`).join("")}</table></div></div>`);
+  }
+  function renderSchedule(){
+    const canControl=isManager(), canDispatch=isAdmin()||state.dispatcherIds.includes(state.currentUser.id);
+    shell("Расписание","Диспетчер загружает расписание; учитель просматривает свое и расписание закрепленных классов.",
+      `<div class="grid">
+      <div class="card wide"><h3>Расписание на сегодня</h3><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Время</th><th>Класс</th><th>Предмет</th><th>Кабинет</th></tr>${state.schedule.today.map(x=>`<tr><td>${x.lesson}</td><td>${x.time}</td><td>${x.className}</td><td>${x.subject}</td><td>${x.room}</td></tr>`).join("")}</table></div></div>
+      <div class="card side-card"><h3>Расписание моих классов</h3>${Object.entries(state.schedule.classes).map(([c,arr])=>(state.currentUser.classes||[]).includes(c)?`<div class="notice"><div><strong>${c}</strong><p>${arr.map(x=>`${x.lesson}. ${x.time} — ${x.subject}, каб. ${x.room}`).join("<br>")}</p></div></div>`:"").join("")||'<div class="empty">Классы классного руководства не назначены.</div>'}</div>
+      ${canControl?`<div class="card span12"><h3>Контроль расписания</h3><p class="muted">Директор и заместители видят опубликованное расписание целиком.</p><div class="chips"><span class="chip">Сегодня</span><span class="chip">Опубликовано диспетчером</span></div></div>`:""}
+      ${canDispatch?`<div class="card span12"><h3>Загрузка расписания — диспетчер</h3><div class="file-input"><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><p class="muted">В MVP файл фиксируется как загрузка. На серверном этапе таблица будет разбираться автоматически.</p><button class="btn green" onclick="uploadSchedule()">Загрузить и опубликовать</button></div>`:""}</div>`);
+  }
+  function renderNotifications(){
+    const can=isManager();
+    shell("Уведомления","Оповещения о посещении уроков и короткие сообщения.",
+      `<div class="card"><div class="toolbar">${can?`<button class="btn green" onclick="sendVisit()">＋ Уведомление о посещении урока</button><button class="btn" onclick="sendText()">＋ Сообщение учителю</button>`:""}<button class="btn" onclick="markNotificationsRead()">Отметить все прочитанными</button></div>${state.notifications.map(noticeHtml).join("")}</div>`);
+  }
+  function renderPlaceholder(){
+    const names={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",reports:"Отчеты",archive:"Архив"};
+    const page=state.currentPage;
+    if(page==="olymp"){shell(names[page],"Готовый модуль олимпиадного и конкурсного движения.",`<div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);return;}
+    if(page==="vseobuch"){shell("Всеобуч","Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ")}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами")}${moduleCard("Точка роста","Документы, материалы и информация центра «Точка роста")}</div>`);return;}
+    if(page==="education"){shell("Учебная работа","Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Рабочие программы","Рабочие программы педагогов")}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}</div>`);return;}
+    if(page==="journal"){shell("Электронный журнал","Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
+    if(page==="upbringing"){shell("Воспитательная работа","Материалы воспитательной деятельности.",`<div class="module-grid">${normativeCard()}${moduleCard("Классное руководство","Материалы классных руководителей")}${moduleCard("Движение первых","Материалы и документы")}${moduleCard("Орлята России","Материалы и документы")}</div>`);return;}
+    if(page==="ovz"){shell("Обучающиеся с ОВЗ и инвалидностью","Документы и материалы по сопровождению обучающихся.",`<div class="module-grid">${normativeCard()}${moduleCard("Списки детей с ОВЗ и инвалидностью","Рабочие списки и сведения")}${moduleCard("Рабочие программы по нозологиям","Программы по нозологиям")}${moduleCard("Домашнее обучение","Документы и материалы домашнего обучения")}</div>`);return;}
+    if(page==="gia"){shell("ЕГЭ / ОГЭ","Материалы государственной итоговой аттестации.",`<div class="gia-grid"><div class="gia-half grade9"><h3>ОГЭ — 9 класс</h3>${giaHalf("9 класс")}</div><div class="gia-half grade11"><h3>ЕГЭ — 11 класс</h3>${giaHalf("11 класс")}</div></div>`);return;}
+    if(page==="attestation"){shell("Методическая работа","Организация методической деятельности педагогов.",`<div class="module-grid">${moduleCard("Аттестация","Материалы и документы по аттестации педагогов")}${moduleCard("График предметных недель","График и материалы предметных недель")}${moduleCard("Конкурсы профессионального мастерства","Информация о конкурсах профессионального мастерства")}${moduleCard("Повышение квалификации","Курсы, программы и документы о повышении квалификации")}</div>`);return;}
+    if(page==="reports"){shell("Отчеты","Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
+    shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
+  }
+  function moduleCard(title,text,side="",hasNew=false){return `<div class="module-card ${side} ${hasNew?'module-new':''}" onclick="alert('Открыть раздел: ${escapeHtml(title)}')"><div class="module-card-title">${escapeHtml(title)}${hasNew?'<span class="new-dot">● новое</span>':''}</div><div class="muted">${escapeHtml(text)}</div><div class="module-folder">📂 Открыть папку →</div></div>`;}
+  function normativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div><b>Федеральные документы</b><p>📂 Открыть</p></div><div><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
+  function giaHalf(label){return `${moduleCard("Расписание","Расписание консультаций, тренировочных мероприятий, экзаменов")}${normativeCard()}${moduleCard("Создание особых условий",`Материалы и документы для ${label}`)}${moduleCard("Работники ППЭ",`Сведения и документы для ${label}`)}`;}
+  function renderAnalytics(){
+    const isManagerNow=isManager();
+    if(!isManagerNow){shell("Аналитика","Доступна директору и заместителям.",`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
+    shell("Аналитика","Контроль посещаемости, электронного журнала и сводных данных.",
+      `<div class="analytics-workspace">
+      <div class="card"><h3>Посещаемость</h3><div class="toolbar"><label style="margin:0">Дата с <input id="attFrom" type="date"></label><label style="margin:0">по <input id="attTo" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button></div><div id="attAnalytics"></div></div>
+      <div class="card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="hidden" style="margin:0">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button></div><div id="journalAnalytics"></div></div>
+      <div class="card"><h3>Сводная таблица «Мои данные»</h3><button class="btn green" onclick="exportMyData()">Выгрузить Excel</button><div class="table-wrap" style="margin-top:12px"><table class="data-table"><tr><th>ФИО</th><th>Образование</th><th>Телефон</th><th>Стаж</th><th>Нагрузка</th><th>Квалификация</th><th>Предметы</th></tr>${state.users.filter(u=>u.roleKeys.includes("teacher")||u.roleKeys.includes("deputy")||u.roleKeys.includes("director")).map(u=>`<tr><td>${u.name}</td><td>${(state.myData[u.login]||{}).education||"—"}</td><td>${(state.myData[u.login]||{}).phone||"—"}</td><td>${(state.myData[u.login]||{}).totalExperience||"—"}</td><td>${(state.myData[u.login]||{}).load||"—"}</td><td>${(state.myData[u.login]||{}).qualification||"—"}</td><td>${(state.myData[u.login]||{}).subject1||"—"}</td></tr>`).join("")}</table></div></div>
+      </div>`);
+    filterAttendance();showJournalAnalytics();
+  }
+  function renderMyData(){
+    const d=state.myData[state.currentUser.login]||{};
+    const fields=[
+      ["Фамилия, имя, отчество учителя","fullName"],["Сокращенное наименование образовательной организации (по Уставу)","orgShort"],
+      ["Наименование образовательной организации, год окончания, специальность по диплому","education"],["Переподготовка (организация, год, специальность)","retraining"],
+      ["Номер телефона","phone"],["Адрес эл. почты","email"],["Возраст","age"],["Общий стаж","totalExperience"],["Педагогический стаж","pedExperience"],
+      ["Ветеран труда, год","veteran"],["Научная степень (какая, год присвоения)","degree"],["Жилье: съемная квартира / общежитие","housing"],
+      ["Нуждаетесь в улучшении жилья","housingNeed"],["Общее количество учеников","students"],["Учебная нагрузка (часов в неделю)","load"],["Квалификация","qualification"],
+      ["Преподаваемый предмет 1","subject1"],["Классы по предмету 1","classes1"],["Количество учащихся по предмету 1","students1"],
+      ["Преподаваемый предмет 2","subject2"],["Классы по предмету 2","classes2"],["Количество учащихся по предмету 2","students2"],
+      ["Непрерывное повышение квалификации","cpd"],["Результативность ВОШ 2025/2026","olymp"],["Результативность ЕГЭ 2022/2023","ege"],
+      ["Награды муниципального уровня","awardsMunicipal"],["Награды регионального и всероссийского уровня","awardsRegional"],
+      ["Методические мероприятия текущего учебного года","methodical"],["Эксперт ОГЭ/ЕГЭ/аттестации","expert"],["Конкурсы профессионального мастерства","proContests"]
+    ];
+    shell("Мои данные","Анкета педагога. Данные собираются в сводную таблицу для директора и заместителей.",
+      `<div class="card form-card"><div class="form-grid">${fields.map(([label,key])=>`<div class="field"><label>${label}</label><input id="md_${key}" value="${escapeHtml(d[key]||"")}"></div>`).join("")}</div><div class="toolbar" style="justify-content:flex-end;margin-top:18px"><button class="btn green" onclick="saveMyData()">Сохранить анкету</button></div></div>`);
+  }
+  function renderAdmin(){
+    if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
+    shell("Администрирование","Пользователи, роли, классы, замещения, диспетчер и расписание звонков.",
+      `<div class="grid">
+      <div class="card span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th>Диспетчер</th><th></th></tr>${state.users.map(u=>`<tr><td>${u.name}</td><td>${u.login}</td><td>${u.roles}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${c} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td>${state.dispatcherIds.includes(u.id)?"✓":""}</td><td><button class="small-btn" onclick="resetPassword(${u.id})">Сбросить пароль</button></td></tr>`).join("")}</table></div></div>
+      <div class="card span6"><h3>Расписание звонков</h3><div class="bell-editor"><div><h4>Понедельник</h4><div id="bellsMonday">${renderBellRows('monday')}</div><button class="small-btn" onclick="addBellRow('monday')">＋ Добавить урок</button></div><div><h4>Вторник–пятница</h4><div id="bellsWeekdays">${renderBellRows('weekdays')}</div><button class="small-btn" onclick="addBellRow('weekdays')">＋ Добавить урок</button></div></div><button class="btn green" style="margin-top:15px" onclick="saveBells()">Сохранить расписание звонков</button></div>
+      <div class="card span6"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${state.dispatcherIds.includes(u.id)?"selected":""}>${u.name}</option>`).join("")}</select><button class="btn green" style="margin-top:15px" onclick="saveDispatcher()">Сохранить назначение</button><p class="muted" style="margin-top:12px">Назначенный сотрудник сможет загружать ежедневное расписание.</p></div>
+      <div class="card span12"><h3>Сроки каникул</h3><label>Текст объявления-напоминания</label><textarea id="vacationsText" rows="5">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить</button></div>
+      <div class="card span12"><h3>Назначение замещений</h3><p class="muted">В MVP замещения демонстрируются в карточке пользователя. На следующем серверном этапе назначение будет отдельной формой по датам.</p></div>
+      </div>`);
+  }
+  function renderSettings(){shell("Настройки","Настройки пользователя.",`<div class="card" style="max-width:800px"><div class="settings-row"><b>Логин</b><div>${state.currentUser.login}</div></div><div class="settings-row"><b>Роль</b><div>${state.currentUser.roles||state.currentUser.role}</div></div><div class="settings-row"><b>Смена пароля</b><div><button class="btn" onclick="changePassword()">Изменить пароль</button></div></div></div>`);}
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+  window.recalcAttendance=function(){
+    const total=+(document.getElementById("attTotal")?.value||0), inputs=[...document.querySelectorAll(".att-input")], absent=inputs.reduce((s,e)=>s+(+e.value||0),0)+(+(document.getElementById("attFiltered")?.value||0))+(+(document.getElementById("attHome")?.value||0))+(+(document.getElementById("attRemote")?.value||0));
+    const other=[...document.querySelectorAll(".att-input.other")].reduce((s,e)=>s+(+e.value||0),0);
+    const present=Math.max(0,total-absent);
+    if(document.getElementById("attPresent"))document.getElementById("attPresent").value=present;
+    if(document.getElementById("attSummary"))document.getElementById("attSummary").textContent=`Присутствуют: ${present} · Не явились: ${absent}`;
+    if(document.getElementById("otherTotal"))document.getElementById("otherTotal").textContent=other;
+    const v=document.getElementById("attValidation");if(v)v.innerHTML=absent>total?'<div class="warning-box">⚠ Количество указанных отсутствующих превышает количество детей в классе. Проверьте данные.</div>':'';
+  };
+  window.submitAttendance=function(){
+    recalcAttendance();
+    const cls=document.getElementById("attClass").value,total=+document.getElementById("attTotal").value,present=+document.getElementById("attPresent").value;
+    const all={};document.querySelectorAll(".att-input").forEach(e=>all[e.dataset.key]=+e.value||0);
+    const rec={date:dateInfo().iso,className:cls,total,present,filtered:+document.getElementById("attFiltered").value||0,home:+document.getElementById("attHome").value||0,food:+document.getElementById("attFood").value||0,remote:+document.getElementById("attRemote").value||0,...all,teacher:state.currentUser.name};
+    state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&x.teacher===rec.teacher));state.attendance.push(rec);
+    const t=state.tasks.find(x=>x.id==="attendance");if(t)t.done=true;save();alert("Посещаемость отправлена и сохранена в аналитике.");navigate("home");
+  };
+  window.filterAttendance=function(){
+    const from=document.getElementById("attFrom")?.value||"",to=document.getElementById("attTo")?.value||"";
+    const arr=state.attendance.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>classSort(a.className,b.className));
+    const headers=["Дата","Класс","Учитель","По списку","Отстранены на утреннем фильтре","Присутствуют","Надомники","Питаются","Дистант","Грипп","ОРВИ","ОРЗ","Острокишечные заболевания","Энтеровирусная инфекция","Ветряная оспа","Семейные обстоятельства","Пневмония","Травмы","Зубная боль","ЖКТ","Аллергия","Другое","Выезды на конкурсы, соревнования, лагерь","Без уважительной причины","Погодные условия"];
+    const el=document.getElementById("attAnalytics");if(!el)return;
+    el.innerHTML=`<div class="table-wrap"><table class="data-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${arr.map(x=>`<tr>${[x.date,x.className,x.teacher,x.total,x.filtered,x.present,x.home,x.food,x.remote,x.flu,x.orvi,x.orz,x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather].map(v=>`<td>${v??0}</td>`).join('')}</tr>`).join("")||`<tr><td colspan="25">Нет данных за выбранный период.</td></tr>`}</table></div>`;
+  };
+  function classSort(a,b){const pa=String(a).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[],pb=String(b).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[];return (+pa[1]||0)-(+pb[1]||0)||String(pa[2]||'').localeCompare(String(pb[2]||''),'ru');}
+  window.exportAttendance=function(){
+    const from=document.getElementById("attFrom")?.value||"",to=document.getElementById("attTo")?.value||"";
+    const arr=state.attendance.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>classSort(a.className,b.className));
+    const headers=["Дата","Класс","Учитель","По списку","Отстранены на утреннем фильтре","Присутствуют","Надомники","Питаются","Дистант","Грипп","ОРВИ","ОРЗ","Острокишечные заболевания","Энтеровирусная инфекция","Ветряная оспа","Семейные обстоятельства","Пневмония","Травмы","Зубная боль","ЖКТ","Аллергия","Другое","Выезды на конкурсы, соревнования, лагерь","Без уважительной причины","Погодные условия"];
+    const rows=arr.map(x=>[x.date,x.className,x.teacher,x.total,x.filtered,x.present,x.home,x.food,x.remote,x.flu,x.orvi,x.orz,x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]);
+    if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([headers,...rows]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');XLSX.writeFile(wb,'посещаемость.xlsx');}else downloadCSV(headers,rows,'посещаемость.csv');
+  };
+  window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=d.toISOString().slice(0,10);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
+  window.showJournalAnalytics=function(){
+    const from=document.getElementById("jFrom")?.value||"",to=document.getElementById("jTo")?.value||"";
+    const arr=state.journalOverdue.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
+    const grouped={};arr.forEach(x=>{grouped[x.login]??={name:x.name,count:0,dates:[]};grouped[x.login].count+=x.count;grouped[x.login].dates.push(x);});
+    const el=document.getElementById("journalAnalytics");if(!el)return;
+    el.innerHTML=`<div class="table-wrap"><table class="data-table"><tr><th>Педагог</th><th>Просрочено страниц</th><th>Даты</th></tr>${Object.values(grouped).map((x,i)=>`<tr><td>${x.name}</td><td><button class="link-button" onclick="toggleJournalDates('jd_${i}')">${x.count}</button></td><td><div id="jd_${i}" class="hidden">${x.dates.map(d=>`<div>${d.date} — ${d.count} стр.</div>`).join("")}</div><span>${x.dates.map(d=>d.date).join(', ')}</span></td></tr>`).join("")||'<tr><td colspan="3">Нет просрочек за период.</td></tr>'}</table></div>`;
+  };
+  window.toggleJournalDates=function(id){document.getElementById(id)?.classList.toggle('hidden');};
+  window.addPlan=function(){const title=prompt("Мероприятие:");if(!title)return;state.plan.push({id:Date.now(),date:prompt("Дата:","15.08")||"",time:prompt("Время:","12:00")||"",title,place:prompt("Место:","Кабинет")||"",participants:prompt("Участники:","Мой класс")||"",responsible:isManager()?state.currentUser.name:"",status:isManager()?"Опубликовано":"На согласовании",author:state.currentUser.login});save();render();};
+  window.publishPlan=function(id){const x=state.plan.find(p=>p.id===id);if(x){x.status="Опубликовано";x.responsible=x.responsible||state.currentUser.name;save();render();}};
+  window.editPlan=function(id){const x=state.plan.find(p=>p.id===id);if(!x)return;x.title=prompt("Мероприятие:",x.title)||x.title;x.date=prompt("Дата:",x.date)||x.date;x.time=prompt("Время:",x.time)||x.time;x.place=prompt("Место:",x.place)||x.place;x.participants=prompt("Участники:",x.participants)||x.participants;save();render();};
+  window.deletePlan=function(id){if(confirm("Удалить мероприятие?")){state.plan=state.plan.filter(x=>x.id!==id);save();render();}};
+  window.addTransport=function(){const title=prompt("Маршрут / заголовок:");if(!title)return;const text=prompt("Текст уведомления:")||"";state.transport.unshift({id:Date.now(),level:"important",title,text,date:"Сегодня",read:false});save();render();};
+  window.sendText=function(){
+    const users=state.users.filter(u=>u.roleKeys.includes("teacher"));
+    const names=users.map((u,i)=>`${i+1}. ${u.name}`).join("\n");
+    const pick=prompt("Введите номера учителей через запятую:\n"+names);if(!pick)return;
+    const msg=prompt("Короткое сообщение:");if(!msg)return;
+    pick.split(",").map(x=>+x.trim()-1).filter(i=>users[i]).forEach(i=>state.notifications.unshift({id:Date.now()+i,type:"text",title:"Новое сообщение",text:msg,date:"Сегодня",read:false,teacher:users[i].login}));
+    save();render();
+  };
+  window.sendVisit=function(){const users=state.users.filter(u=>u.roleKeys.includes("teacher"));const pick=prompt("Номер учителя:\n"+users.map((u,i)=>`${i+1}. ${u.name}`).join("\n"));if(!pick||!users[+pick-1])return;const u=users[+pick-1];const date=prompt("Дата посещения:","завтра")||"завтра",time=prompt("Время:","10:15")||"10:15",lesson=prompt("Номер урока:","3")||"3",cls=prompt("Класс:","7Б")||"7Б";state.notifications.unshift({id:Date.now(),type:"visit",title:"К вам на урок придут",text:`${date}, ${time}, ${lesson} урок, ${cls}. Посетитель: ${state.currentUser.name}.`,date:"Сегодня",read:false,teacher:u.login,visit:{visitor:state.currentUser.name,date,time,lesson,cls}});save();render();};
+  window.readNotification=function(id){const n=state.notifications.find(x=>x.id===id);if(n){n.read=true;save();render();}};
+  window.markNotificationsRead=function(){state.notifications.forEach(n=>n.read=true);save();render();};
+  window.saveMyData=function(){const d={};document.querySelectorAll('[id^="md_"]').forEach(e=>d[e.id.slice(3)]=e.value.trim());state.myData[state.currentUser.login]=d;save();alert("Анкета сохранена.");render();};
+  window.exportMyData=function(){const keys=Object.keys(state.myData), rows=keys.map(k=>Object.values(state.myData[k]));downloadCSV(["Логин",...keys],rows,"мои_данные.csv");};
+  window.addUser=function(){const name=prompt("ФИО:");if(!name)return;const login=prompt("Логин:","newuser");if(!login)return;state.users.push({id:Date.now(),name,login,roleKeys:["teacher"],roles:"Учитель",classes:[],shift:{},attendanceClasses:[],replacement:[]});save();render();};
+  window.resetPassword=function(id){alert("Пароль пользователя сброшен администратором. В серверной версии будет установлен временный пароль и отправлено уведомление.");};
+  function renderBellRows(kind){const arr=state.schedule.bellSchedules?.[kind]||[];return arr.map((b,i)=>`<div class="bell-row"><input id="${kind}_n_${i}" type="number" min="1" value="${b.n}"><input id="${kind}_s_${i}" type="time" value="${b.start}"><span>—</span><input id="${kind}_e_${i}" type="time" value="${b.end}"><button class="small-btn danger" onclick="removeBellRow('${kind}',${i})">×</button></div>`).join("");}
+  window.addBellRow=function(kind){state.schedule.bellSchedules[kind].push({n:state.schedule.bellSchedules[kind].length+1,start:"08:30",end:"09:15"});save();render();};
+  window.removeBellRow=function(kind,i){state.schedule.bellSchedules[kind].splice(i,1);save();render();};
+  window.saveBells=function(){["monday","weekdays"].forEach(kind=>{const arr=state.schedule.bellSchedules[kind];arr.forEach((b,i)=>{b.n=+(document.getElementById(`${kind}_n_${i}`)?.value||b.n);b.start=document.getElementById(`${kind}_s_${i}`)?.value||b.start;b.end=document.getElementById(`${kind}_e_${i}`)?.value||b.end;});});state.schedule.bells=state.schedule.bellSchedules.weekdays;save();alert("Расписание звонков сохранено.");render();};
+  window.saveVacations=function(){state.vacationsText=document.getElementById("vacationsText").value;save();alert("Сроки каникул сохранены.");render();};
+  window.saveDispatcher=function(){const id=+document.getElementById("dispatcherSelect").value;state.dispatcherIds=[id];save();alert("Диспетчер назначен.");render();};
+  window.uploadSchedule=function(){const f=document.getElementById("scheduleFile").files[0];if(!f)return alert("Выберите Excel/CSV файл.");state.schedule.uploadedFile=f.name;save();alert(`Файл «${f.name}» загружен. В серверной версии строки файла будут автоматически разобраны и опубликованы.`);};
+  window.changePassword=function(){const p=prompt("Новый пароль:");if(p)alert("В MVP пароль изменен локально. В серверной версии изменение будет сохранено в учетной записи.");};
+  function downloadCSV(headers,rows,name){const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
+  document.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
+  document.getElementById("topNotify").addEventListener("click",()=>navigate("notifications"));
+  document.getElementById("profileToggle").addEventListener("click",()=>document.getElementById("profileMenu").classList.toggle("hidden"));
+  document.querySelectorAll("#profileMenu [data-page]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
+  document.getElementById("logoutBtn").addEventListener("click",()=>{state.currentUser=null;localStorage.removeItem("schoolSolutionsSession");document.getElementById("app").classList.add("hidden");document.getElementById("authScreen").classList.remove("hidden");});
+  document.getElementById("loginForm").addEventListener("submit",e=>{
+    e.preventDefault();const login=document.getElementById("login").value.trim(),password=document.getElementById("password").value;
+    const base=Object.values(USERS).find(u=>u.login===login&&u.password===password);
+    if(!base){document.getElementById("loginError").textContent="Неверный логин или пароль.";return;}
+    const db=state.users.find(u=>u.login===login);
+    state.currentUser=db?{...base,...db}:base;state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession",login);
+    document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");document.getElementById("loginError").textContent="";render();
+  });
+  window.navigate=function(page){if(page==="attendance"){state.currentPage="attendance";}else{state.currentPage=page;}save();document.getElementById("profileMenu").classList.add("hidden");render();window.scrollTo({top:0,behavior:"smooth"});};
+  const oldTaskBadge=document.getElementById("taskBadge");
+  const session=localStorage.getItem("schoolSolutionsSession");
+  if(session){
+    const base=Object.values(USERS).find(u=>u.login===session),db=state.users.find(u=>u.login===session);
+    if(base){state.currentUser=db?{...base,...db}:base;document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
+  }
+
+})();
+</script>
+</body>
+</html>
