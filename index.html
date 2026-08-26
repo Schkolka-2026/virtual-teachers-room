@@ -96,7 +96,8 @@
     .olymp-embed{width:100%;overflow:hidden;border-radius:16px;background:#fff}
     .olymp-embed iframe{display:block;width:100%;min-height:1100px;height:78vh;border:0;border-radius:16px;background:#fff}
     @media(max-width:680px){.olymp-embed iframe{min-height:1600px;height:calc(100vh - 110px)}}
-  </style>
+  .guest-login{display:flex;align-items:center;gap:8px;margin:10px 0 14px;font-size:14px;color:var(--muted);cursor:pointer}.guest-login input{width:auto!important}.guest-hidden{display:none!important}
+</style>
 
 <style>
 .form-card{max-width:1100px}
@@ -122,6 +123,63 @@
 @media(max-width:800px){.form-grid,.form-grid.three{grid-template-columns:1fr}}
 .yellow-btn{background:var(--yellow)!important;border-color:var(--yellow)!important;color:#4c3b00!important}.analytics-workspace{max-width:1050px;display:grid;grid-template-columns:1fr 1fr;gap:18px}.analytics-workspace .card{min-width:0}.link-button{border:0;background:transparent;color:var(--green-800);font-weight:900;cursor:pointer;text-decoration:underline}.vacation-box{margin-top:14px;padding:12px;border-top:1px solid var(--line);background:#fffbec;border-radius:12px}.vacation-box h3{margin-bottom:6px}.vacation-text{font-size:12px;white-space:pre-wrap;color:#655b36}.module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.module-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;min-height:130px;box-shadow:0 6px 20px rgba(6,61,43,.04);cursor:pointer}.module-card-title{font-size:17px;font-weight:800;margin-bottom:8px}.module-folder{margin-top:16px;color:var(--green-800);font-size:12px;font-weight:800}.module-new{border-color:var(--yellow);box-shadow:0 0 0 2px rgba(244,197,66,.15)}.new-dot{float:right;color:var(--red);font-size:11px}.normative-card{grid-column:1/-1;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}.normative-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);margin-top:12px}.normative-cols>div{background:var(--green-50);padding:16px;min-height:90px}.normative-cols p{color:var(--green-800);font-size:12px}.gia-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.gia-half{padding:18px;border-radius:20px;border:1px solid var(--line)}.gia-half.grade9{background:#fffaf0}.gia-half.grade11{background:#f0f8f4}.gia-half h3{margin-top:0}.gia-half .module-card,.gia-half .normative-card{margin-bottom:14px}.bell-editor{display:grid;grid-template-columns:1fr 1fr;gap:16px}.bell-row{display:grid;grid-template-columns:48px 1fr 12px 1fr 30px;gap:5px;align-items:center;margin-bottom:7px}.bell-row input{padding:8px 6px}.bell-row .small-btn{padding:6px}.module-card.right{}.module-card.left{}
 @media(max-width:1000px){.analytics-workspace,.module-grid,.gia-grid,.bell-editor{grid-template-columns:1fr}.normative-cols{grid-template-columns:1fr}}
+
+.mobile-menu-btn{display:none;width:42px;height:42px;border:1px solid var(--line);background:#fff;border-radius:12px;font-size:20px;color:var(--green-900);flex:0 0 auto}
+.mobile-overlay{display:none}
+@media(max-width:680px){
+  .mobile-menu-btn{display:block}
+  .sidebar{display:block;width:290px;transform:translateX(-105%);transition:transform .22s ease;box-shadow:12px 0 35px rgba(0,0,0,.18);z-index:30}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:25;display:none}
+  .mobile-overlay.show{display:block}
+  .main{margin-left:0;width:100%}
+  .topbar{height:64px;padding:0 12px;gap:8px}
+  .search{display:block;min-width:0;max-width:none}
+  .search input{padding-left:38px;font-size:13px}
+  .top-actions{gap:6px}
+  .profile{padding-left:0}
+  .profile .meta{display:none}
+  .content{padding:14px}
+  .hero{padding:18px;border-radius:18px;margin-bottom:14px}
+  .hero h1{font-size:23px}
+  .hero p{font-size:13px}
+  .card{padding:16px;border-radius:16px}
+  .section-title h2{font-size:22px}
+  .module-grid,.gia-grid{grid-template-columns:1fr}
+  .normative-cols{grid-template-columns:1fr}
+  .gia-half{padding:14px}
+  .analytics-workspace{grid-template-columns:1fr}
+  .data-table{min-width:680px}
+  .bell-editor{grid-template-columns:1fr}
+  .form-grid,.form-grid.three{grid-template-columns:1fr}
+  .toolbar .btn{width:100%}
+  .olymp-embed iframe{min-height:calc(100vh - 120px);height:calc(100vh - 100px)}
+}
+@media(max-width:420px){
+  .search span{display:none}
+  .search input{padding-left:12px}
+  .top-actions .icon-btn{width:38px;height:38px}
+  .mobile-menu-btn{width:38px;height:38px}
+  .content{padding:10px}
+  .hero h1{font-size:21px}
+}
+
+
+@media(max-width:680px){
+  .sidebar{width:310px}
+  .sidebar .nav-item{display:flex!important;align-items:center;gap:12px;justify-content:flex-start;white-space:normal}
+  .sidebar .nav-item > span:not(.nav-icon):not(.badge){display:inline!important;opacity:1!important;visibility:visible!important;font-size:14px;white-space:normal}
+  .sidebar .nav-icon{display:inline-flex!important;width:28px;min-width:28px;justify-content:center}
+}
+.module-grid.orderable{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.module-grid.orderable .full{grid-column:1/-1}
+.notice-order{background:#fff7d6!important;border-color:#e7c95b!important}
+.normative-cols.two-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:680px){
+  .module-grid.orderable{grid-template-columns:1fr}
+  .normative-cols.two-cols{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -141,6 +199,7 @@
       <input id="login" autocomplete="username" placeholder="Введите логин" required>
       <label for="password">Пароль</label>
       <input id="password" type="password" autocomplete="current-password" placeholder="Введите пароль" required>
+      <label class="guest-login"><input type="checkbox" id="guestMode"> Войти без пароля (режим гостя)</label>
       <button class="primary" type="submit">Войти</button>
       <div class="error" id="loginError"></div>
       <div class="demo">
@@ -149,17 +208,18 @@
         Директор: <b>director / 1234</b><br>
         Заместитель: <b>deputy / 1234</b><br>
         Учитель: <b>teacher / 1234</b><br>
-        Гость: <b>guest / 1234</b>
+        Гость: <b>guest</b> — можно войти без пароля
       </div>
     </form>
   </div>
 </section>
 
 <section id="app" class="hidden">
+  <div class="mobile-overlay" id="mobileOverlay"></div>
   <aside class="sidebar">
     <div class="side-brand">
       <img src="assets/logo.png" alt="Логотип">
-      <div class="side-brand-text"><strong>Школа решений</strong><span>Виртуальная<br>учительская</span></div>
+      <div class="side-brand-text"><strong>Виртуальная учительская</strong></div>
     </div>
     <div class="date-title" id="sideDate"></div>
 
@@ -180,7 +240,8 @@
     <button class="nav-item" data-page="olymp"><span class="nav-icon">🏆</span><span>Олимпиадное и конкурсное движение</span></button>
     <button class="nav-item" data-page="gia"><span class="nav-icon">📝</span><span>ЕГЭ / ОГЭ</span></button>
     <button class="nav-item" data-page="attestation"><span class="nav-icon">👩‍🏫</span><span>Методическая работа</span></button>
-    <button class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>Отчеты</span></button>
+    <button class="nav-item" data-page="career"><span class="nav-icon">🧭</span><span>Профориентация</span></button>
+<button class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>Отчеты</span></button>
     <button class="nav-item" data-page="archive"><span class="nav-icon">📦</span><span>Архив</span></button>
 
     <div class="nav-title">Моя статистика</div>
@@ -194,6 +255,7 @@
 
   <main class="main">
     <header class="topbar">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Открыть меню">☰</button>
       <div class="search"><span>🔎</span><input id="globalSearch" placeholder="Поиск по виртуальной учительской"></div>
       <div class="top-actions">
         <button class="icon-btn" id="topNotify" title="Уведомления">🔔<span class="badge new" id="topNotifyBadge">0</span></button>
@@ -310,10 +372,10 @@
     document.getElementById("profileRole").textContent=state.currentUser.roles||state.currentUser.role||"Пользователь";
     document.getElementById("avatar").textContent=initials(state.currentUser.name);
     updateBadges();
-    document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===state.currentPage));
+    document.querySelectorAll(".nav-item").forEach(b=>{b.classList.toggle("active",b.dataset.page===state.currentPage);b.classList.toggle("guest-hidden",isGuest()&&["plan","notifications","analytics","mydata","settings","admin","reports","archive"].includes(b.dataset.page));});
     const pages={home:renderHome,tasks:renderTasks,attendance:renderAttendance,transport:renderTransport,plan:renderPlan,notifications:renderNotifications,
       vseobuch:renderPlaceholder,education:renderPlaceholder,journal:renderPlaceholder,upbringing:renderPlaceholder,ovz:renderPlaceholder,olymp:renderPlaceholder,
-      gia:renderPlaceholder,attestation:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:renderAnalytics,
+      gia:renderPlaceholder,attestation:renderPlaceholder,career:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:renderAnalytics,
       mydata:renderMyData,settings:renderSettings,admin:renderAdmin,schedule:renderSchedule};
     pages[state.currentPage]?.();
   }
@@ -330,9 +392,9 @@
   function noticeHtml(n){return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${n.id})"><div class="dot"></div><div><strong>${n.title}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${n.text}</p><small class="muted">${n.date}</small></div></div>`;}
   function renderHome(){
     const d=dateInfo(), transport=state.transport.find(x=>!x.read)||state.transport[0], bell=(d.day==="понедельник"?state.schedule.bellSchedules?.monday:state.schedule.bellSchedules?.weekdays)||state.schedule.bells||[];
-    document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в «Школе решений».</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>
+    document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в виртуальной учительской.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>
       <div class="grid">
-      <section class="card task-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>
+      ${!isGuest()?`<section class="card task-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>`:""}
       <section class="card transport-card"><h3>🕘 Расписание звонков</h3>${bell.map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.n} урок</strong><p>${x.start} — ${x.end}</p></div></div>`).join("")}<div class="vacation-box"><h3>🏖 Сроки каникул</h3><div class="vacation-text">${escapeHtml(state.vacationsText||"")}</div></div></section>
       <section class="card wide"><h3>📅 Ближайшее в плане работы</h3>${state.plan.filter(x=>x.status==="Опубликовано").slice(0,4).map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.date} · ${x.time}</strong><p>${x.title} · ${x.place} · ${x.participants}</p></div></div>`).join("")||'<div class="empty">Нет опубликованных мероприятий.</div>'}<button class="btn" style="margin-top:10px" onclick="navigate('plan')">Открыть план →</button></section>
       <section class="card side-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,3).map(noticeHtml).join("")}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
@@ -401,22 +463,49 @@
       `<div class="card"><div class="toolbar">${can?`<button class="btn green" onclick="sendVisit()">＋ Уведомление о посещении урока</button><button class="btn" onclick="sendText()">＋ Сообщение учителю</button>`:""}<button class="btn" onclick="markNotificationsRead()">Отметить все прочитанными</button></div>${state.notifications.map(noticeHtml).join("")}</div>`);
   }
   function renderPlaceholder(){
-    const names={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",reports:"Отчеты",archive:"Архив"};
+    const names={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",reports:"Отчеты",archive:"Архив"};
     const page=state.currentPage;
     if(page==="olymp"){shell(names[page],"Готовый модуль олимпиадного и конкурсного движения.",`<div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);return;}
-    if(page==="vseobuch"){shell("Всеобуч","Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ")}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами")}${moduleCard("Точка роста","Документы, материалы и информация центра «Точка роста")}</div>`);return;}
-    if(page==="education"){shell("Учебная работа","Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Рабочие программы","Рабочие программы педагогов")}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}</div>`);return;}
-    if(page==="journal"){shell("Электронный журнал","Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
-    if(page==="upbringing"){shell("Воспитательная работа","Материалы воспитательной деятельности.",`<div class="module-grid">${normativeCard()}${moduleCard("Классное руководство","Материалы классных руководителей")}${moduleCard("Движение первых","Материалы и документы")}${moduleCard("Орлята России","Материалы и документы")}</div>`);return;}
-    if(page==="ovz"){shell("Обучающиеся с ОВЗ и инвалидностью","Документы и материалы по сопровождению обучающихся.",`<div class="module-grid">${normativeCard()}${moduleCard("Списки детей с ОВЗ и инвалидностью","Рабочие списки и сведения")}${moduleCard("Рабочие программы по нозологиям","Программы по нозологиям")}${moduleCard("Домашнее обучение","Документы и материалы домашнего обучения")}</div>`);return;}
+    if(page==="vseobuch"){shell("Всеобуч","Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы","left")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся","right")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию","left")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами","right")}</div>`);return;}
+    if(page==="education"){shell("Учебная работа","Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("ВПР","Всероссийские проверочные работы")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}</div>`);return;}
+    if(page==="journal"){shell("Электронный журнал","Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Приказы","Новые приказы по электронному журналу. Непрочитанные документы подсвечиваются.","left",true)}${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
+    if(page==="upbringing"){shell("Воспитательная работа","Материалы воспитательной деятельности.",`<div class="module-grid orderable">
+${moduleCard("Классное руководство","Материалы и документы по классному руководству")}
+${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}
+${normativeCard()}
+${moduleCard("Движение первых","Материалы и документы")}
+${moduleCard("Орлята России","Материалы и документы программы «Орлята России»")}
+</div>`);return;}
+    if(page==="ovz"){shell("Обучающиеся с ОВЗ и инвалидностью","Документы и материалы по сопровождению обучающихся.",`<div class="module-grid orderable">
+${moduleCard("Списки детей с ОВЗ и инвалидностью","Списки обучающихся и необходимые материалы")}
+${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}
+${normativeCard()}
+${moduleCard("Рабочие программы по нозологиям","Рабочие программы и материалы")}
+${moduleCard("Домашнее обучение","Документы и материалы по организации домашнего обучения")}
+</div>`);return;}
     if(page==="gia"){shell("ЕГЭ / ОГЭ","Материалы государственной итоговой аттестации.",`<div class="gia-grid"><div class="gia-half grade9"><h3>ОГЭ — 9 класс</h3>${giaHalf("9 класс")}</div><div class="gia-half grade11"><h3>ЕГЭ — 11 класс</h3>${giaHalf("11 класс")}</div></div>`);return;}
-    if(page==="attestation"){shell("Методическая работа","Организация методической деятельности педагогов.",`<div class="module-grid">${moduleCard("Аттестация","Материалы и документы по аттестации педагогов")}${moduleCard("График предметных недель","График и материалы предметных недель")}${moduleCard("Конкурсы профессионального мастерства","Информация о конкурсах профессионального мастерства")}${moduleCard("Повышение квалификации","Курсы, программы и документы о повышении квалификации")}</div>`);return;}
+    if(page==="attestation"){shell("Методическая работа","Организация методической деятельности педагогов.",`<div class="module-grid orderable">
+${moduleCard("График предметных недель","График и материалы предметных недель")}
+${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}
+${moduleCard("Аттестация","Материалы по аттестации педагогических работников")}
+${moduleCard("Конкурсы профессионального мастерства","Конкурсы и материалы для участия")}
+${moduleCard("Повышение квалификации","Курсы, программы и документы по повышению квалификации")}
+</div>`);return;}
+    if(page==="career"){shell("Профориентация","Материалы и документы по профориентационной работе.",`<div class="module-grid">
+      ${moduleCard("Расписание мероприятий","Календарь мероприятий по профориентации","left")}
+      ${moduleCard("Приказы","Новые приказы по профориентации. Непрочитанные документы подсвечиваются.","right",true)}
+      ${normativeCard()}
+      ${moduleCard("Предпрофильные классы (5–9)","Информация о предпрофильных и профильных направлениях","left")}
+      ${moduleCard("Билет в будущее","Материалы и информация проекта «Билет в будущее»","right")}
+      </div>`);return;}
     if(page==="reports"){shell("Отчеты","Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
     shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
   }
-  function moduleCard(title,text,side="",hasNew=false){return `<div class="module-card ${side} ${hasNew?'module-new':''}" onclick="alert('Открыть раздел: ${escapeHtml(title)}')"><div class="module-card-title">${escapeHtml(title)}${hasNew?'<span class="new-dot">● новое</span>':''}</div><div class="muted">${escapeHtml(text)}</div><div class="module-folder">📂 Открыть папку →</div></div>`;}
+  function guestAllowed(page,title){if(!isGuest())return true;const allow={vseobuch:["Прием и перевод","Семейное образование"],education:[],journal:["Для родителей"],upbringing:[],ovz:[],olymp:["__ALL__"],gia:["Расписание","Нормативные документы"],attestation:[],career:["Расписание мероприятий","Нормативные документы","Предпрофильные классы (5–9)","Билет в будущее"]};if(title==="Нормативные документы")return true;if(page==="olymp")return true;if(page==="gia"&&title==="Расписание")return true;return (allow[page]||[]).includes(title);}
+  function moduleCard(title,text,side="",hasNew=false){if(!guestAllowed(state.currentPage,title))return ``;return `<div class="module-card ${side} ${hasNew?'module-new':''}" onclick="alert('Открыть раздел: ${escapeHtml(title)}')"><div class="module-card-title">${escapeHtml(title)}${hasNew?'<span class="new-dot">● новое</span>':''}</div><div class="muted">${escapeHtml(text)}</div><div class="module-folder">📂 Открыть папку →</div></div>`;}
   function normativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div><b>Федеральные документы</b><p>📂 Открыть</p></div><div><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
-  function giaHalf(label){return `${moduleCard("Расписание","Расписание консультаций, тренировочных мероприятий, экзаменов")}${normativeCard()}${moduleCard("Создание особых условий",`Материалы и документы для ${label}`)}${moduleCard("Работники ППЭ",`Сведения и документы для ${label}`)}`;}
+  function normativeCardNoLocal(){return `<div class="normative-card full"><h3>Нормативные документы</h3><div class="normative-cols two-cols"><div><b>Федеральные документы</b><p>📂 Открыть</p></div><div><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div></div></div>`;}
+  function giaHalf(label){const exam=label==="9 класс"?"ОГЭ":"ЕГЭ";return `${moduleCard("Расписание","Расписание консультаций, тренировочных мероприятий, экзаменов")}${moduleCard("Выбор предметов",`Выбор предметов для ${label}`)}${moduleCard("Приказы",`Приказы по ${exam}. Новые документы подсвечиваются.`,"left",true)}${normativeCardNoLocal()}${moduleCard("Создание особых условий",`Материалы и документы для ${label}`)}${moduleCard("Работники ППЭ",`Сведения и документы для ${label}`)}`;}
   function renderAnalytics(){
     const isManagerNow=isManager();
     if(!isManagerNow){shell("Аналитика","Доступна директору и заместителям.",`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
@@ -530,18 +619,22 @@
   function downloadCSV(headers,rows,name){const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
   document.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
   document.getElementById("topNotify").addEventListener("click",()=>navigate("notifications"));
+  function closeMobileMenu(){document.querySelector(".sidebar")?.classList.remove("mobile-open");document.getElementById("mobileOverlay")?.classList.remove("show");}
+  document.getElementById("mobileMenuBtn")?.addEventListener("click",()=>{document.querySelector(".sidebar")?.classList.toggle("mobile-open");document.getElementById("mobileOverlay")?.classList.toggle("show");});
+  document.getElementById("mobileOverlay")?.addEventListener("click",closeMobileMenu);
   document.getElementById("profileToggle").addEventListener("click",()=>document.getElementById("profileMenu").classList.toggle("hidden"));
   document.querySelectorAll("#profileMenu [data-page]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
   document.getElementById("logoutBtn").addEventListener("click",()=>{state.currentUser=null;localStorage.removeItem("schoolSolutionsSession");document.getElementById("app").classList.add("hidden");document.getElementById("authScreen").classList.remove("hidden");});
+  document.getElementById("guestMode")?.addEventListener("change",e=>{const p=document.getElementById("password"),l=document.getElementById("login");if(e.target.checked){l.value="guest";p.value="";l.readOnly=true;p.disabled=true;p.required=false;}else{l.readOnly=false;p.disabled=false;p.required=true;l.value="";}});
   document.getElementById("loginForm").addEventListener("submit",e=>{
-    e.preventDefault();const login=document.getElementById("login").value.trim(),password=document.getElementById("password").value;
-    const base=Object.values(USERS).find(u=>u.login===login&&u.password===password);
+    e.preventDefault();const guestMode=document.getElementById("guestMode")?.checked;const login=guestMode?"guest":document.getElementById("login").value.trim(),password=document.getElementById("password").value;
+    const base=guestMode?USERS.guest:Object.values(USERS).find(u=>u.login===login&&u.password===password);
     if(!base){document.getElementById("loginError").textContent="Неверный логин или пароль.";return;}
     const db=state.users.find(u=>u.login===login);
     state.currentUser=db?{...base,...db}:base;state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession",login);
     document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");document.getElementById("loginError").textContent="";render();
   });
-  window.navigate=function(page){if(page==="attendance"){state.currentPage="attendance";}else{state.currentPage=page;}save();document.getElementById("profileMenu").classList.add("hidden");render();window.scrollTo({top:0,behavior:"smooth"});};
+  window.navigate=function(page){closeMobileMenu();if(page==="attendance"){state.currentPage="attendance";}else{state.currentPage=page;}save();document.getElementById("profileMenu").classList.add("hidden");render();window.scrollTo({top:0,behavior:"smooth"});};
   const oldTaskBadge=document.getElementById("taskBadge");
   const session=localStorage.getItem("schoolSolutionsSession");
   if(session){
