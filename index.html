@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075b3f">
   <title>Школа решений — Виртуальная учительская</title>
-  <style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=T8eRJD5HrkPABTdkQWPebtzxVBSGtIRwUKJIfDP9MJ3wr8Y-3Sh-qp_J0hcr4XhGQWAWKPRTbtdh92lhnquNM7MHA6bKuyoeUHbjDEJe8zcG3xVMBoXR4WSezcPy1vtURWKEY32IvAq4rfKi9VsvSqk_xN1xeI2fC4FRQwrQxswCfC340x0HzYkHj5W5lVxC18tR4vdTxhtUiWLTbE_Q0m0HfbY2B_TxN7LI50XRMe0O-A_SJoUjbJcktG_n1eW4iB3cJLTsbA9bYiW3uN1OjVLZlvjrR29DEwPAuIh61CebfS1Vx0urTVYe-215vABq" charset="UTF-8"></script><style>
     :root{
       --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
       --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
@@ -97,6 +97,11 @@
     .olymp-embed iframe{display:block;width:100%;min-height:1100px;height:78vh;border:0;border-radius:16px;background:#fff}
     @media(max-width:680px){.olymp-embed iframe{min-height:1600px;height:calc(100vh - 110px)}}
   .guest-login{display:flex;align-items:center;gap:8px;margin:10px 0 14px;font-size:14px;color:var(--muted);cursor:pointer}.guest-login input{width:auto!important}.guest-hidden{display:none!important}
+
+/* Final update: home layout, admin grid, my data, responsible line */
+.home-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:16px;align-items:start}.home-main{min-width:0}.home-right{display:flex;flex-direction:column;gap:16px}.home-top-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.home-equal-card{min-height:300px}.home-schedule-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.home-schedule-row .card{min-width:0}.admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.admin-span12{grid-column:1/-1}.responsible-line{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:14px;border:1px solid var(--line);border-radius:11px;background:#f7faf8;font-size:13px}.responsible-line span{font-weight:700}.mydata-half{min-width:0}.mydata-half .portfolio-list{max-height:500px;overflow:auto}.responsible-admin-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}.responsible-admin-list label{display:grid;gap:5px;font-size:12px;font-weight:700}.responsible-admin-list input{width:100%}
+@media(max-width:1100px){.home-layout{grid-template-columns:1fr}.home-right{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.home-schedule-row{grid-template-columns:1fr 1fr}.admin-grid{grid-template-columns:1fr}.admin-span12{grid-column:auto}}
+@media(max-width:680px){.home-top-row,.home-schedule-row,.home-right{display:grid;grid-template-columns:1fr}.home-equal-card{min-height:0}.responsible-admin-list{grid-template-columns:1fr}.admin-grid{display:block}.admin-grid>.card{margin-bottom:15px}}
 </style>
 
 <style>
@@ -181,6 +186,66 @@
 }
 
 </style>
+
+<style>
+/* точечные элементы обновления */
+.compact-form-card{max-width:980px!important;padding:15px!important}.compact-form-card .section-band{padding:8px 10px;margin:12px 0 8px}.compact-form-card .form-grid{gap:7px}.compact-form-card input,.compact-form-card select{padding:8px 10px}.compact-form-card label{font-size:11px;margin:8px 0 4px}.compact-form-card .present-box{padding:9px;margin-top:8px}.compact-form-card .reason-band{padding:9px 10px;margin:12px 0 8px}
+.duty-card{grid-column:span 6}.transport-card{grid-column:span 6}.schedule-home-card{grid-column:span 7}.duty-table{min-width:0!important}.duty-table th,.duty-table td{font-size:11px;padding:7px 8px}.schedule-new{border-color:var(--yellow)!important;box-shadow:0 0 0 2px rgba(244,197,66,.2)}.schedule-new-badge{display:inline-block;margin-left:8px;color:var(--red);font-size:11px;font-weight:900}.schedule-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.schedule-class-select{max-width:280px}.schedule-empty{padding:18px;background:var(--green-50);border-radius:12px;color:var(--muted)}
+.doc-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.doc-upload{border:1px dashed #b9cfc3;padding:14px;border-radius:14px;background:var(--green-50);margin-bottom:16px}.doc-upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.doc-list{display:grid;gap:10px}.doc-item{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.doc-item.unread{border-color:var(--yellow);background:#fffbec}.doc-item-title{font-weight:800}.doc-meta{font-size:11px;color:var(--muted);margin-top:4px}.doc-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.doc-targets{font-size:11px;color:var(--muted);margin-top:7px}.target-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}.target-choice{display:flex;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:12px}.target-choice input{width:auto}.ack-line{display:flex;align-items:center;gap:8px;margin-top:9px;padding:8px;background:var(--green-50);border-radius:10px;font-size:12px}.ack-line input{width:auto}.normative-docs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.normative-docs .doc-zone{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--green-50)}
+.portfolio-list{display:grid;gap:9px}.portfolio-item{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:11px}.portfolio-item a{color:var(--green-800);font-weight:800;text-decoration:none}.compact-mydata{max-width:1050px!important}.compact-mydata .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.compact-mydata input{padding:9px 10px}.compact-mydata label{font-size:11px;margin:5px 0 4px}
+@media(max-width:1000px){.duty-card,.schedule-home-card{grid-column:span 12}.schedule-columns,.doc-upload-grid,.normative-docs,.target-grid{grid-template-columns:1fr}.compact-mydata .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.compact-mydata .form-grid{grid-template-columns:1fr}.duty-table{min-width:520px!important}.schedule-columns{grid-template-columns:1fr}.doc-upload-grid,.normative-docs,.target-grid{grid-template-columns:1fr}}
+
+/* update 9: точечные изменения по замечаниям */
+.home-grid{display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:16px;align-items:start}
+.home-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.home-col .card{margin:0}
+.home-plan{margin-top:16px}
+.schedule-choice{display:grid;grid-template-columns:minmax(180px,280px) minmax(180px,280px);gap:10px;margin:12px 0}
+.schedule-choice select{padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:#fff}
+.schedule-shift{display:inline-block;margin:4px 0 10px;padding:5px 9px;border-radius:99px;background:var(--green-100);color:var(--green-900);font-size:11px;font-weight:800}
+.schedule-view{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.schedule-view .data-table{min-width:620px}
+.schedule-import-grid{display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:end}
+.schedule-import-grid select{padding:11px 12px;border:1px solid #ccd9d3;border-radius:13px;background:#fff}
+.schedule-upload-note{padding:10px 12px;border-radius:11px;background:var(--yellow-100);font-size:12px;color:#655b36;margin-top:10px}
+.compact-attendance .form-grid{gap:7px}
+.attendance-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:7px}
+.attendance-row.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.attendance-row.six{grid-template-columns:repeat(6,minmax(0,1fr))}
+.attendance-row .field label{font-size:10px;line-height:1.15}
+.attendance-row .field input,.attendance-row .field select{padding:7px 8px}
+.attendance-row.six .field label{font-size:9px}
+.transport-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.transport-message-form{display:grid;gap:8px}
+.transport-message-form input,.transport-message-form textarea{width:100%;border:1px solid #ccd9d3;border-radius:11px;padding:10px 12px;background:#fff}
+.transport-message-form textarea{min-height:110px;resize:vertical}
+.transport-schedule-table{width:100%}
+.ack-info{font-size:11px;color:var(--green-900);margin-top:7px;padding:7px 9px;background:var(--green-50);border-radius:9px}
+.role-hint{font-size:11px;color:var(--muted);margin-top:6px}
+@media(max-width:1000px){
+ .home-grid{grid-template-columns:1fr 1fr}.home-col:nth-child(3){grid-column:1/-1}
+ .attendance-row.six{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .attendance-row,.attendance-row.three{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .transport-layout{grid-template-columns:1fr}
+ .schedule-import-grid{grid-template-columns:1fr}
+}
+@media(max-width:680px){
+ .home-grid{display:block}.home-col{margin-bottom:15px}.home-col .card{margin-bottom:15px}
+ .schedule-choice{grid-template-columns:1fr}
+ .attendance-row,.attendance-row.three,.attendance-row.six{grid-template-columns:1fr 1fr}
+ .attendance-row.six .field label{font-size:10px}
+}
+
+</style>
+
+<style>
+.home-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)!important;}
+.schedule-page-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}.schedule-page-grid>.card{margin:0}
+.target-grid-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1000px){.schedule-page-grid{grid-template-columns:1fr 1fr}.target-grid-four{grid-template-columns:1fr 1fr}}
+@media(max-width:680px){.home-grid{display:block!important}.schedule-page-grid{grid-template-columns:1fr}.target-grid-four{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 
@@ -208,6 +273,7 @@
         Директор: <b>director / 1234</b><br>
         Заместитель: <b>deputy / 1234</b><br>
         Учитель: <b>teacher / 1234</b><br>
+        Секретарь: <b>secretary / 1234</b><br>
         Гость: <b>guest</b> — можно войти без пароля
       </div>
     </form>
@@ -225,10 +291,6 @@
 
     <div class="nav-title">Сегодня</div>
     <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>Главная</span></button>
-    <button class="nav-item" data-page="tasks"><span class="nav-icon">✅</span><span>Текущие задачи</span><span class="badge" id="taskBadge">!</span></button>
-    <button class="nav-item" data-page="attendance"><span class="nav-icon">🧾</span><span>Посещаемость</span></button>
-    <button class="nav-item" data-page="transport"><span class="nav-icon">🚌</span><span>Подвоз</span><span class="badge new hidden" id="transportBadge">0</span></button>
-    <button class="nav-item" data-page="plan"><span class="nav-icon">📅</span><span>План работы</span></button>
     <button class="nav-item" data-page="notifications"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="badge new" id="notificationBadge">0</span></button>
 
     <div class="nav-title">Учительская</div>
@@ -240,7 +302,9 @@
     <button class="nav-item" data-page="olymp"><span class="nav-icon">🏆</span><span>Олимпиадное и конкурсное движение</span></button>
     <button class="nav-item" data-page="gia"><span class="nav-icon">📝</span><span>ЕГЭ / ОГЭ</span></button>
     <button class="nav-item" data-page="attestation"><span class="nav-icon">👩‍🏫</span><span>Методическая работа</span></button>
+    <button class="nav-item" data-page="security"><span class="nav-icon">🛡️</span><span>Безопасность</span></button>
     <button class="nav-item" data-page="career"><span class="nav-icon">🧭</span><span>Профориентация</span></button>
+    <button class="nav-item" data-page="psych"><span class="nav-icon">🧠</span><span>Социально-психологическая служба</span></button>
 <button class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>Отчеты</span></button>
     <button class="nav-item" data-page="archive"><span class="nav-icon">📦</span><span>Архив</span></button>
 
@@ -293,7 +357,7 @@
       {id:"attendance",title:"Посещаемость",required:true,done:false,kind:"attendance"},
       {id:"food",title:"Питание",required:false,done:false,kind:"food"},
       {id:"journal",title:"Электронный журнал",required:false,done:false,kind:"journal"},
-      {id:"schedule",title:"Расписание на сегодня",required:false,done:false,kind:"schedule"}
+      {id:"schedule",title:"Расписание уроков",required:false,done:false,kind:"schedule"}
     ],
     transport:[
       {id:1,level:"important",title:"Маршрут №3",text:"Сегодня утренний рейс отправится на 15 минут позже.",date:"Сегодня",read:false}
@@ -311,6 +375,12 @@
     journalOverdue:[],
     vacationsText:"Каникулы: сроки будут опубликованы администратором.",
     schedule:{
+      entries:[],
+      versions:[],
+      uploadedFile:"",
+      baseEntries:[],
+      baseVersions:[],
+      baseUploadedFile:"",
       bellSchedules:{monday:[{n:1,start:"08:30",end:"09:15"},{n:2,start:"09:25",end:"10:10"},{n:3,start:"10:30",end:"11:15"},{n:4,start:"11:25",end:"12:10"},{n:5,start:"12:30",end:"13:15"},{n:6,start:"13:25",end:"14:10"},{n:7,start:"14:20",end:"15:05"}],weekdays:[{n:1,start:"08:30",end:"09:15"},{n:2,start:"09:25",end:"10:10"},{n:3,start:"10:30",end:"11:15"},{n:4,start:"11:25",end:"12:10"},{n:5,start:"12:30",end:"13:15"},{n:6,start:"13:25",end:"14:10"},{n:7,start:"14:20",end:"15:05"}]},
       bells:[
         {n:1,start:"08:30",end:"09:15"},{n:2,start:"09:25",end:"10:10"},{n:3,start:"10:30",end:"11:15"},
@@ -331,11 +401,23 @@
       {id:2,name:"Елена Александровна",login:"deputy",roleKeys:["deputy","teacher"],roles:"Заместитель директора + учитель",classes:["7А"],shift:{"7А":1},attendanceClasses:["7А"],replacement:["5А"]},
       {id:3,name:"Ирина Сергеевна",login:"director",roleKeys:["director","teacher"],roles:"Директор + учитель",classes:[],shift:{},attendanceClasses:[],replacement:[]},
       {id:4,name:"Администратор",login:"admin",roleKeys:["admin"],roles:"Администратор",classes:[],shift:{},attendanceClasses:[],replacement:[]},
-      {id:5,name:"Гость",login:"guest",roleKeys:["guest"],roles:"Родитель / обучающийся",classes:[],shift:{},attendanceClasses:[],replacement:[]}
+      {id:6,name:"Гость",login:"guest",roleKeys:["guest"],roles:"Родитель / обучающийся",classes:[],shift:{},attendanceClasses:[],replacement:[]}
     ],
-    dispatcherIds:[1],
+    dispatcherIds:[],
+
     adminBellTimes:true,
-    myData:{}
+    myData:{},
+    portfolio:{},
+    transportSchedule:[],
+    documents:[],
+    dutySchedule:[
+      {day:"Понедельник",name1:"Ирина Сергеевна",phone1:"+7 (000) 000-00-01",name2:"",phone2:""},
+      {day:"Вторник",name1:"Елена Александровна",phone1:"+7 (000) 000-00-02",name2:"",phone2:""},
+      {day:"Среда",name1:"",phone1:"",name2:"",phone2:""},
+      {day:"Четверг",name1:"",phone1:"",name2:"",phone2:""},
+      {day:"Пятница",name1:"",phone1:"",name2:"",phone2:""}
+    ],
+    responsibles:{}
   };
 
   const clone = obj => JSON.parse(JSON.stringify(obj));
@@ -344,7 +426,16 @@
   function loadState(){
     try{
       const saved=localStorage.getItem("schoolSolutionsMVP_v4");
-      return saved ? deepMerge(clone(defaultState),JSON.parse(saved)) : clone(defaultState);
+      const result=saved ? deepMerge(clone(defaultState),JSON.parse(saved)) : clone(defaultState);
+      result.users=result.users||[];
+      result.users=result.users.filter(u=>u.login!=="secretary");
+      result.users.forEach(u=>{u.roleKeys=(u.roleKeys||["teacher"]).filter(r=>r!=="secretary");u.roles=u.roles||rolesText(u.roleKeys);});
+      result.responsibles=result.responsibles||{};
+      result.dutySchedule=(result.dutySchedule||[]).map(x=>({day:x.day,name1:x.name1||x.name||"",phone1:x.phone1||x.phone||"",name2:x.name2||"",phone2:x.phone2||""}));
+      result.transportSchedule=result.transportSchedule||[];
+      result.schedule=result.schedule||{entries:[],versions:[],uploadedFile:""};
+      result.schedule.entries=result.schedule.entries||[];result.schedule.versions=result.schedule.versions||[];result.schedule.baseEntries=result.schedule.baseEntries||[];result.schedule.baseVersions=result.schedule.baseVersions||[];
+      return result;
     }catch(e){return clone(defaultState);}
   }
   function deepMerge(a,b){Object.keys(b||{}).forEach(k=>{if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k]) a[k]=deepMerge(a[k],b[k]); else a[k]=b[k];});return a;}
@@ -354,16 +445,24 @@
   function initials(name){return name.split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase();}
   function isManager(){return ["admin","director","deputy"].some(r=>state.currentUser?.roleKeys?.includes(r));}
   function isAdmin(){return state.currentUser?.roleKeys?.includes("admin");}
+  function isSecretary(){return state.currentUser?.roleKeys?.includes("secretary");}
+  function isDispatcher(){return isAdmin()||state.currentUser?.roleKeys?.includes("dispatcher")||state.dispatcherIds.includes(state.currentUser?.id);}
+  function canManageOrders(){return ["admin","director","deputy"].some(r=>state.currentUser?.roleKeys?.includes(r))||isSecretary();}
   function isGuest(){return state.currentUser?.roleKeys?.includes("guest");}
+  function roleName(k){return ({admin:"Администратор",director:"Директор",deputy:"Заместитель директора",teacher:"Учитель",dispatcher:"Диспетчер",secretary:"Секретарь",guest:"Родитель / обучающийся"}[k]||k);}
+  function rolesText(keys){return (keys||[]).map(roleName).join(" + ");}
+
   function unread(){return state.notifications.filter(n=>!n.read).length;}
   function pendingTasks(){return state.tasks.filter(t=>t.required&&!t.done).length;}
   function newTransport(){return state.transport.filter(t=>!t.read).length;}
   function updateBadges(){
     const p=pendingTasks(),n=unread(),tr=newTransport();
     const tb=document.getElementById("taskBadge"),nb=document.getElementById("notificationBadge"),tnb=document.getElementById("topNotifyBadge"),trb=document.getElementById("transportBadge");
-    tb.textContent=p?"!":"✓";tb.style.background=p?"var(--red)":"var(--green-700)";
-    nb.textContent=n;tnb.textContent=n;nb.classList.toggle("hidden",!n);tnb.classList.toggle("hidden",!n);
-    trb.textContent=tr;trb.classList.toggle("hidden",!tr);
+    if(tb){tb.textContent=p?"!":"✓";tb.style.background=p?"var(--red)":"var(--green-700)";}
+    if(nb){nb.textContent=n;nb.classList.toggle("hidden",!n);}
+    if(tnb){tnb.textContent=n;tnb.classList.toggle("hidden",!n);}
+    if(trb){trb.textContent=tr;trb.classList.toggle("hidden",!tr);}
+
   }
   function render(){
     const d=dateInfo();
@@ -372,10 +471,14 @@
     document.getElementById("profileRole").textContent=state.currentUser.roles||state.currentUser.role||"Пользователь";
     document.getElementById("avatar").textContent=initials(state.currentUser.name);
     updateBadges();
-    document.querySelectorAll(".nav-item").forEach(b=>{b.classList.toggle("active",b.dataset.page===state.currentPage);b.classList.toggle("guest-hidden",isGuest()&&["plan","notifications","analytics","mydata","settings","admin","reports","archive"].includes(b.dataset.page));});
+    document.querySelectorAll(".nav-item").forEach(b=>{
+      const guestAllowedNav=["home","transport","schedule","vseobuch","education","journal","ovz","olymp","gia"];
+      b.classList.toggle("active",b.dataset.page===state.currentPage);
+      b.classList.toggle("guest-hidden",isGuest()&&!guestAllowedNav.includes(b.dataset.page));
+    });
     const pages={home:renderHome,tasks:renderTasks,attendance:renderAttendance,transport:renderTransport,plan:renderPlan,notifications:renderNotifications,
       vseobuch:renderPlaceholder,education:renderPlaceholder,journal:renderPlaceholder,upbringing:renderPlaceholder,ovz:renderPlaceholder,olymp:renderPlaceholder,
-      gia:renderPlaceholder,attestation:renderPlaceholder,career:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:renderAnalytics,
+      gia:renderPlaceholder,attestation:renderPlaceholder,career:renderPlaceholder,psych:renderPlaceholder,security:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:renderAnalytics,
       mydata:renderMyData,settings:renderSettings,admin:renderAdmin,schedule:renderSchedule};
     pages[state.currentPage]?.();
   }
@@ -391,13 +494,31 @@
   }
   function noticeHtml(n){return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${n.id})"><div class="dot"></div><div><strong>${n.title}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${n.text}</p><small class="muted">${n.date}</small></div></div>`;}
   function renderHome(){
-    const d=dateInfo(), transport=state.transport.find(x=>!x.read)||state.transport[0], bell=(d.day==="понедельник"?state.schedule.bellSchedules?.monday:state.schedule.bellSchedules?.weekdays)||state.schedule.bells||[];
-    document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в виртуальной учительской.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>
-      <div class="grid">
-      ${!isGuest()?`<section class="card task-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>`:""}
-      <section class="card transport-card"><h3>🕘 Расписание звонков</h3>${bell.map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.n} урок</strong><p>${x.start} — ${x.end}</p></div></div>`).join("")}<div class="vacation-box"><h3>🏖 Сроки каникул</h3><div class="vacation-text">${escapeHtml(state.vacationsText||"")}</div></div></section>
-      <section class="card wide"><h3>📅 Ближайшее в плане работы</h3>${state.plan.filter(x=>x.status==="Опубликовано").slice(0,4).map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.date} · ${x.time}</strong><p>${x.title} · ${x.place} · ${x.participants}</p></div></div>`).join("")||'<div class="empty">Нет опубликованных мероприятий.</div>'}<button class="btn" style="margin-top:10px" onclick="navigate('plan')">Открыть план →</button></section>
-      <section class="card side-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,3).map(noticeHtml).join("")}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
+    const d=dateInfo();
+    const bell=(d.day==="понедельник"?state.schedule.bellSchedules?.monday:state.schedule.bellSchedules?.weekdays)||state.schedule.bells||[];
+    const isG=isGuest();
+    const newSched=hasUnreadSchedule();
+    const homeSchedule=isG?renderGuestHomeSchedule(true):renderScheduleHomeSelector();
+    const dutyEdit=(isAdmin()||state.currentUser.roleKeys.includes("deputy"));
+    const dutyRows=state.dutySchedule.map(x=>`<tr><td>${escapeHtml(x.day)}</td><td>${escapeHtml(x.name1||"—")}</td><td>${escapeHtml(x.phone1||"—")}</td><td>${escapeHtml(x.name2||"—")}</td><td>${escapeHtml(x.phone2||"—")}</td></tr>`).join("");
+    document.getElementById("content").innerHTML=`${isG?``:`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в виртуальной учительской.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>`}
+      <div class="home-layout">
+        <div class="home-main">
+          <div class="home-top-row">
+            ${isG?homeSchedule:`<section class="card home-equal-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>`}
+            ${isG?``:`<section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,5).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>`}
+          </div>
+          <div class="home-schedule-row">
+            ${isG?``:`<section class="card"><h3>📅 Расписание уроков (${d.full})</h3>${renderScheduleHomeSelector("today")}</section>
+            <section class="card"><h3>📅 Расписание уроков (${new Date(Date.now()+86400000).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</h3>${renderScheduleHomeSelector("tomorrow")}</section>
+            <section class="card"><h3>📚 Базовое расписание</h3>${renderBaseScheduleSelector()}</section>`}
+          </div>
+        </div>
+        <aside class="home-right">
+          <section class="card"><h3>👮 Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон</th><th>ФИО 2</th><th>Телефон</th></tr>${dutyRows}</table></div></section>
+          <section class="card"><h3>🕘 Расписание звонков</h3>${bell.map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.n} урок</strong><p>${x.start} — ${x.end}</p></div></div>`).join("")}</section>
+          <section class="card"><h3>🏖 Сроки каникул</h3><div class="vacation-text">${escapeHtml(state.vacationsText||"")}</div></section>
+        </aside>
       </div>`;
   }
   function renderTasks(){
@@ -406,40 +527,52 @@
   }
   function renderAttendance(){
     const classes=(state.currentUser.attendanceClasses||[]).concat(state.currentUser.replacement||[]).filter((v,i,a)=>a.indexOf(v)===i);
-    const cls=classes[0]||"5А", rec=state.attendance.find(x=>x.date===dateInfo().iso&&x.className===cls);
-    shell("Посещаемость","Форма заполняется по назначенному классу. После отправки задача за сегодня выполняется автоматически.",
-      `<div class="card form-card">
-      <div class="section-band">Общая информация</div>
-      <div class="form-grid three">
-        <div class="field"><label>Класс</label><select id="attClass" class="readonly" onchange="recalcAttendance()">${classes.map(c=>`<option>${c}</option>`).join("")}</select></div>
+    const cls=classes[0]||"5А";
+    shell("Посещаемость","Компактная форма ежедневного учета.",
+      `<div class="card form-card compact-form-card compact-attendance">
+      <div class="attendance-row">
+        <div class="field"><label>Класс</label><select id="attClass" class="readonly" onchange="recalcAttendance()">${classes.map(c=>`<option>${escapeHtml(c)}</option>`).join("")}</select></div>
         <div class="field"><label>Количество обучающихся</label><input id="attTotal" class="readonly" value="${classes.length?28:0}" readonly></div>
-        <div class="field"><label>Отстранены на утреннем фильтре по причине заболевания</label><input id="attFiltered" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
-        <div class="field"><label>Количество присутствующих</label><input id="attPresent" class="readonly" value="28" readonly></div>
         <div class="field"><label>Количество надомников</label><input id="attHome" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
-        <div class="field"><label>Количество питающихся</label><input id="attFood" type="number" min="0" value="0"></div>
+        <div class="field"><label>Количество присутствующих</label><input id="attPresent" class="readonly" value="28" readonly></div>
+      </div>
+      <div class="attendance-row three">
+        <div class="field"><label>Отстранены на утреннем фильтре по причине заболевания</label><input id="attFiltered" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
         <div class="field"><label>Количество детей на дистанте по заявлению родителей</label><input id="attRemote" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
+        <div class="field"><label>Количество питающихся</label><input id="attFood" type="number" min="0" value="0"></div>
       </div>
       <div class="present-box" id="attSummary">Присутствуют: 28 · Не явились: 0</div>
       <div class="reason-band">Количество детей, неявившихся по причине:</div>
       <div class="section-band">Заболевания</div>
-      <div class="form-grid three">
-        ${attField("Грипп","flu")}${attField("ОРВИ","orvi")}${attField("ОРЗ","orz")}${attField("Острокишечные заболевания","intestinal")}${attField("Энтеровирусная инфекция","enterovirus")}${attField("Ветряная оспа","chickenpox")}${attField("Семейные обстоятельства","family")}
+      <div class="attendance-row six">
+        ${attField("Грипп","flu")}${attField("ОРВИ","orvi")}${attField("ОРЗ","orz")}${attField("Острокишечные заболевания","intestinal")}${attField("Энтеровирусная инфекция","enterovirus")}${attField("Ветряная оспа","chickenpox")}
       </div>
+      <div class="attendance-row"><div class="field"><label>Семейные обстоятельства</label><input class="att-input reason" data-key="family" type="number" min="0" value="0" oninput="recalcAttendance()"></div></div>
       <div class="section-band">Прочие заболевания — всего: <span id="otherTotal">0</span></div>
-      <div class="form-grid three">${attField("Пневмония","pneumonia","other")}${attField("Травмы","trauma","other")}${attField("Зубная боль","toothache","other")}${attField("ЖКТ","gi","other")}${attField("Аллергия","allergy","other")}${attField("Другое","other","other")}</div>
+      <div class="attendance-row six">
+        ${attField("Пневмония","pneumonia","other")}${attField("Травмы","trauma","other")}${attField("Зубная боль","toothache","other")}${attField("ЖКТ","gi","other")}${attField("Аллергия","allergy","other")}${attField("Другое","other","other")}
+      </div>
       <div class="section-band">Другие причины</div>
-      <div class="form-grid three">${attField("Выезды на конкурсы, соревнования, лагерь","events")}${attField("Без уважительной причины","noReason")}${attField("Погодные условия","weather")}</div>
+      <div class="attendance-row three">${attField("Выезды на конкурсы, соревнования, лагерь","events")}${attField("Без уважительной причины","noReason")}${attField("Погодные условия","weather")}</div>
       <div id="attValidation"></div>
-      <div class="toolbar" style="justify-content:flex-end;margin-top:18px"><button class="btn green" onclick="submitAttendance()">Отправить посещаемость</button></div>
+      <div class="toolbar" style="justify-content:flex-end;margin-top:12px"><button class="btn green" onclick="submitAttendance()">Отправить посещаемость</button></div>
       </div>`);
     recalcAttendance();
   }
   function attField(label,id,cls="reason"){return `<div class="field"><label>${label}</label><input class="att-input ${cls}" data-key="${id}" type="number" min="0" value="0" oninput="recalcAttendance()"></div>`;}
   function renderTransport(){
     const can=isManager();
-    shell("Подвоз","Оперативная информация об изменениях маршрутов.",
-      `<div class="card" style="max-width:1000px">${state.transport.map(t=>`<div class="transport" style="border-left-color:${t.level==='important'?'var(--red)':'var(--yellow)'}"><strong>${t.title}${t.read?'':' · новое'}</strong><p>${t.text}</p><small class="muted">${t.date}</small></div>`).join("")}
-      ${can?`<div class="toolbar" style="margin-top:18px"><button class="btn green" onclick="addTransport()">＋ Новое уведомление о подвозе</button></div>`:""}</div>`);
+    const rows=state.transportSchedule||[];
+    shell("Подвоз","Оперативная информация и расписание подвоза.",
+      `<div class="transport-layout">
+        <div class="card"><h3>💬 Сообщения</h3>
+          ${can?`<div class="doc-upload transport-message-form"><label>Заголовок</label><input id="transportTitle" placeholder="Например: Изменение маршрута №3"><label>Текст сообщения</label><textarea id="transportText" placeholder="Введите текст сообщения"></textarea><button class="btn green" onclick="submitTransportMessage()">Подтвердить отправку сообщения</button></div>`:""}
+          ${state.transport.map(t=>`<div class="transport" style="border-left-color:${t.level==='important'?'var(--red)':'var(--yellow)'}"><strong>${escapeHtml(t.title)}${t.read?'':' · новое'}</strong><p>${escapeHtml(t.text)}</p><small class="muted">${escapeHtml(t.date||"")}</small></div>`).join("")||'<div class="empty">Сообщений пока нет.</div>'}
+        </div>
+        <div class="card"><h3>🚌 Расписание подвоза</h3>
+          ${rows.length?`<div class="table-wrap"><table class="data-table transport-schedule-table"><tr><th>Маршрут</th><th>Время</th><th>Направление</th></tr>${rows.map(x=>`<tr><td>${escapeHtml(x.route)}</td><td>${escapeHtml(x.time)}</td><td>${escapeHtml(x.direction)}</td></tr>`).join("")}</table></div>`:'<div class="empty">Расписание подвоза пока не загружено.</div>'}
+        </div>
+      </div>`);
   }
   function renderPlan(){
     const canEdit=isManager(), teacherAdd=!isGuest();
@@ -449,13 +582,36 @@
       ${state.plan.map(x=>`<tr><td>${x.date}</td><td>${x.time}</td><td>${x.title}</td><td>${x.place}</td><td>${x.participants}</td><td>${x.responsible||"—"}</td><td><span class="chip">${x.status}</span></td><td>${canEdit?`<div class="icon-actions">${x.status==="На согласовании"?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:""}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:"—"}</td></tr>`).join("")}</table></div></div>`);
   }
   function renderSchedule(){
-    const canControl=isManager(), canDispatch=isAdmin()||state.dispatcherIds.includes(state.currentUser.id);
-    shell("Расписание","Диспетчер загружает расписание; учитель просматривает свое и расписание закрепленных классов.",
-      `<div class="grid">
-      <div class="card wide"><h3>Расписание на сегодня</h3><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Время</th><th>Класс</th><th>Предмет</th><th>Кабинет</th></tr>${state.schedule.today.map(x=>`<tr><td>${x.lesson}</td><td>${x.time}</td><td>${x.className}</td><td>${x.subject}</td><td>${x.room}</td></tr>`).join("")}</table></div></div>
-      <div class="card side-card"><h3>Расписание моих классов</h3>${Object.entries(state.schedule.classes).map(([c,arr])=>(state.currentUser.classes||[]).includes(c)?`<div class="notice"><div><strong>${c}</strong><p>${arr.map(x=>`${x.lesson}. ${x.time} — ${x.subject}, каб. ${x.room}`).join("<br>")}</p></div></div>`:"").join("")||'<div class="empty">Классы классного руководства не назначены.</div>'}</div>
-      ${canControl?`<div class="card span12"><h3>Контроль расписания</h3><p class="muted">Директор и заместители видят опубликованное расписание целиком.</p><div class="chips"><span class="chip">Сегодня</span><span class="chip">Опубликовано диспетчером</span></div></div>`:""}
-      ${canDispatch?`<div class="card span12"><h3>Загрузка расписания — диспетчер</h3><div class="file-input"><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><p class="muted">В MVP файл фиксируется как загрузка. На серверном этапе таблица будет разбираться автоматически.</p><button class="btn green" onclick="uploadSchedule()">Загрузить и опубликовать</button></div>`:""}</div>`);
+    const canDispatch=isDispatcher();
+    if(isGuest()){renderGuestSchedulePage();return;}
+    const d=dateInfo(), tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+    const newSched=hasUnreadSchedule();
+    shell("Расписание",`Расписание уроков. ${newSched?'<span class="schedule-new-badge">● есть непрочитанные изменения</span>':''}`,
+      `<div class="schedule-page-grid">
+        <div class="card ${newSched?'schedule-new':''}">
+          <h3>Расписание на сегодня <span class="muted">(${d.full})</span></h3>
+          ${renderScheduleSelector("today")}
+        </div>
+        <div class="card">
+          <h3>Расписание на завтра <span class="muted">(${tomorrow.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>
+          ${renderScheduleSelector("tomorrow")}
+        </div>
+        <div class="card">
+          <h3>Базовое расписание</h3>
+          ${renderBaseScheduleSelector()}
+        </div>
+      </div>
+      ${canDispatch?`<div class="card" style="margin-top:16px"><h3>Загрузка расписания на конкретную дату</h3>
+        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+        <p class="muted">Загрузить расписание может только диспетчер или администратор. При повторной загрузке той же даты и смены предыдущая версия полностью заменяется.</p>
+        <button class="btn green" style="margin-top:12px" onclick="uploadSchedule()">Загрузить и опубликовать</button><div id="scheduleImportInfo" class="muted" style="margin-top:10px"></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h3>Загрузка базового расписания</h3>
+        <div class="schedule-import-grid"><div><label>Файл базового расписания</label><input id="baseScheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Смена</label><select id="baseScheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+        <p class="muted">Базовых расписаний два — для 1-й и 2-й смены. Новая загрузка выбранной смены полностью заменяет старое базовое расписание этой смены.</p>
+        <button class="btn green" style="margin-top:12px" onclick="uploadBaseSchedule()">Загрузить базовое расписание</button><div id="baseScheduleImportInfo" class="muted" style="margin-top:10px"></div>
+      </div>`:""}`);
+    if(newSched) markScheduleRead();
   }
   function renderNotifications(){
     const can=isManager();
@@ -463,48 +619,46 @@
       `<div class="card"><div class="toolbar">${can?`<button class="btn green" onclick="sendVisit()">＋ Уведомление о посещении урока</button><button class="btn" onclick="sendText()">＋ Сообщение учителю</button>`:""}<button class="btn" onclick="markNotificationsRead()">Отметить все прочитанными</button></div>${state.notifications.map(noticeHtml).join("")}</div>`);
   }
   function renderPlaceholder(){
-    const names={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",reports:"Отчеты",archive:"Архив"};
+    const names={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
     const page=state.currentPage;
-    if(page==="olymp"){shell(names[page],"Готовый модуль олимпиадного и конкурсного движения.",`<div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);return;}
-    if(page==="vseobuch"){shell("Всеобуч","Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы","left")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся","right")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию","left")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами","right")}</div>`);return;}
-    if(page==="education"){shell("Учебная работа","Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("ВПР","Всероссийские проверочные работы")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}</div>`);return;}
-    if(page==="journal"){shell("Электронный журнал","Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Приказы","Новые приказы по электронному журналу. Непрочитанные документы подсвечиваются.","left",true)}${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
-    if(page==="upbringing"){shell("Воспитательная работа","Материалы воспитательной деятельности.",`<div class="module-grid orderable">
-${moduleCard("Классное руководство","Материалы и документы по классному руководству")}
-${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}
-${normativeCard()}
-${moduleCard("Движение первых","Материалы и документы")}
-${moduleCard("Орлята России","Материалы и документы программы «Орлята России»")}
-</div>`);return;}
-    if(page==="ovz"){shell("Обучающиеся с ОВЗ и инвалидностью","Документы и материалы по сопровождению обучающихся.",`<div class="module-grid orderable">
-${moduleCard("Списки детей с ОВЗ и инвалидностью","Списки обучающихся и необходимые материалы")}
-${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}
-${normativeCard()}
-${moduleCard("Рабочие программы по нозологиям","Рабочие программы и материалы")}
-${moduleCard("Домашнее обучение","Документы и материалы по организации домашнего обучения")}
-</div>`);return;}
-    if(page==="gia"){shell("ЕГЭ / ОГЭ","Материалы государственной итоговой аттестации.",`<div class="gia-grid"><div class="gia-half grade9"><h3>ОГЭ — 9 класс</h3>${giaHalf("9 класс")}</div><div class="gia-half grade11"><h3>ЕГЭ — 11 класс</h3>${giaHalf("11 класс")}</div></div>`);return;}
-    if(page==="attestation"){shell("Методическая работа","Организация методической деятельности педагогов.",`<div class="module-grid orderable">
-${moduleCard("График предметных недель","График и материалы предметных недель")}
-${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}
-${moduleCard("Аттестация","Материалы по аттестации педагогических работников")}
-${moduleCard("Конкурсы профессионального мастерства","Конкурсы и материалы для участия")}
-${moduleCard("Повышение квалификации","Курсы, программы и документы по повышению квалификации")}
-</div>`);return;}
-    if(page==="career"){shell("Профориентация","Материалы и документы по профориентационной работе.",`<div class="module-grid">
-      ${moduleCard("Расписание мероприятий","Календарь мероприятий по профориентации","left")}
-      ${moduleCard("Приказы","Новые приказы по профориентации. Непрочитанные документы подсвечиваются.","right",true)}
-      ${normativeCard()}
-      ${moduleCard("Предпрофильные классы (5–9)","Информация о предпрофильных и профильных направлениях","left")}
-      ${moduleCard("Билет в будущее","Материалы и информация проекта «Билет в будущее»","right")}
-      </div>`);return;}
-    if(page==="reports"){shell("Отчеты","Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
+    const responsible=state.responsibles?.[page]||"";
+    const responsibleBlock=responsible||isAdmin()?`<div class="responsible-line"><b>Ответственный за направление:</b><span>${escapeHtml(responsible||"не назначен")}</span>${isAdmin()?`<button class="small-btn" onclick="setResponsible('${page}')">Изменить</button>`:""}</div>`:"";
+    if(isGuest()&&!guestPageAllowed(page)){shell("Доступ ограничен",responsibleBlock+"Режим гостя — только просмотр доступных разделов.",`<div class="card"><div class="empty">Раздел недоступен пользователю Гость.</div></div>`);return;}
+    if(page==="olymp"){shell(names[page],responsibleBlock+"Готовый модуль олимпиадного и конкурсного движения.",`<div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);return;}
+    if(page==="vseobuch"){shell("Всеобуч",responsibleBlock+"Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы","left")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся","right")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию","left")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами","right")}</div>`);return;}
+    if(page==="education"){shell("Учебная работа",responsibleBlock+"Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("ВПР","Всероссийские проверочные работы")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}${moduleCard("Сроки каникул","Сроки и график каникул")}</div>`);return;}
+    if(page==="journal"){shell("Электронный журнал",responsibleBlock+"Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Приказы","Новые приказы по электронному журналу. Непрочитанные документы подсвечиваются.","left",true)}${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
+    if(page==="upbringing"){shell("Воспитательная работа",responsibleBlock+"Материалы воспитательной деятельности.",`<div class="module-grid orderable">${moduleCard("План воспитательной работы","Планирование воспитательной работы","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Движение первых","Материалы и документы")}${moduleCard("Классное руководство","Материалы и документы по классному руководству")}${moduleCard("Орлята России","Материалы и документы программы «Орлята России»")}${moduleCard("Положения о школьных мероприятиях","Положения и регламенты школьных мероприятий")}${moduleCard("Разговоры о важном","Материалы цикла «Разговоры о важном»")}${moduleCard("Россия мои горизонты","Материалы цикла «Россия — мои горизонты»")}${moduleCard("Пушкинская карта","Материалы и документы по Пушкинской карте")}</div>`);return;}
+    if(page==="ovz"){shell("Обучающиеся с ОВЗ и инвалидностью",responsibleBlock+"Документы и материалы по сопровождению обучающихся.",`<div class="module-grid orderable">${moduleCard("Списки детей с ОВЗ и инвалидностью","Списки обучающихся и необходимые материалы")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Рабочие программы по нозологиям","Рабочие программы и материалы")}${moduleCard("Домашнее обучение","Документы и материалы по организации домашнего обучения")}</div>`);return;}
+    if(page==="gia"){shell("ЕГЭ / ОГЭ",responsibleBlock+"Материалы государственной итоговой аттестации.",`<div class="gia-grid"><div class="gia-half grade9"><h3>ОГЭ — 9 класс</h3>${giaHalf("9 класс")}</div><div class="gia-half grade11"><h3>ЕГЭ — 11 класс</h3>${giaHalf("11 класс")}</div></div>`);return;}
+    if(page==="attestation"){shell("Методическая работа",responsibleBlock+"Организация методической деятельности педагогов.",`<div class="module-grid orderable">${moduleCard("График предметных недель","График и материалы предметных недель")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Аттестация","Материалы по аттестации педагогических работников")}${moduleCard("Конкурсы профессионального мастерства","Конкурсы и материалы для участия")}${moduleCard("Повышение квалификации","Курсы, программы и документы по повышению квалификации")}${moduleCard("Методическая копилка","Материалы методических объединений. Файлы могут добавлять все пользователи, кроме гостя.")}</div><div class="module-grid orderable" style="margin-top:18px">${["МО Начальной школы","МО Естественнонаучного цикла","МО Русского языка и литературы","МО Математики","МО Истории и обществознания","МО Иностранных языков","МО Физической культуры и ОБЗР","МО Технологии, ИЗО, Музыки"].map(x=>moduleCard(x,"Файлы методического объединения могут добавлять все пользователи, кроме гостя.")).join("")}</div>`);return;}
+    if(page==="career"){shell("Профориентация",responsibleBlock+"Материалы и документы по профориентационной работе.",`<div class="module-grid">${moduleCard("Расписание мероприятий","Календарь мероприятий по профориентации","left")}${moduleCard("Приказы","Новые приказы по профориентации. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Предпрофильные классы (5–9)","Информация о предпрофильных и профильных направлениях","left")}${moduleCard("Билет в будущее","Материалы и информация проекта «Билет в будущее»","right")}</div>`);return;}
+    if(page==="psych"){shell(names[page],responsibleBlock+"Материалы социально-психологической службы.",`<div class="module-grid">${moduleCard("Консультации","Документы и материалы консультационной работы")}${moduleCard("Профилактика","Документы и материалы профилактической работы")}${moduleCard("Родительские собрания","Материалы и документы для родительских собраний")}${moduleCard("Тестирования","Материалы и документы по тестированию")}</div>`);return;}
+    if(page==="security"){shell(names[page],responsibleBlock+"Документы и материалы по безопасности.",`<div class="module-grid">${moduleCard("Инструкции ТБ","Инструкции по технике безопасности","left")}${moduleCard("Приказы","Новые приказы по безопасности. Непрочитанные документы подсвечиваются.","right",true)}${securityNormativeCard()}${moduleCard("Шаблоны и образцы","Шаблоны и образцы документов")}</div>`);return;}
+    if(page==="reports"){shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
     shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
   }
-  function guestAllowed(page,title){if(!isGuest())return true;const allow={vseobuch:["Прием и перевод","Семейное образование"],education:[],journal:["Для родителей"],upbringing:[],ovz:[],olymp:["__ALL__"],gia:["Расписание","Нормативные документы"],attestation:[],career:["Расписание мероприятий","Нормативные документы","Предпрофильные классы (5–9)","Билет в будущее"]};if(title==="Нормативные документы")return true;if(page==="olymp")return true;if(page==="gia"&&title==="Расписание")return true;return (allow[page]||[]).includes(title);}
-  function moduleCard(title,text,side="",hasNew=false){if(!guestAllowed(state.currentPage,title))return ``;return `<div class="module-card ${side} ${hasNew?'module-new':''}" onclick="alert('Открыть раздел: ${escapeHtml(title)}')"><div class="module-card-title">${escapeHtml(title)}${hasNew?'<span class="new-dot">● новое</span>':''}</div><div class="muted">${escapeHtml(text)}</div><div class="module-folder">📂 Открыть папку →</div></div>`;}
-  function normativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div><b>Федеральные документы</b><p>📂 Открыть</p></div><div><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
-  function normativeCardNoLocal(){return `<div class="normative-card full"><h3>Нормативные документы</h3><div class="normative-cols two-cols"><div><b>Федеральные документы</b><p>📂 Открыть</p></div><div><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div></div></div>`;}
+  function guestPageAllowed(page){return ["home","transport","schedule","vseobuch","education","journal","ovz","olymp","gia"].includes(page);}
+  function guestAllowed(page,title){if(!isGuest())return true;const allow={vseobuch:["Прием и перевод","Семейное образование"],education:["Сроки каникул"],journal:["Для родителей"],ovz:[],olymp:["__ALL__"],gia:["Расписание","Нормативные документы"]};if(page==="olymp")return true;if(title==="Нормативные документы")return true;return (allow[page]||[]).includes(title);}
+  function docKey(page,title){return `${page}::${title}`;}
+  function userCanSeeDoc(doc){
+    if(!doc||!state.currentUser)return false;
+    const u=state.currentUser;
+    if(doc.targetAll || doc.targetType==="all")return true;
+    const isClassLeader=(u.classes||[]).length>0;
+    if(doc.targetClassLeaderAll || doc.targetType==="classleaders")if(isClassLeader)return true;
+    const parallels=(doc.targetClassLeaderParallels||[]).map(String);
+    if(parallels.length && isClassLeader && (u.classes||[]).some(c=>parallels.includes(String(c).match(/^\d+/)?.[0])))return true;
+    if((doc.targetUsers||[]).includes(u.login))return true;
+    if(doc.targetType==="specific" && (doc.targetUsers||[]).includes(u.login))return true;
+    return false;
+  }
+  function unreadDocs(page,title){return state.documents.some(d=>d.sectionKey===docKey(page,title)&&userCanSeeDoc(d)&&!(d.readBy||{})[state.currentUser.login]);}
+  window.setResponsible=function(page){if(!isAdmin())return;const v=prompt("ФИО заместителя, ответственного за направление:",state.responsibles?.[page]||"");if(v===null)return;state.responsibles[page]=v.trim();save();render();};
+  function moduleCard(title,text,side="",hasNew=false){if(!guestAllowed(state.currentPage,title))return ``;const isNew=unreadDocs(state.currentPage,title)||hasNew&&unreadDocs(state.currentPage,title);return `<div class="module-card ${side} ${isNew?'module-new':''}" onclick="openDocs('${escapeHtml(state.currentPage)}','${escapeHtml(title)}')"><div class="module-card-title">${escapeHtml(title)}${isNew?'<span class="new-dot">● новое</span>':''}</div><div class="muted">${escapeHtml(text)}</div><div class="module-folder">📂 Открыть папку →</div></div>`;}
+  function normativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div onclick="openDocs(state.currentPage,'Нормативные документы — Федеральные')"><b>Федеральные документы</b><p>📂 Открыть</p></div><div onclick="openDocs(state.currentPage,'Нормативные документы — Региональные/муниципальные')"><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div onclick="openDocs(state.currentPage,'Нормативные документы — Локальные')"><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
+  function normativeCardNoLocal(){return `<div class="normative-card full"><h3>Нормативные документы</h3><div class="normative-cols two-cols"><div onclick="openDocs(state.currentPage,'Нормативные документы — Федеральные')"><b>Федеральные документы</b><p>📂 Открыть</p></div><div onclick="openDocs(state.currentPage,'Нормативные документы — Региональные/муниципальные')"><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div></div></div>`;}
+  function securityNormativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div onclick="openDocs('security','Нормативные документы — Федеральные')"><b>Федеральные документы</b><p>📂 Открыть</p></div><div onclick="openDocs('security','Нормативные документы — Региональные/муниципальные')"><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div onclick="openDocs('security','Нормативные документы — Локальные')"><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
   function giaHalf(label){const exam=label==="9 класс"?"ОГЭ":"ЕГЭ";return `${moduleCard("Расписание","Расписание консультаций, тренировочных мероприятий, экзаменов")}${moduleCard("Выбор предметов",`Выбор предметов для ${label}`)}${moduleCard("Приказы",`Приказы по ${exam}. Новые документы подсвечиваются.`,"left",true)}${normativeCardNoLocal()}${moduleCard("Создание особых условий",`Материалы и документы для ${label}`)}${moduleCard("Работники ППЭ",`Сведения и документы для ${label}`)}`;}
   function renderAnalytics(){
     const isManagerNow=isManager();
@@ -520,29 +674,27 @@ ${moduleCard("Повышение квалификации","Курсы, прог
   function renderMyData(){
     const d=state.myData[state.currentUser.login]||{};
     const fields=[
-      ["Фамилия, имя, отчество учителя","fullName"],["Сокращенное наименование образовательной организации (по Уставу)","orgShort"],
-      ["Наименование образовательной организации, год окончания, специальность по диплому","education"],["Переподготовка (организация, год, специальность)","retraining"],
-      ["Номер телефона","phone"],["Адрес эл. почты","email"],["Возраст","age"],["Общий стаж","totalExperience"],["Педагогический стаж","pedExperience"],
-      ["Ветеран труда, год","veteran"],["Научная степень (какая, год присвоения)","degree"],["Жилье: съемная квартира / общежитие","housing"],
-      ["Нуждаетесь в улучшении жилья","housingNeed"],["Общее количество учеников","students"],["Учебная нагрузка (часов в неделю)","load"],["Квалификация","qualification"],
-      ["Преподаваемый предмет 1","subject1"],["Классы по предмету 1","classes1"],["Количество учащихся по предмету 1","students1"],
-      ["Преподаваемый предмет 2","subject2"],["Классы по предмету 2","classes2"],["Количество учащихся по предмету 2","students2"],
-      ["Непрерывное повышение квалификации","cpd"],["Результативность ВОШ 2025/2026","olymp"],["Результативность ЕГЭ 2022/2023","ege"],
-      ["Награды муниципального уровня","awardsMunicipal"],["Награды регионального и всероссийского уровня","awardsRegional"],
-      ["Методические мероприятия текущего учебного года","methodical"],["Эксперт ОГЭ/ЕГЭ/аттестации","expert"],["Конкурсы профессионального мастерства","proContests"]
+      ["Фамилия, имя, отчество","fullName"],["Организация","orgShort"],["Образование / диплом","education"],["Переподготовка","retraining"],["Телефон","phone"],["Эл. почта","email"],["Возраст","age"],["Общий стаж","totalExperience"],["Педагогический стаж","pedExperience"],["Ветеран труда, год","veteran"],["Научная степень","degree"],["Жилье","housing"],["Нуждаетесь в улучшении жилья","housingNeed"],["Количество учеников","students"],["Нагрузка (часов в неделю)","load"],["Квалификация","qualification"],["Предмет 1","subject1"],["Классы по предмету 1","classes1"],["Учащиеся по предмету 1","students1"],["Предмет 2","subject2"],["Классы по предмету 2","classes2"],["Учащиеся по предмету 2","students2"],["Повышение квалификации","cpd"],["Результативность ВОШ 2025/2026","olymp"],["Результативность ЕГЭ 2022/2023","ege"],["Награды муниципального уровня","awardsMunicipal"],["Награды регионального/всероссийского уровня","awardsRegional"],["Методические мероприятия","methodical"],["Эксперт ОГЭ/ЕГЭ/аттестации","expert"],["Конкурсы профессионального мастерства","proContests"]
     ];
-    shell("Мои данные","Анкета педагога. Данные собираются в сводную таблицу для директора и заместителей.",
-      `<div class="card form-card"><div class="form-grid">${fields.map(([label,key])=>`<div class="field"><label>${label}</label><input id="md_${key}" value="${escapeHtml(d[key]||"")}"></div>`).join("")}</div><div class="toolbar" style="justify-content:flex-end;margin-top:18px"><button class="btn green" onclick="saveMyData()">Сохранить анкету</button></div></div>`);
+    const portfolio=state.portfolio[state.currentUser.login]||[];
+    shell("Мои данные","Личные сведения и портфолио.",`<div class="grid">
+      <div class="card span6 mydata-half"><h3 style="cursor:pointer" onclick="toggleTeacherQuestionnaire()">📝 Анкета педагога <span class="muted">— нажмите, чтобы раскрыть</span></h3><div id="teacherQuestionnaire" class="hidden"><div class="form-grid compact-mydata" style="margin-top:12px">${fields.map(([label,key])=>`<div class="field"><label>${label}</label><input id="md_${key}" value="${escapeHtml(d[key]||"")}"></div>`).join("")}</div><div class="toolbar" style="justify-content:flex-end;margin-top:14px"><button class="btn green" onclick="saveMyData()">Сохранить анкету</button></div></div></div>
+      <div class="card span6 mydata-half"><h3>📁 Портфолио</h3><p class="muted">Каждый пользователь может добавлять свои документы.</p><div class="doc-upload"><input id="portfolioFile" type="file"><button class="btn green" style="margin-top:10px" onclick="uploadPortfolio()">＋ Добавить документ</button></div><div class="portfolio-list">${portfolio.map((f,i)=>`<div class="portfolio-item"><span>📄 ${escapeHtml(f.name)}</span><span><a href="${f.data}" download="${escapeHtml(f.name)}">Открыть</a> <button class="small-btn danger" onclick="deletePortfolio(${i})">Удалить</button></span></div>`).join("")||'<div class="empty">Портфолио пока пусто.</div>'}</div></div>
+    </div>`);
   }
+  window.toggleTeacherQuestionnaire=function(){document.getElementById("teacherQuestionnaire")?.classList.toggle("hidden");};
   function renderAdmin(){
     if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
-    shell("Администрирование","Пользователи, роли, классы, замещения, диспетчер и расписание звонков.",
-      `<div class="grid">
-      <div class="card span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th>Диспетчер</th><th></th></tr>${state.users.map(u=>`<tr><td>${u.name}</td><td>${u.login}</td><td>${u.roles}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${c} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td>${state.dispatcherIds.includes(u.id)?"✓":""}</td><td><button class="small-btn" onclick="resetPassword(${u.id})">Сбросить пароль</button></td></tr>`).join("")}</table></div></div>
-      <div class="card span6"><h3>Расписание звонков</h3><div class="bell-editor"><div><h4>Понедельник</h4><div id="bellsMonday">${renderBellRows('monday')}</div><button class="small-btn" onclick="addBellRow('monday')">＋ Добавить урок</button></div><div><h4>Вторник–пятница</h4><div id="bellsWeekdays">${renderBellRows('weekdays')}</div><button class="small-btn" onclick="addBellRow('weekdays')">＋ Добавить урок</button></div></div><button class="btn green" style="margin-top:15px" onclick="saveBells()">Сохранить расписание звонков</button></div>
-      <div class="card span6"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${state.dispatcherIds.includes(u.id)?"selected":""}>${u.name}</option>`).join("")}</select><button class="btn green" style="margin-top:15px" onclick="saveDispatcher()">Сохранить назначение</button><p class="muted" style="margin-top:12px">Назначенный сотрудник сможет загружать ежедневное расписание.</p></div>
-      <div class="card span12"><h3>Сроки каникул</h3><label>Текст объявления-напоминания</label><textarea id="vacationsText" rows="5">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить</button></div>
-      <div class="card span12"><h3>Назначение замещений</h3><p class="muted">В MVP замещения демонстрируются в карточке пользователя. На следующем серверном этапе назначение будет отдельной формой по датам.</p></div>
+    const respNames={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
+    shell("Администрирование","Пользователи, роли, расписание, дежурство и ответственные за направления.",
+      `<div class="admin-grid">
+      <div class="card admin-span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th></th></tr>${state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.login)}</td><td>${escapeHtml(u.roles||rolesText(u.roleKeys))}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${escapeHtml(c)} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td><button class="small-btn" onclick="editUserRoles(${u.id})">Роли</button> <button class="small-btn" onclick="resetPassword(${u.id})">Сбросить пароль</button></td></tr>`).join("")}</table></div><p class="role-hint">Секретарь — дополнительная роль существующего пользователя, как и Диспетчер. Отдельной учётной записи секретаря нет.</p></div>
+      <div class="card"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("dispatcher")||state.dispatcherIds.includes(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveDispatcher()">Сохранить</button></div>
+      <div class="card"><h3>Секретарь</h3><label>Назначить пользователя с ролью «Секретарь»</label><select id="secretarySelect"><option value="">Выберите пользователя</option>${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("secretary")?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveSecretary()">Сохранить</button><p class="muted">Секретарь входит под своим обычным логином и может загружать приказы и получать результаты ознакомления.</p></div>
+      <div class="card"><h3>Расписание звонков</h3><div class="bell-editor"><div><h4>Понедельник</h4><div id="bellsMonday">${renderBellRows('monday')}</div><button class="small-btn" onclick="addBellRow('monday')">＋ Добавить урок</button></div><div><h4>Вторник–пятница</h4><div id="bellsWeekdays">${renderBellRows('weekdays')}</div><button class="small-btn" onclick="addBellRow('weekdays')">＋ Добавить урок</button></div></div><button class="btn green" style="margin-top:12px" onclick="saveBells()">Сохранить</button></div>
+      <div class="card"><h3>Ответственные за направления</h3><p class="muted">Администратор указывает ФИО заместителя, курирующего каждый модуль.</p><div class="responsible-admin-list">${Object.entries(respNames).map(([k,n])=>`<label>${n}<input id="resp_${k}" value="${escapeHtml(state.responsibles[k]||"")}" placeholder="ФИО заместителя"></label>`).join("")}</div><button class="btn green" style="margin-top:12px" onclick="saveResponsibles()">Сохранить ответственных</button></div>
+      <div class="card admin-span12"><h3>Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон 1</th><th>ФИО 2</th><th>Телефон 2</th></tr>${state.dutySchedule.map((x,i)=>`<tr><td>${escapeHtml(x.day)}</td><td><input id="duty_name1_${i}" value="${escapeHtml(x.name1||"")}"></td><td><input id="duty_phone1_${i}" value="${escapeHtml(x.phone1||"")}"></td><td><input id="duty_name2_${i}" value="${escapeHtml(x.name2||"")}"></td><td><input id="duty_phone2_${i}" value="${escapeHtml(x.phone2||"")}"></td></tr>`).join("")}</table></div><button class="btn green" style="margin-top:12px" onclick="saveDuty()">Сохранить график дежурства</button></div>
+      <div class="card admin-span12"><h3>Сроки каникул</h3><label>Текст объявления-напоминания</label><textarea id="vacationsText" rows="4">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить</button></div>
       </div>`);
   }
   function renderSettings(){shell("Настройки","Настройки пользователя.",`<div class="card" style="max-width:800px"><div class="settings-row"><b>Логин</b><div>${state.currentUser.login}</div></div><div class="settings-row"><b>Роль</b><div>${state.currentUser.roles||state.currentUser.role}</div></div><div class="settings-row"><b>Смена пароля</b><div><button class="btn" onclick="changePassword()">Изменить пароль</button></div></div></div>`);}
@@ -592,7 +744,14 @@ ${moduleCard("Повышение квалификации","Курсы, прог
   window.publishPlan=function(id){const x=state.plan.find(p=>p.id===id);if(x){x.status="Опубликовано";x.responsible=x.responsible||state.currentUser.name;save();render();}};
   window.editPlan=function(id){const x=state.plan.find(p=>p.id===id);if(!x)return;x.title=prompt("Мероприятие:",x.title)||x.title;x.date=prompt("Дата:",x.date)||x.date;x.time=prompt("Время:",x.time)||x.time;x.place=prompt("Место:",x.place)||x.place;x.participants=prompt("Участники:",x.participants)||x.participants;save();render();};
   window.deletePlan=function(id){if(confirm("Удалить мероприятие?")){state.plan=state.plan.filter(x=>x.id!==id);save();render();}};
-  window.addTransport=function(){const title=prompt("Маршрут / заголовок:");if(!title)return;const text=prompt("Текст уведомления:")||"";state.transport.unshift({id:Date.now(),level:"important",title,text,date:"Сегодня",read:false});save();render();};
+  window.submitTransportMessage=function(){
+    if(!isManager())return;
+    const title=document.getElementById("transportTitle")?.value.trim(),text=document.getElementById("transportText")?.value.trim();
+    if(!title||!text)return alert("Заполните заголовок и текст сообщения.");
+    state.transport.unshift({id:Date.now(),level:"important",title,text,date:"Сегодня",read:false});
+    save();render();
+  };
+  window.addTransport=function(){state.currentPage="transport";render();};
   window.sendText=function(){
     const users=state.users.filter(u=>u.roleKeys.includes("teacher"));
     const names=users.map((u,i)=>`${i+1}. ${u.name}`).join("\n");
@@ -605,17 +764,348 @@ ${moduleCard("Повышение квалификации","Курсы, прог
   window.readNotification=function(id){const n=state.notifications.find(x=>x.id===id);if(n){n.read=true;save();render();}};
   window.markNotificationsRead=function(){state.notifications.forEach(n=>n.read=true);save();render();};
   window.saveMyData=function(){const d={};document.querySelectorAll('[id^="md_"]').forEach(e=>d[e.id.slice(3)]=e.value.trim());state.myData[state.currentUser.login]=d;save();alert("Анкета сохранена.");render();};
-  window.exportMyData=function(){const keys=Object.keys(state.myData), rows=keys.map(k=>Object.values(state.myData[k]));downloadCSV(["Логин",...keys],rows,"мои_данные.csv");};
-  window.addUser=function(){const name=prompt("ФИО:");if(!name)return;const login=prompt("Логин:","newuser");if(!login)return;state.users.push({id:Date.now(),name,login,roleKeys:["teacher"],roles:"Учитель",classes:[],shift:{},attendanceClasses:[],replacement:[]});save();render();};
+  window.exportMyData=function(){const keys=Object.keys(state.myData), rows=keys.map(k=>[k,...Object.values(state.myData[k])]);downloadCSV(["Логин","Данные анкеты"],rows,"мои_данные.csv");};
+  window.addUser=function(){
+    if(!isAdmin())return;
+    const name=prompt("ФИО:");if(!name)return;
+    const login=prompt("Логин:","newuser");if(!login)return;
+    const password=prompt("Пароль:","1234")||"1234";
+    const roleInput=prompt("Роли через запятую: teacher, director, deputy, dispatcher, secretary, admin","teacher")||"teacher";
+    const roleKeys=roleInput.split(",").map(x=>x.trim()).filter(Boolean);
+    state.users.push({id:Date.now(),name,login,password,roleKeys,roles:rolesText(roleKeys),classes:[],shift:{},attendanceClasses:[],replacement:[]});
+    save();render();
+  };
+  window.editUserRoles=function(id){
+    if(!isAdmin())return;
+    const u=state.users.find(x=>x.id===id);if(!u)return;
+    const input=prompt("Роли через запятую: teacher, director, deputy, dispatcher, secretary, admin", (u.roleKeys||[]).join(","));
+    if(input===null)return;
+    u.roleKeys=input.split(",").map(x=>x.trim()).filter(Boolean);
+    u.roles=rolesText(u.roleKeys);save();render();
+  };
   window.resetPassword=function(id){alert("Пароль пользователя сброшен администратором. В серверной версии будет установлен временный пароль и отправлено уведомление.");};
   function renderBellRows(kind){const arr=state.schedule.bellSchedules?.[kind]||[];return arr.map((b,i)=>`<div class="bell-row"><input id="${kind}_n_${i}" type="number" min="1" value="${b.n}"><input id="${kind}_s_${i}" type="time" value="${b.start}"><span>—</span><input id="${kind}_e_${i}" type="time" value="${b.end}"><button class="small-btn danger" onclick="removeBellRow('${kind}',${i})">×</button></div>`).join("");}
   window.addBellRow=function(kind){state.schedule.bellSchedules[kind].push({n:state.schedule.bellSchedules[kind].length+1,start:"08:30",end:"09:15"});save();render();};
   window.removeBellRow=function(kind,i){state.schedule.bellSchedules[kind].splice(i,1);save();render();};
   window.saveBells=function(){["monday","weekdays"].forEach(kind=>{const arr=state.schedule.bellSchedules[kind];arr.forEach((b,i)=>{b.n=+(document.getElementById(`${kind}_n_${i}`)?.value||b.n);b.start=document.getElementById(`${kind}_s_${i}`)?.value||b.start;b.end=document.getElementById(`${kind}_e_${i}`)?.value||b.end;});});state.schedule.bells=state.schedule.bellSchedules.weekdays;save();alert("Расписание звонков сохранено.");render();};
   window.saveVacations=function(){state.vacationsText=document.getElementById("vacationsText").value;save();alert("Сроки каникул сохранены.");render();};
-  window.saveDispatcher=function(){const id=+document.getElementById("dispatcherSelect").value;state.dispatcherIds=[id];save();alert("Диспетчер назначен.");render();};
-  window.uploadSchedule=function(){const f=document.getElementById("scheduleFile").files[0];if(!f)return alert("Выберите Excel/CSV файл.");state.schedule.uploadedFile=f.name;save();alert(`Файл «${f.name}» загружен. В серверной версии строки файла будут автоматически разобраны и опубликованы.`);};
-  window.changePassword=function(){const p=prompt("Новый пароль:");if(p)alert("В MVP пароль изменен локально. В серверной версии изменение будет сохранено в учетной записи.");};
+  window.saveDispatcher=function(){
+    if(!isAdmin())return;
+    const id=+document.getElementById("dispatcherSelect").value;
+    state.users.forEach(u=>{if(u.roleKeys?.includes("dispatcher")){u.roleKeys=u.roleKeys.filter(r=>r!=="dispatcher");u.roles=rolesText(u.roleKeys);}});
+    const u=state.users.find(x=>x.id===id);if(u&&!u.roleKeys.includes("dispatcher"))u.roleKeys.push("dispatcher");
+    if(u)u.roles=rolesText(u.roleKeys);state.dispatcherIds=[id];save();alert("Диспетчер назначен.");render();
+  };
+  window.saveSecretary=function(){
+    if(!isAdmin())return;
+    const id=+document.getElementById("secretarySelect")?.value;
+    state.users.forEach(u=>{u.roleKeys=(u.roleKeys||[]).filter(r=>r!=="secretary");u.roles=rolesText(u.roleKeys);});
+    const u=state.users.find(x=>x.id===id);if(u){u.roleKeys.push("secretary");u.roles=rolesText(u.roleKeys);}
+    save();alert("Роль «Секретарь» назначена.");render();
+  };
+  window.saveResponsibles=function(){
+    if(!isAdmin())return;
+    const keys=["vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
+    keys.forEach(k=>state.responsibles[k]=document.getElementById(`resp_${k}`)?.value.trim()||"");save();alert("Ответственные за направления сохранены.");render();
+  };
+  window.saveDuty=function(){if(!(isAdmin()||state.currentUser.roleKeys.includes("deputy")))return;state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();alert("График дежурства сохранён.");render();};
+  function normalizeClass(s){return String(s||"").trim().toUpperCase().replace(/\s+/g,"");}
+  function parseDateFromText(v){const s=String(v||"");let m=s.match(/(\d{1,2})\s+([А-Яа-яЁё]+)/);if(!m)return dateInfo().iso;const months={января:0,февраля:1,марта:2,апреля:3,мая:4,июня:5,июля:6,августа:7,сентября:8,октября:9,ноября:10,декабря:11};const mon=months[m[2].toLowerCase()];if(mon===undefined)return dateInfo().iso;const y=new Date().getFullYear();return `${y}-${String(mon+1).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;}
+  function cellVal(v){return v==null?"":String(v).trim();}
+  function parseScheduleWorkbook(wb,fileName,selectedShift){
+    const ws=wb.Sheets[wb.SheetNames[0]], a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
+    let dateIso=dateInfo().iso,shift=selectedShift?+selectedShift:null;
+    for(const row of a.slice(0,10)){
+      const text=row.map(cellVal).join(" ");
+      if(/День/i.test(text)){const d=parseDateFromText(text);if(d)dateIso=d;}
+      const sm=text.match(/([12])\s*(?:смена|см)/i);if(sm&&!selectedShift)shift=+sm[1];
+    }
+    if(!shift)throw new Error("Не выбрана смена.");
+    let headerRow=-1,header=[];
+    for(let r=0;r<Math.min(a.length,15);r++){
+      const row=a[r]||[];
+      const count=row.filter(v=>/^\s*[1-9]\d?\s*[А-ЯA-ZЁёа-яa-zё]+\s*$/u.test(String(v||""))).length;
+      if(count>=2 || (String(row[0]||"").trim()==="#" && row.some(v=>/^[1-9]\d?\s*[А-ЯA-ZЁёа-яa-zё]+$/u.test(String(v||""))))){headerRow=r;header=row;break;}
+    }
+    if(headerRow<0){headerRow=3;header=a[3]||[];}
+    const classes=[];
+    for(let c=1;c<header.length;c+=2){const cl=normalizeClass(header[c]);if(cl)classes.push({className:cl,subCol:c,roomCol:c+1});}
+    if(!classes.length)throw new Error("Не удалось определить классы в файле.");
+    const entries=[];
+    let r=headerRow+2;
+    while(r<a.length){
+      const lesson=+cellVal(a[r]?.[0]);
+      if(!lesson){r++;continue;}
+      let rr=r+1;
+      while(rr<a.length && !+cellVal(a[rr]?.[0])) rr++;
+      for(const c of classes){
+        let group=0;
+        for(let k=r;k<rr;k++){
+          const subj=cellVal(a[k]?.[c.subCol]),room=cellVal(a[k]?.[c.roomCol]);
+          if(subj){
+            let teacher=cellVal(a[k+1]?.[c.subCol]);
+            let actualRoom=room||cellVal(a[k+1]?.[c.roomCol]);
+            entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_${k}`,date:dateIso,shift,lesson,className:c.className,subject:subj,room:actualRoom,teacher,group:group++});
+          }
+        }
+      }
+      r=rr;
+    }
+    return {date:dateIso,shift,entries,classes:classes.map(x=>x.className),fileName};
+  }
+
+  function parseBaseScheduleWorkbook(wb,fileName,selectedShift){
+    const ws=wb.Sheets[wb.SheetNames[0]], a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
+    const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
+    const entries=[]; let currentClass="", shift=selectedShift?+selectedShift:null;
+    for(let r=0;r<a.length;r++){
+      const row=a[r]||[];
+      const first=cellVal(row[0]);
+      const cm=first.match(/Класс\s*-\s*(.+)/i);
+      if(cm){currentClass=normalizeClass(cm[1]);continue;}
+      const rowText=row.map(cellVal).join(" ");
+      const sm=rowText.match(/([12])\s*(?:смена|см)/i);if(sm&&!shift)shift=+sm[1];
+      const lesson=+first;
+      if(!currentClass||!lesson||lesson>20)continue;
+      for(let c=1;c<=5;c++){
+        const subject=cellVal(row[c]);
+        if(!subject)continue;
+        let teacher="";
+        if(r+1<a.length && !+cellVal(a[r+1]?.[0])) teacher=cellVal(a[r+1]?.[c]);
+        let group=0;
+        let rr=r+1;
+        while(rr<a.length && !+cellVal(a[rr]?.[0]) && !String(a[rr]?.[0]||"").toLowerCase().includes("класс -")) rr++;
+        for(let k=r+2;k<rr;k++){
+          const extra=cellVal(a[k]?.[c]);
+          if(extra && !/^[А-ЯЁA-Z][^]*\s[А-ЯЁA-Z]\./u.test(extra) && extra!==subject) {
+            // Дополнительный предмет/группа. Учитель обычно следует следующей строкой.
+            let extraTeacher=cellVal(a[k+1]?.[c]);
+            if(extraTeacher) entries.push({id:`base_${selectedShift}_${currentClass}_${lesson}_${c}_${k}`,shift:+selectedShift,day:days[c-1],dayIndex:c-1,lesson,className:currentClass,subject:extra,teacher:extraTeacher,group:++group});
+          }
+        }
+        entries.push({id:`base_${selectedShift}_${currentClass}_${lesson}_${c}`,shift:+selectedShift,day:days[c-1],dayIndex:c-1,lesson,className:currentClass,subject,teacher,group});
+      }
+    }
+    if(!shift)throw new Error("Не выбрана смена.");
+    const valid=entries.filter(x=>x.shift===shift);
+    return {shift,entries:valid,classes:[...new Set(valid.map(x=>x.className))],fileName};
+  }
+
+  window.uploadSchedule=function(){
+    if(!isDispatcher())return alert("Загрузка расписания доступна только диспетчеру и администратору.");
+    const f=document.getElementById("scheduleFile")?.files[0], selectedShift=document.getElementById("scheduleShift")?.value;
+    if(!f)return alert("Выберите Excel-файл расписания.");
+    if(!selectedShift)return alert("Укажите, это 1-я или 2-я смена.");
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:"array"});
+        const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+        const old=state.schedule.entries.filter(x=>x.date===parsed.date&&x.shift===parsed.shift);
+        state.schedule.entries=state.schedule.entries.filter(x=>!(x.date===parsed.date&&x.shift===parsed.shift));
+        state.schedule.entries.push(...parsed.entries);
+        const now=new Date().toISOString();
+        const version={id:Date.now(),date:parsed.date,shift:parsed.shift,fileName:f.name,uploadedAt:now,count:parsed.entries.length,readBy:{[state.currentUser.login]:{at:now}}};
+        state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(v.date===parsed.date&&v.shift===parsed.shift));
+        state.schedule.versions.push(version);state.schedule.uploadedFile=f.name;
+        save();
+        const info=document.getElementById("scheduleImportInfo");
+        if(info)info.innerHTML=`Распознано: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>. ${old.length?"Предыдущее расписание этой даты и смены заменено.":"Расписание добавлено."}`;
+        alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);
+        render();
+      }catch(err){console.error(err);alert("Не удалось обработать файл расписания: "+(err.message||"проверьте формат Excel."));}
+    };
+    reader.readAsArrayBuffer(f);
+  };
+
+  window.uploadBaseSchedule=function(){
+    if(!isDispatcher())return alert("Загрузка базового расписания доступна только диспетчеру и администратору.");
+    const f=document.getElementById("baseScheduleFile")?.files[0], selectedShift=document.getElementById("baseScheduleShift")?.value;
+    if(!f)return alert("Выберите Excel-файл базового расписания.");
+    if(!selectedShift)return alert("Укажите, это 1-я или 2-я смена.");
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:"array"});
+        const parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
+        state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>x.shift!==parsed.shift);
+        state.schedule.baseEntries.push(...parsed.entries);
+        const now=new Date().toISOString();
+        state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>v.shift!==parsed.shift);
+        state.schedule.baseVersions.push({id:Date.now(),shift:parsed.shift,fileName:f.name,uploadedAt:now,count:parsed.entries.length});
+        state.schedule.baseUploadedFile=f.name;
+        save();
+        const info=document.getElementById("baseScheduleImportInfo");
+        if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>. Предыдущая версия этой смены заменена.`;
+        alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);
+        render();
+      }catch(err){console.error(err);alert("Не удалось обработать базовое расписание: "+(err.message||"проверьте формат Excel."));}
+    };
+    reader.readAsArrayBuffer(f);
+  };
+
+  function getScheduleForDate(iso){return (state.schedule.entries||[]).filter(x=>x.date===iso).sort((a,b)=>a.lesson-b.lesson||a.className.localeCompare(b.className,'ru'));}
+  function normalizePersonName(v){return String(v||"").toLowerCase().replace(/ё/g,"е").replace(/[^а-яa-z0-9 ]/gi," ").replace(/\s+/g," ").trim();}
+  function teacherMatches(entryTeacher,userName){
+    const a=normalizePersonName(entryTeacher),b=normalizePersonName(userName);
+    if(!a||!b)return false;
+    if(a===b)return true;
+    const as=a.split(" "),bs=b.split(" ");
+    if(as[0]===bs[0])return true;
+    const initials=as.slice(1).map(x=>x[0]).join("");
+    const fullInitials=bs.slice(1).map(x=>x[0]).join("");
+    return as[0]===bs[0] && initials && fullInitials && initials===fullInitials;
+  }
+  function scheduleForUser(entries,mode){
+    if(isGuest())return entries;
+    if(mode==="mine")return entries.filter(x=>teacherMatches(x.teacher,state.currentUser.name));
+    if(mode&&mode.startsWith("class:"))return entries.filter(x=>x.className===mode.slice(6));
+    return [];
+  }
+  function scheduleShiftFor(entries){const shifts=[...new Set(entries.map(x=>x.shift))];return shifts.length?shifts.join(", "):"—";}
+  function renderScheduleTable(entries,mode){
+    const arr=scheduleForUser(entries,mode);
+    if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
+    return `<div class="schedule-view"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr><td>${x.lesson}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(x.subject||"—")}</td><td>${escapeHtml(x.teacher||"—")}</td><td>${escapeHtml(x.room||"—")}</td></tr>`).join("")}</table></div></div>`;
+  }
+  function renderScheduleSelector(day){
+    const d=dateInfo(),dt=new Date();dt.setDate(dt.getDate()+(day==="tomorrow"?1:0));const iso=dt.toISOString().slice(0,10);
+    const entries=getScheduleForDate(iso);
+    const classes=(state.currentUser.classes||[]).filter(Boolean);
+    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("");
+    return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div></div>`;
+  }
+  window.showScheduleChoice=function(day){
+    const sel=document.getElementById("scheduleChoice_"+day);if(!sel)return;
+    const d=dateInfo(),dt=new Date();dt.setDate(dt.getDate()+(day==="tomorrow"?1:0));
+    document.getElementById("scheduleResult_"+day).innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dt.toISOString().slice(0,10)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
+  };
+  function renderScheduleHomeSelector(day="today"){
+    const classes=(state.currentUser.classes||[]).filter(Boolean);
+    const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
+    return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("")}</select></div>
+      <div class="muted">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div>
+      <div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+  }
+  window.showHomeScheduleChoice=function(day="today"){
+    const sel=document.getElementById(`homeScheduleChoice_${day}`);if(!sel)return;
+    const result=document.getElementById(`homeScheduleResult_${day}`);if(!result)return;
+    const d=dateInfo(),dt=new Date();dt.setDate(dt.getDate()+(day==="tomorrow"?1:0));
+    if(!sel.value){result.innerHTML='<div class="schedule-empty">Выберите вариант.</div>';return;}
+    result.innerHTML=renderScheduleTable(getScheduleForDate(dt.toISOString().slice(0,10)),sel.value);
+  };
+  function hasUnreadSchedule(){return (state.schedule.versions||[]).some(v=>!(v.readBy||{})[state.currentUser.login]);}
+  function markScheduleRead(){(state.schedule.versions||[]).forEach(v=>{v.readBy=v.readBy||{};v.readBy[state.currentUser.login]={at:new Date().toISOString()};});save();}
+  function renderBaseScheduleSelector(){
+    const classes=[...new Set((state.schedule.baseEntries||[]).map(x=>x.className))].sort(classSort);
+    return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select></div>
+      <div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div>
+      <div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
+  }
+  window.showBaseScheduleChoice=function(){
+    const c=document.getElementById("baseScheduleChoice")?.value;if(!c)return;
+    const arr=(state.schedule.baseEntries||[]).filter(x=>x.className===c);
+    if(!arr.length){document.getElementById("baseScheduleResult").innerHTML='<div class="schedule-empty">Базовое расписание для класса не найдено.</div>';return;}
+    const shifts=[...new Set(arr.map(x=>x.shift))];
+    const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
+    let html=`<div class="schedule-shift">Смена: ${escapeHtml(shifts.join(", "))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th>${days.map(d=>`<th>${d}</th>`).join("")}</tr>`;
+    for(let lesson=1;lesson<=20;lesson++){
+      if(!arr.some(x=>x.lesson===lesson))continue;
+      html+=`<tr><td>${lesson}</td>${days.map((_,i)=>{const cells=arr.filter(x=>x.lesson===lesson&&x.dayIndex===i);const cell=cells.map(x=>escapeHtml(x.subject)+(x.teacher?"<br><span class=\"muted\">"+escapeHtml(x.teacher)+"</span>":"")).join("<hr style=\"border:0;border-top:1px solid var(--line);margin:5px 0\">")||"—";return "<td>"+cell+"</td>";}).join("")}</tr>`;
+    }
+    html+=`</table></div>`;
+    document.getElementById("baseScheduleResult").innerHTML=html;
+  };
+  function renderGuestHomeSchedule(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();return `<section class="card"><h3>📅 Расписание уроков</h3><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClass" class="schedule-class-select" onchange="renderGuestSelectedSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></section>`;}
+  window.renderGuestSelectedSchedule=function(){const c=document.getElementById("guestClass")?.value;if(!c)return;const d=dateInfo(),tom=new Date();tom.setDate(tom.getDate()+1);const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestScheduleResult").innerHTML=`<div class="schedule-columns"><div><h4>Сегодня <span class="muted">(${d.full})</span></h4>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h4>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h4>${renderScheduleTable(filter(getScheduleForDate(tom.toISOString().slice(0,10))),"class:"+c)}</div></div>`;};
+  function renderGuestSchedulePage(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();shell("Расписание","Режим просмотра для гостя.",`<div class="card"><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClassPage" class="schedule-class-select" onchange="renderGuestPageSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestPageScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></div>`);}
+  window.renderGuestPageSchedule=function(){const c=document.getElementById("guestClassPage")?.value;if(!c)return;const d=dateInfo(),tom=new Date();tom.setDate(tom.getDate()+1);const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestPageScheduleResult").innerHTML=`<div class="schedule-columns"><div><h3>Сегодня <span class="muted">(${d.full})</span></h3>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h3>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>${renderScheduleTable(filter(getScheduleForDate(tom.toISOString().slice(0,10))),"class:"+c)}</div></div>`;};
+
+  function docUploadAllowed(page,title){if(isGuest())return false;if(title.includes("Приказы"))return canManageOrders();return true;}
+  function docTargetLabel(d){
+    const parts=[];
+    if(d.targetAll)parts.push("Все");
+    if(d.targetClassLeaderAll)parts.push("Все классные руководители");
+    if((d.targetClassLeaderParallels||[]).length)parts.push("Классные руководители "+d.targetClassLeaderParallels.join(", ")+" классов");
+    if((d.targetUsers||[]).length)parts.push("Конкретные учителя: "+d.targetUsers.map(l=>state.users.find(u=>u.login===l)?.name||l).join(", "));
+    if(parts.length)return parts.join(" + ");
+    if(d.targetType==="all")return "Все";
+    if(d.targetType==="classleaders")return "Классные руководители";
+    return "Конкретные пользователи";
+  }
+  function markDocsReadForCurrent(key){/* ознакомление фиксируется только кнопкой «Ознакомился» */}
+  function sectionDocs(page,title){return state.documents.filter(d=>d.sectionKey===docKey(page,title));}
+  window.openDocs=function(page,title){state.currentPage=page;renderDocSection(page,title);};
+  function renderDocSection(page,title){
+    const docs=sectionDocs(page,title),canUpload=docUploadAllowed(page,title),manager=canManageOrders();
+    const order=title.includes("Приказы");
+    shell(title,"Документы раздела. Для приказов ознакомление фиксируется отдельной кнопкой.",`${canUpload?`<div class="doc-upload"><div class="doc-upload-grid"><div><label>Документ</label><input id="docFile" type="file"></div><div><label>Название документа</label><input id="docTitle" placeholder="Например: Приказ №..."></div></div>${order?`<div style="margin-top:12px"><label>Для кого предназначен приказ</label>
+<div class="target-grid target-grid-four">
+<label class="target-choice"><input type="checkbox" id="targetAll" onchange="toggleDocTarget()"> Все</label>
+<label class="target-choice"><input type="checkbox" id="targetClassLeaderAll" onchange="toggleDocTarget()"> Все классные руководители</label>
+<label class="target-choice"><input type="checkbox" id="targetClassLeaderParallel" onchange="toggleDocTarget()"> Классные руководители по параллелям</label>
+<label class="target-choice"><input type="checkbox" id="targetSpecific" onchange="toggleDocTarget()"> Конкретные учителя</label>
+</div>
+<div id="parallelBox" class="checkbox-list hidden" style="margin-top:8px">${[...new Set(state.users.flatMap(u=>(u.classes||[]).map(c=>String(c).match(/^\d+/)?.[0]).filter(Boolean)))].sort((a,b)=>+a-+b).map(p=>`<label><input type="checkbox" value="${p}"> ${p} классы</label>`).join("")}</div>
+<div id="specificUsersBox" class="checkbox-list hidden" style="margin-top:8px">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<label><input type="checkbox" value="${escapeHtml(u.login)}"> ${escapeHtml(u.name)}</label>`).join("")}</div>
+</div>`:""}<button class="btn green" style="margin-top:12px" onclick="uploadDocument('${escapeHtml(page)}','${escapeHtml(title)}')">＋ Загрузить документ</button></div>`:""}${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).join("")}</div>`:'<div class="empty">Документов пока нет.</div>'}`);
+  }
+  function renderDocItem(d,manager){
+    const seen=d.readBy?.[state.currentUser.login];
+    const unread=userCanSeeDoc(d)&&!seen;
+    const isOrder=d.sectionKey.split('::')[1]?.includes("Приказы");
+    const ackAt=typeof seen==="object"?seen.at:null;
+    return `<div class="doc-item ${unread?'unread':''}">
+      <div class="doc-item-title">📄 ${escapeHtml(d.title||d.fileName)} ${unread?'<span class="unread-marker">• новое</span>':''}</div>
+      <div class="doc-meta">Загружен: ${escapeHtml(d.uploadedByName||"")} · ${new Date(d.uploadedAt).toLocaleString('ru-RU')}</div>
+      ${isOrder?`<div class="doc-targets">Предназначен: ${escapeHtml(docTargetLabel(d))}</div>`:""}
+      ${ackAt?`<div class="ack-info">✓ Ознакомлен: ${new Date(ackAt).toLocaleString('ru-RU')}</div>`:""}
+      <div class="doc-actions">${d.data?`<a class="btn" href="${d.data}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}</div>
+    </div>`;
+  }
+  window.toggleDocSpecific=function(show){document.getElementById("specificUsersBox")?.classList.toggle("hidden",!show);};
+  window.toggleDocTarget=function(){
+    document.getElementById("parallelBox")?.classList.toggle("hidden",!document.getElementById("targetClassLeaderParallel")?.checked);
+    document.getElementById("specificUsersBox")?.classList.toggle("hidden",!document.getElementById("targetSpecific")?.checked);
+  };
+  window.uploadDocument=function(page,title){
+    const f=document.getElementById("docFile")?.files[0];if(!f)return alert("Выберите документ.");
+    const name=document.getElementById("docTitle")?.value.trim()||f.name;let targetType="all",targetUsers=[],targetAll=true,targetClassLeaderAll=false,targetClassLeaderParallels=[];
+    if(title.includes("Приказы")){
+      if(!canManageOrders())return alert("Приказы могут загружать только директор, заместитель директора, администратор и секретарь.");
+      targetAll=!!document.getElementById("targetAll")?.checked;
+      targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked;
+      targetClassLeaderParallels=[...document.querySelectorAll("#parallelBox input:checked")].map(x=>x.value);
+      targetUsers=[...document.querySelectorAll('#specificUsersBox input:checked')].map(x=>x.value);
+      const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;
+      if(!any)return alert("Выберите хотя бы одного адресата.");
+      targetType=targetAll?"all":targetUsers.length?"specific":(targetClassLeaderAll||targetClassLeaderParallels.length)?"classleaders":"specific";
+    }
+    const reader=new FileReader();reader.onload=e=>{state.documents.unshift({id:Date.now(),sectionKey:docKey(page,title),title:name,fileName:f.name,data:e.target.result,uploadedBy:state.currentUser.login,uploadedByName:state.currentUser.name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,readBy:{}});save();alert("Документ загружен.");renderDocSection(page,title);};reader.readAsDataURL(f);
+  };
+  window.ackDocument=function(id){
+    const d=state.documents.find(x=>x.id===id);if(!d||!userCanSeeDoc(d))return;
+    d.readBy=d.readBy||{};d.readBy[state.currentUser.login]={at:new Date().toISOString()};save();renderDocSection(state.currentPage,d.sectionKey.split('::')[1]);
+  };
+  window.whoRead=function(id){
+    const d=state.documents.find(x=>x.id===id);if(!d||!canManageOrders()||!d.sectionKey.split('::')[1]?.includes("Приказы"))return;
+    const recipients=state.users.filter(u=>{
+      if(u.roleKeys.includes("guest"))return false;
+      if(d.targetAll||d.targetType==="all")return true;
+      if(d.targetClassLeaderAll||d.targetType==="classleaders")if((u.classes||[]).length)return true;
+      const ps=(d.targetClassLeaderParallels||[]).map(String);
+      if(ps.length&&(u.classes||[]).some(c=>ps.includes(String(c).match(/^\d+/)?.[0])))return true;
+      return (d.targetUsers||[]).includes(u.login);
+    });
+    const rows=recipients.map(u=>{const seen=d.readBy?.[u.login];return [d.title||d.fileName,u.name,seen?(typeof seen==="object"?new Date(seen.at).toLocaleString('ru-RU'):""):"Не ознакомлен"];});
+    const headers=["Название приказа","ФИО ознакомившегося","Дата и время ознакомления"];
+    const csv=[headers,...rows];downloadCSV(csv[0],csv.slice(1),`ознакомление_${d.id}.csv`);
+    const lines=rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td></tr>`).join("");
+    const w=window.open("","_blank","width=900,height=600");if(w){w.document.write(`<title>Ознакомление с приказом</title><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Название приказа</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table>`);w.document.close();}
+  };
+  window.uploadPortfolio=function(){if(isGuest())return alert("В режиме гостя добавление документов недоступно.");const f=document.getElementById("portfolioFile")?.files[0];if(!f)return alert("Выберите документ.");const r=new FileReader();r.onload=e=>{state.portfolio[state.currentUser.login]=state.portfolio[state.currentUser.login]||[];state.portfolio[state.currentUser.login].push({name:f.name,data:e.target.result,uploadedAt:new Date().toISOString()});save();render();};r.readAsDataURL(f);};
+  window.deletePortfolio=function(i){const a=state.portfolio[state.currentUser.login]||[];if(confirm("Удалить документ из портфолио?")){a.splice(i,1);state.portfolio[state.currentUser.login]=a;save();render();}};
+    window.changePassword=function(){const p=prompt("Новый пароль:");if(p)alert("В MVP пароль изменен локально. В серверной версии изменение будет сохранено в учетной записи.");};
   function downloadCSV(headers,rows,name){const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
   document.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
   document.getElementById("topNotify").addEventListener("click",()=>navigate("notifications"));
@@ -629,17 +1119,18 @@ ${moduleCard("Повышение квалификации","Курсы, прог
   document.getElementById("loginForm").addEventListener("submit",e=>{
     e.preventDefault();const guestMode=document.getElementById("guestMode")?.checked;const login=guestMode?"guest":document.getElementById("login").value.trim(),password=document.getElementById("password").value;
     const base=guestMode?USERS.guest:Object.values(USERS).find(u=>u.login===login&&u.password===password);
-    if(!base){document.getElementById("loginError").textContent="Неверный логин или пароль.";return;}
-    const db=state.users.find(u=>u.login===login);
-    state.currentUser=db?{...base,...db}:base;state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession",login);
+    const db=state.users.find(u=>u.login===login&&((u.password||USERS[u.login]?.password||"")===password));
+    const account=guestMode?base:(db||base);
+    if(!account){document.getElementById("loginError").textContent="Неверный логин или пароль.";return;}
+    state.currentUser=db?{...base,...db}:account;state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession",login);
     document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");document.getElementById("loginError").textContent="";render();
   });
-  window.navigate=function(page){closeMobileMenu();if(page==="attendance"){state.currentPage="attendance";}else{state.currentPage=page;}save();document.getElementById("profileMenu").classList.add("hidden");render();window.scrollTo({top:0,behavior:"smooth"});};
+  window.navigate=function(page){closeMobileMenu();if(isGuest()&&!guestPageAllowed(page))return;if(page==="attendance"){state.currentPage="attendance";}else{state.currentPage=page;}save();document.getElementById("profileMenu").classList.add("hidden");render();window.scrollTo({top:0,behavior:"smooth"});};
   const oldTaskBadge=document.getElementById("taskBadge");
   const session=localStorage.getItem("schoolSolutionsSession");
   if(session){
     const base=Object.values(USERS).find(u=>u.login===session),db=state.users.find(u=>u.login===session);
-    if(base){state.currentUser=db?{...base,...db}:base;document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
+    if(base||db){state.currentUser=db?{...base,...db}:base;document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
   }
 
 })();
