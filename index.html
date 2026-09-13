@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075b3f">
   <title>Школа решений — Виртуальная учительская</title>
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=T8eRJD5HrkPABTdkQWPebtzxVBSGtIRwUKJIfDP9MJ3wr8Y-3Sh-qp_J0hcr4XhGQWAWKPRTbtdh92lhnquNM7MHA6bKuyoeUHbjDEJe8zcG3xVMBoXR4WSezcPy1vtURWKEY32IvAq4rfKi9VsvSqk_xN1xeI2fC4FRQwrQxswCfC340x0HzYkHj5W5lVxC18tR4vdTxhtUiWLTbE_Q0m0HfbY2B_TxN7LI50XRMe0O-A_SJoUjbJcktG_n1eW4iB3cJLTsbA9bYiW3uN1OjVLZlvjrR29DEwPAuIh61CebfS1Vx0urTVYe-215vABq" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
     :root{
       --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
       --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
@@ -50,7 +50,7 @@
     .side-brand strong{font-size:17px;line-height:1.05}.side-brand span{font-size:11px;color:#b9d8ca}
     .date-title{padding:14px 14px 10px;color:#f7df76;font-weight:800;font-size:14px}
     .nav-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#9dc2b2;padding:14px 14px 6px}
-    .nav-item{width:100%;border:0;background:transparent;color:#e8f4ef;text-align:left;padding:11px 12px;border-radius:12px;display:flex;align-items:center;gap:10px;margin:2px 0;font-size:14px}
+    .nav-item{position:relative;width:100%;border:0;background:transparent;color:#e8f4ef;text-align:left;padding:11px 12px;border-radius:12px;display:flex;align-items:center;gap:10px;margin:2px 0;font-size:14px}
     .nav-item:hover,.nav-item.active{background:rgba(255,255,255,.10)}
     .nav-item.active{box-shadow:inset 3px 0 0 var(--yellow);color:#fff}
     .nav-icon{width:22px;text-align:center}
@@ -91,7 +91,7 @@
     .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.chip{padding:6px 9px;border-radius:99px;background:var(--green-100);color:var(--green-900);font-size:11px;font-weight:800}
     .profile-menu{position:absolute;right:28px;top:62px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;width:210px;z-index:20}.profile-menu button{width:100%;border:0;background:#fff;text-align:left;padding:10px;border-radius:9px}.profile-menu button:hover{background:var(--green-50)}
     .settings-row{display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid #edf2ef}.settings-row input{max-width:560px}
-    @media(max-width:1000px){.sidebar{width:80px}.side-brand div,.date-title,.nav-title,.nav-item span:not(.nav-icon),.badge{display:none}.side-brand{justify-content:center}.main{margin-left:80px}.task-card,.transport-card,.wide,.side-card{grid-column:span 12}.profile .meta{display:none}}
+    @media(max-width:1000px){.sidebar{width:80px}.side-brand div,.date-title,.nav-title,.nav-item span:not(.nav-icon),.badge{display:none}.sidebar .nav-item .order-badge{display:inline-flex!important;position:absolute;right:3px;top:4px;min-width:18px;height:18px;padding:0 4px}.side-brand{justify-content:center}.main{margin-left:80px}.task-card,.transport-card,.wide,.side-card{grid-column:span 12}.profile .meta{display:none}}
     @media(max-width:680px){.sidebar{display:none}.main{margin-left:0}.content{padding:16px}.topbar{padding:0 16px}.search{display:none}.hero{padding:20px;display:block}.hero-date{text-align:left;margin-top:15px}.grid{display:block}.card{margin-bottom:15px}}
     .olymp-embed{width:100%;overflow:hidden;border-radius:16px;background:#fff}
     .olymp-embed iframe{display:block;width:100%;min-height:1100px;height:78vh;border:0;border-radius:16px;background:#fff}
@@ -273,7 +273,6 @@
         Директор: <b>director / 1234</b><br>
         Заместитель: <b>deputy / 1234</b><br>
         Учитель: <b>teacher / 1234</b><br>
-        Секретарь: <b>secretary / 1234</b><br>
         Гость: <b>guest</b> — можно войти без пароля
       </div>
     </form>
@@ -291,22 +290,24 @@
 
     <div class="nav-title">Сегодня</div>
     <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>Главная</span></button>
+    <button class="nav-item" data-page="schedule"><span class="nav-icon">📅</span><span>Расписание</span><span class="badge new" id="scheduleOrderBadge" style="display:none"></span></button>
+    <button class="nav-item" data-page="transport"><span class="nav-icon">🚌</span><span>Подвоз</span><span class="badge new" id="transportBadge" style="display:none"></span></button>
     <button class="nav-item" data-page="notifications"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="badge new" id="notificationBadge">0</span></button>
 
     <div class="nav-title">Учительская</div>
-    <button class="nav-item" data-page="vseobuch"><span class="nav-icon">📁</span><span>Всеобуч</span></button>
-    <button class="nav-item" data-page="education"><span class="nav-icon">📚</span><span>Учебная работа</span></button>
-    <button class="nav-item" data-page="journal"><span class="nav-icon">📘</span><span>Электронный журнал</span></button>
-    <button class="nav-item" data-page="upbringing"><span class="nav-icon">❤️</span><span>Воспитательная работа</span></button>
-    <button class="nav-item" data-page="ovz"><span class="nav-icon">♿</span><span>Обучающиеся с ОВЗ и инвалидностью</span></button>
-    <button class="nav-item" data-page="olymp"><span class="nav-icon">🏆</span><span>Олимпиадное и конкурсное движение</span></button>
-    <button class="nav-item" data-page="gia"><span class="nav-icon">📝</span><span>ЕГЭ / ОГЭ</span></button>
-    <button class="nav-item" data-page="attestation"><span class="nav-icon">👩‍🏫</span><span>Методическая работа</span></button>
-    <button class="nav-item" data-page="security"><span class="nav-icon">🛡️</span><span>Безопасность</span></button>
-    <button class="nav-item" data-page="career"><span class="nav-icon">🧭</span><span>Профориентация</span></button>
-    <button class="nav-item" data-page="psych"><span class="nav-icon">🧠</span><span>Социально-психологическая служба</span></button>
-<button class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>Отчеты</span></button>
-    <button class="nav-item" data-page="archive"><span class="nav-icon">📦</span><span>Архив</span></button>
+    <button class="nav-item" data-page="vseobuch"><span class="nav-icon">📁</span><span>Всеобуч</span><span class="badge new order-badge" id="orderBadge_vseobuch" style="display:none"></span></button>
+    <button class="nav-item" data-page="education"><span class="nav-icon">📚</span><span>Учебная работа</span><span class="badge new order-badge" id="orderBadge_education" style="display:none"></span></button>
+    <button class="nav-item" data-page="journal"><span class="nav-icon">📘</span><span>Электронный журнал</span><span class="badge new order-badge" id="orderBadge_journal" style="display:none"></span></button>
+    <button class="nav-item" data-page="upbringing"><span class="nav-icon">❤️</span><span>Воспитательная работа</span><span class="badge new order-badge" id="orderBadge_upbringing" style="display:none"></span></button>
+    <button class="nav-item" data-page="ovz"><span class="nav-icon">♿</span><span>Обучающиеся с ОВЗ и инвалидностью</span><span class="badge new order-badge" id="orderBadge_ovz" style="display:none"></span></button>
+    <button class="nav-item" data-page="olymp"><span class="nav-icon">🏆</span><span>Олимпиадное и конкурсное движение</span><span class="badge new order-badge" id="orderBadge_olymp" style="display:none"></span></button>
+    <button class="nav-item" data-page="gia"><span class="nav-icon">📝</span><span>ЕГЭ / ОГЭ</span><span class="badge new order-badge" id="orderBadge_gia" style="display:none"></span></button>
+    <button class="nav-item" data-page="attestation"><span class="nav-icon">👩‍🏫</span><span>Методическая работа</span><span class="badge new order-badge" id="orderBadge_attestation" style="display:none"></span></button>
+    <button class="nav-item" data-page="security"><span class="nav-icon">🛡️</span><span>Безопасность</span><span class="badge new order-badge" id="orderBadge_security" style="display:none"></span></button>
+    <button class="nav-item" data-page="career"><span class="nav-icon">🧭</span><span>Профориентация</span><span class="badge new order-badge" id="orderBadge_career" style="display:none"></span></button>
+    <button class="nav-item" data-page="psych"><span class="nav-icon">🧠</span><span>Социально-психологическая служба</span><span class="badge new order-badge" id="orderBadge_psych" style="display:none"></span></button>
+<button class="nav-item" data-page="reports"><span class="nav-icon">📊</span><span>Отчеты</span><span class="badge new order-badge" id="orderBadge_reports" style="display:none"></span></button>
+    <button class="nav-item" data-page="archive"><span class="nav-icon">📦</span><span>Архив</span><span class="badge new order-badge" id="orderBadge_archive" style="display:none"></span></button>
 
     <div class="nav-title">Моя статистика</div>
     <button class="nav-item" data-page="analytics"><span class="nav-icon">📈</span><span>Аналитика</span></button>
@@ -430,7 +431,7 @@
       result.users=result.users||[];
       result.users=result.users.filter(u=>u.login!=="secretary");
       result.users.forEach(u=>{u.roleKeys=(u.roleKeys||["teacher"]).filter(r=>r!=="secretary");u.roles=u.roles||rolesText(u.roleKeys);});
-      result.responsibles=result.responsibles||{};
+      result.responsibles=result.responsibles||{};result.responsibles.transport=result.responsibles.transport||"";
       result.dutySchedule=(result.dutySchedule||[]).map(x=>({day:x.day,name1:x.name1||x.name||"",phone1:x.phone1||x.phone||"",name2:x.name2||"",phone2:x.phone2||""}));
       result.transportSchedule=result.transportSchedule||[];
       result.schedule=result.schedule||{entries:[],versions:[],uploadedFile:""};
@@ -441,6 +442,8 @@
   function deepMerge(a,b){Object.keys(b||{}).forEach(k=>{if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k]) a[k]=deepMerge(a[k],b[k]); else a[k]=b[k];});return a;}
   function save(){localStorage.setItem("schoolSolutionsMVP_v4",JSON.stringify(state));}
   function dateInfo(){const d=new Date(),days=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"],months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];return {day:days[d.getDay()],full:`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,iso:d.toISOString().slice(0,10)};}
+  function nextSchoolDay(base=new Date()){const d=new Date(base);d.setHours(12,0,0,0);do{d.setDate(d.getDate()+1);}while(d.getDay()===0||d.getDay()===6);return d;}
+  function formatRuDate(d){return d.toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});}
   function roleLabel(k){return USERS[k]?.role||"Пользователь";}
   function initials(name){return name.split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase();}
   function isManager(){return ["admin","director","deputy"].some(r=>state.currentUser?.roleKeys?.includes(r));}
@@ -455,14 +458,31 @@
   function unread(){return state.notifications.filter(n=>!n.read).length;}
   function pendingTasks(){return state.tasks.filter(t=>t.required&&!t.done).length;}
   function newTransport(){return state.transport.filter(t=>!t.read).length;}
+  function unreadOrderCounts(){
+    const counts={};
+    (state.documents||[]).forEach(d=>{
+      const title=String(d.sectionKey||"").split("::")[1]||"";
+      if(!title.includes("Приказы"))return;
+      const page=String(d.sectionKey||"").split("::")[0];
+      if(!userCanSeeDoc(d))return;
+      if((d.readBy||{})[state.currentUser?.login])return;
+      counts[page]=(counts[page]||0)+1;
+    });
+    return counts;
+  }
   function updateBadges(){
-    const p=pendingTasks(),n=unread(),tr=newTransport();
+    const p=pendingTasks(),n=unread(),tr=newTransport(),orders=unreadOrderCounts();
     const tb=document.getElementById("taskBadge"),nb=document.getElementById("notificationBadge"),tnb=document.getElementById("topNotifyBadge"),trb=document.getElementById("transportBadge");
     if(tb){tb.textContent=p?"!":"✓";tb.style.background=p?"var(--red)":"var(--green-700)";}
     if(nb){nb.textContent=n;nb.classList.toggle("hidden",!n);}
     if(tnb){tnb.textContent=n;tnb.classList.toggle("hidden",!n);}
     if(trb){trb.textContent=tr;trb.classList.toggle("hidden",!tr);}
-
+    document.querySelectorAll(".order-badge").forEach(el=>{
+      const page=el.id.replace("orderBadge_","");
+      const count=orders[page]||0;
+      el.textContent=count;
+      el.style.display=count?"inline-flex":"none";
+    });
   }
   function render(){
     const d=dateInfo();
@@ -496,28 +516,18 @@
   function renderHome(){
     const d=dateInfo();
     const bell=(d.day==="понедельник"?state.schedule.bellSchedules?.monday:state.schedule.bellSchedules?.weekdays)||state.schedule.bells||[];
-    const isG=isGuest();
-    const newSched=hasUnreadSchedule();
-    const homeSchedule=isG?renderGuestHomeSchedule(true):renderScheduleHomeSelector();
-    const dutyEdit=(isAdmin()||state.currentUser.roleKeys.includes("deputy"));
     const dutyRows=state.dutySchedule.map(x=>`<tr><td>${escapeHtml(x.day)}</td><td>${escapeHtml(x.name1||"—")}</td><td>${escapeHtml(x.phone1||"—")}</td><td>${escapeHtml(x.name2||"—")}</td><td>${escapeHtml(x.phone2||"—")}</td></tr>`).join("");
-    document.getElementById("content").innerHTML=`${isG?``:`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в виртуальной учительской.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>`}
+    document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${state.currentUser.name.split(" ")[0]}!</h1><p>Ваш рабочий кабинет в виртуальной учительской.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>
       <div class="home-layout">
         <div class="home-main">
           <div class="home-top-row">
-            ${isG?homeSchedule:`<section class="card home-equal-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>`}
-            ${isG?``:`<section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,5).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>`}
-          </div>
-          <div class="home-schedule-row">
-            ${isG?``:`<section class="card"><h3>📅 Расписание уроков (${d.full})</h3>${renderScheduleHomeSelector("today")}</section>
-            <section class="card"><h3>📅 Расписание уроков (${new Date(Date.now()+86400000).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</h3>${renderScheduleHomeSelector("tomorrow")}</section>
-            <section class="card"><h3>📚 Базовое расписание</h3>${renderBaseScheduleSelector()}</section>`}
+            <section class="card home-equal-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.filter(t=>t.kind!=="schedule").map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>
+            <section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,5).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
           </div>
         </div>
         <aside class="home-right">
           <section class="card"><h3>👮 Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон</th><th>ФИО 2</th><th>Телефон</th></tr>${dutyRows}</table></div></section>
           <section class="card"><h3>🕘 Расписание звонков</h3>${bell.map(x=>`<div class="notice"><div class="dot"></div><div><strong>${x.n} урок</strong><p>${x.start} — ${x.end}</p></div></div>`).join("")}</section>
-          <section class="card"><h3>🏖 Сроки каникул</h3><div class="vacation-text">${escapeHtml(state.vacationsText||"")}</div></section>
         </aside>
       </div>`;
   }
@@ -563,7 +573,9 @@
   function renderTransport(){
     const can=isManager();
     const rows=state.transportSchedule||[];
-    shell("Подвоз","Оперативная информация и расписание подвоза.",
+    const responsible=state.responsibles?.transport||"";
+    const responsibleBlock=`<div class="responsible-line"><b>Ответственный за направление:</b><span>${escapeHtml(responsible||"не назначен")}</span>${isAdmin()?`<button class="small-btn" onclick="setResponsible('transport')">Изменить</button>`:""}</div>`;
+    shell("Подвоз",responsibleBlock+"Оперативная информация и расписание подвоза.",
       `<div class="transport-layout">
         <div class="card"><h3>💬 Сообщения</h3>
           ${can?`<div class="doc-upload transport-message-form"><label>Заголовок</label><input id="transportTitle" placeholder="Например: Изменение маршрута №3"><label>Текст сообщения</label><textarea id="transportText" placeholder="Введите текст сообщения"></textarea><button class="btn green" onclick="submitTransportMessage()">Подтвердить отправку сообщения</button></div>`:""}
@@ -584,7 +596,7 @@
   function renderSchedule(){
     const canDispatch=isDispatcher();
     if(isGuest()){renderGuestSchedulePage();return;}
-    const d=dateInfo(), tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+    const d=dateInfo(), tomorrow=nextSchoolDay();
     const newSched=hasUnreadSchedule();
     shell("Расписание",`Расписание уроков. ${newSched?'<span class="schedule-new-badge">● есть непрочитанные изменения</span>':''}`,
       `<div class="schedule-page-grid">
@@ -685,10 +697,10 @@
   window.toggleTeacherQuestionnaire=function(){document.getElementById("teacherQuestionnaire")?.classList.toggle("hidden");};
   function renderAdmin(){
     if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
-    const respNames={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
+    const respNames={transport:"Подвоз",vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
     shell("Администрирование","Пользователи, роли, расписание, дежурство и ответственные за направления.",
       `<div class="admin-grid">
-      <div class="card admin-span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th></th></tr>${state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.login)}</td><td>${escapeHtml(u.roles||rolesText(u.roleKeys))}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${escapeHtml(c)} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td><button class="small-btn" onclick="editUserRoles(${u.id})">Роли</button> <button class="small-btn" onclick="resetPassword(${u.id})">Сбросить пароль</button></td></tr>`).join("")}</table></div><p class="role-hint">Секретарь — дополнительная роль существующего пользователя, как и Диспетчер. Отдельной учётной записи секретаря нет.</p></div>
+      <div class="card admin-span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th></th></tr>${state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.login)}</td><td>${escapeHtml(u.roles||rolesText(u.roleKeys))}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${escapeHtml(c)} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td><button class="small-btn" onclick="editUser(${u.id})">Изменить</button> <button class="small-btn danger" onclick="deleteUser(${u.id})">Удалить</button> <button class="small-btn" onclick="resetPassword(${u.id})">Сбросить пароль</button></td></tr>`).join("")}</table></div><p class="role-hint">Секретарь — дополнительная роль существующего пользователя, как и Диспетчер. Отдельной учётной записи секретаря нет.</p></div>
       <div class="card"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("dispatcher")||state.dispatcherIds.includes(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveDispatcher()">Сохранить</button></div>
       <div class="card"><h3>Секретарь</h3><label>Назначить пользователя с ролью «Секретарь»</label><select id="secretarySelect"><option value="">Выберите пользователя</option>${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("secretary")?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveSecretary()">Сохранить</button><p class="muted">Секретарь входит под своим обычным логином и может загружать приказы и получать результаты ознакомления.</p></div>
       <div class="card"><h3>Расписание звонков</h3><div class="bell-editor"><div><h4>Понедельник</h4><div id="bellsMonday">${renderBellRows('monday')}</div><button class="small-btn" onclick="addBellRow('monday')">＋ Добавить урок</button></div><div><h4>Вторник–пятница</h4><div id="bellsWeekdays">${renderBellRows('weekdays')}</div><button class="small-btn" onclick="addBellRow('weekdays')">＋ Добавить урок</button></div></div><button class="btn green" style="margin-top:12px" onclick="saveBells()">Сохранить</button></div>
@@ -775,13 +787,41 @@
     state.users.push({id:Date.now(),name,login,password,roleKeys,roles:rolesText(roleKeys),classes:[],shift:{},attendanceClasses:[],replacement:[]});
     save();render();
   };
-  window.editUserRoles=function(id){
+  window.editUser=function(id){
     if(!isAdmin())return;
     const u=state.users.find(x=>x.id===id);if(!u)return;
-    const input=prompt("Роли через запятую: teacher, director, deputy, dispatcher, secretary, admin", (u.roleKeys||[]).join(","));
-    if(input===null)return;
-    u.roleKeys=input.split(",").map(x=>x.trim()).filter(Boolean);
-    u.roles=rolesText(u.roleKeys);save();render();
+    const name=prompt("ФИО пользователя:",u.name);if(name===null)return;
+    const roles=prompt("Роли через запятую: teacher, director, deputy, dispatcher, secretary, admin",(u.roleKeys||[]).filter(r=>r!=="guest").join(","));if(roles===null)return;
+    const classes=prompt("Классы классного руководства через запятую (например: 5А, 6Б):",(u.classes||[]).join(","));if(classes===null)return;
+    const attendance=prompt("Классы для посещаемости через запятую:",(u.attendanceClasses||[]).join(","));if(attendance===null)return;
+    const replacement=prompt("Классы замещений через запятую:",(u.replacement||[]).join(","));if(replacement===null)return;
+    const newLogin=prompt("Логин:",u.login);if(newLogin===null||!newLogin.trim())return;
+    if(state.users.some(x=>x.id!==id&&x.login===newLogin.trim()))return alert("Такой логин уже используется.");
+    u.name=name.trim();u.login=newLogin.trim();
+    u.roleKeys=roles.split(",").map(x=>x.trim()).filter(Boolean);
+    if(!u.roleKeys.length)u.roleKeys=["teacher"];
+    u.roles=rolesText(u.roleKeys);
+    u.classes=classes.split(",").map(x=>x.trim()).filter(Boolean);
+    u.shift=u.shift||{};
+    u.classes.forEach(c=>{if(!u.shift[c])u.shift[c]=1;});
+    Object.keys(u.shift).forEach(c=>{if(!u.classes.includes(c))delete u.shift[c];});
+    u.attendanceClasses=attendance.split(",").map(x=>x.trim()).filter(Boolean);
+    u.replacement=replacement.split(",").map(x=>x.trim()).filter(Boolean);
+    if(!u.roleKeys.includes("dispatcher"))state.dispatcherIds=(state.dispatcherIds||[]).filter(x=>x!==u.id);
+    save();render();
+  };
+  window.editUserRoles=function(id){return editUser(id);};
+  window.deleteUser=function(id){
+    if(!isAdmin())return;
+    const u=state.users.find(x=>x.id===id);if(!u)return;
+    if(u.id===state.currentUser.id)return alert("Нельзя удалить текущую учетную запись администратора.");
+    if(!confirm(`Удалить пользователя «${u.name}»? Это действие удалит его учетную запись из текущего MVP.`))return;
+    state.users=state.users.filter(x=>x.id!==id);
+    state.dispatcherIds=(state.dispatcherIds||[]).filter(x=>x!==id);
+    if(u.roleKeys?.includes("secretary")){}
+    delete state.myData[u.login];
+    delete state.portfolio[u.login];
+    save();render();
   };
   window.resetPassword=function(id){alert("Пароль пользователя сброшен администратором. В серверной версии будет установлен временный пароль и отправлено уведомление.");};
   function renderBellRows(kind){const arr=state.schedule.bellSchedules?.[kind]||[];return arr.map((b,i)=>`<div class="bell-row"><input id="${kind}_n_${i}" type="number" min="1" value="${b.n}"><input id="${kind}_s_${i}" type="time" value="${b.start}"><span>—</span><input id="${kind}_e_${i}" type="time" value="${b.end}"><button class="small-btn danger" onclick="removeBellRow('${kind}',${i})">×</button></div>`).join("");}
@@ -805,7 +845,7 @@
   };
   window.saveResponsibles=function(){
     if(!isAdmin())return;
-    const keys=["vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
+    const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
     keys.forEach(k=>state.responsibles[k]=document.getElementById(`resp_${k}`)?.value.trim()||"");save();alert("Ответственные за направления сохранены.");render();
   };
   window.saveDuty=function(){if(!(isAdmin()||state.currentUser.roleKeys.includes("deputy")))return;state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();alert("График дежурства сохранён.");render();};
@@ -969,7 +1009,7 @@
     return `<div class="schedule-view"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr><td>${x.lesson}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(x.subject||"—")}</td><td>${escapeHtml(x.teacher||"—")}</td><td>${escapeHtml(x.room||"—")}</td></tr>`).join("")}</table></div></div>`;
   }
   function renderScheduleSelector(day){
-    const d=dateInfo(),dt=new Date();dt.setDate(dt.getDate()+(day==="tomorrow"?1:0));const iso=dt.toISOString().slice(0,10);
+    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date(),iso=dt.toISOString().slice(0,10);
     const entries=getScheduleForDate(iso);
     const classes=(state.currentUser.classes||[]).filter(Boolean);
     const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("");
@@ -977,7 +1017,7 @@
   }
   window.showScheduleChoice=function(day){
     const sel=document.getElementById("scheduleChoice_"+day);if(!sel)return;
-    const d=dateInfo(),dt=new Date();dt.setDate(dt.getDate()+(day==="tomorrow"?1:0));
+    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date();
     document.getElementById("scheduleResult_"+day).innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dt.toISOString().slice(0,10)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
   };
   function renderScheduleHomeSelector(day="today"){
@@ -990,7 +1030,7 @@
   window.showHomeScheduleChoice=function(day="today"){
     const sel=document.getElementById(`homeScheduleChoice_${day}`);if(!sel)return;
     const result=document.getElementById(`homeScheduleResult_${day}`);if(!result)return;
-    const d=dateInfo(),dt=new Date();dt.setDate(dt.getDate()+(day==="tomorrow"?1:0));
+    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date();
     if(!sel.value){result.innerHTML='<div class="schedule-empty">Выберите вариант.</div>';return;}
     result.innerHTML=renderScheduleTable(getScheduleForDate(dt.toISOString().slice(0,10)),sel.value);
   };
@@ -1017,9 +1057,9 @@
     document.getElementById("baseScheduleResult").innerHTML=html;
   };
   function renderGuestHomeSchedule(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();return `<section class="card"><h3>📅 Расписание уроков</h3><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClass" class="schedule-class-select" onchange="renderGuestSelectedSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></section>`;}
-  window.renderGuestSelectedSchedule=function(){const c=document.getElementById("guestClass")?.value;if(!c)return;const d=dateInfo(),tom=new Date();tom.setDate(tom.getDate()+1);const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestScheduleResult").innerHTML=`<div class="schedule-columns"><div><h4>Сегодня <span class="muted">(${d.full})</span></h4>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h4>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h4>${renderScheduleTable(filter(getScheduleForDate(tom.toISOString().slice(0,10))),"class:"+c)}</div></div>`;};
+  window.renderGuestSelectedSchedule=function(){const c=document.getElementById("guestClass")?.value;if(!c)return;const d=dateInfo(),tom=nextSchoolDay();const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestScheduleResult").innerHTML=`<div class="schedule-columns"><div><h4>Сегодня <span class="muted">(${d.full})</span></h4>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h4>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h4>${renderScheduleTable(filter(getScheduleForDate(tom.toISOString().slice(0,10))),"class:"+c)}</div></div>`;};
   function renderGuestSchedulePage(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();shell("Расписание","Режим просмотра для гостя.",`<div class="card"><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClassPage" class="schedule-class-select" onchange="renderGuestPageSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestPageScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></div>`);}
-  window.renderGuestPageSchedule=function(){const c=document.getElementById("guestClassPage")?.value;if(!c)return;const d=dateInfo(),tom=new Date();tom.setDate(tom.getDate()+1);const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestPageScheduleResult").innerHTML=`<div class="schedule-columns"><div><h3>Сегодня <span class="muted">(${d.full})</span></h3>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h3>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>${renderScheduleTable(filter(getScheduleForDate(tom.toISOString().slice(0,10))),"class:"+c)}</div></div>`;};
+  window.renderGuestPageSchedule=function(){const c=document.getElementById("guestClassPage")?.value;if(!c)return;const d=dateInfo(),tom=nextSchoolDay();const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestPageScheduleResult").innerHTML=`<div class="schedule-columns"><div><h3>Сегодня <span class="muted">(${d.full})</span></h3>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h3>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>${renderScheduleTable(filter(getScheduleForDate(tom.toISOString().slice(0,10))),"class:"+c)}</div></div>`;};
 
   function docUploadAllowed(page,title){if(isGuest())return false;if(title.includes("Приказы"))return canManageOrders();return true;}
   function docTargetLabel(d){
@@ -1060,7 +1100,7 @@
       <div class="doc-meta">Загружен: ${escapeHtml(d.uploadedByName||"")} · ${new Date(d.uploadedAt).toLocaleString('ru-RU')}</div>
       ${isOrder?`<div class="doc-targets">Предназначен: ${escapeHtml(docTargetLabel(d))}</div>`:""}
       ${ackAt?`<div class="ack-info">✓ Ознакомлен: ${new Date(ackAt).toLocaleString('ru-RU')}</div>`:""}
-      <div class="doc-actions">${d.data?`<a class="btn" href="${d.data}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}</div>
+      <div class="doc-actions">${d.data?`<a class="btn" href="${d.data}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}</div>
     </div>`;
   }
   window.toggleDocSpecific=function(show){document.getElementById("specificUsersBox")?.classList.toggle("hidden",!show);};
@@ -1102,6 +1142,13 @@
     const csv=[headers,...rows];downloadCSV(csv[0],csv.slice(1),`ознакомление_${d.id}.csv`);
     const lines=rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td></tr>`).join("");
     const w=window.open("","_blank","width=900,height=600");if(w){w.document.write(`<title>Ознакомление с приказом</title><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Название приказа</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table>`);w.document.close();}
+  };
+  function canDeleteDocument(d){return isAdmin() || d?.uploadedBy===state.currentUser?.login;}
+  window.deleteDocument=function(id){
+    const d=state.documents.find(x=>x.id===id);if(!d||!canDeleteDocument(d))return;
+    if(!confirm(`Удалить документ «${d.title||d.fileName}»?`))return;
+    state.documents=state.documents.filter(x=>x.id!==id);save();
+    renderDocSection(state.currentPage,d.sectionKey.split("::")[1]);
   };
   window.uploadPortfolio=function(){if(isGuest())return alert("В режиме гостя добавление документов недоступно.");const f=document.getElementById("portfolioFile")?.files[0];if(!f)return alert("Выберите документ.");const r=new FileReader();r.onload=e=>{state.portfolio[state.currentUser.login]=state.portfolio[state.currentUser.login]||[];state.portfolio[state.currentUser.login].push({name:f.name,data:e.target.result,uploadedAt:new Date().toISOString()});save();render();};r.readAsDataURL(f);};
   window.deletePortfolio=function(i){const a=state.portfolio[state.currentUser.login]||[];if(confirm("Удалить документ из портфолио?")){a.splice(i,1);state.portfolio[state.currentUser.login]=a;save();render();}};
