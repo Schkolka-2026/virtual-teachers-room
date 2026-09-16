@@ -1258,7 +1258,7 @@
     const login=document.getElementById("login")?.value.trim();
     const email=login?await resolveLoginEmail(login):SUPABASE_ADMIN_EMAIL;
     if(!email){document.getElementById("loginError").textContent="Введите логин.";return;}
-    const redirectTo=window.location.origin+window.location.pathname;
+    const redirectTo="http://eco-school.ru/";
     const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});
     document.getElementById("loginError").textContent=error?error.message:"Письмо для смены пароля отправлено на почту.";
   }
