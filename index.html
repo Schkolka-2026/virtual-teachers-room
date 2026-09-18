@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075b3f">
   <title>Школа решений — Виртуальная учительская</title>
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=kxbeH3FOy-8--j4rN4FnJa08FJ3PIHrEob5v6kMP56XVBmawmwEjZMNxNhQwIPzDEQwF5TSmC2eifjDhbJR-XFi5KkTLhxFr-6pJHaEUucfxysB1jSsGTu--pZa3gfY5meW6Pvq0xgO45UR9crX_djrU3I_RdimkhO3tNHTpjdAbgp3NrdXl6HrzBU45hEUiwGgRGC1L8H-uZQh3VrCTKPYzYK6ApR-VgP2TYOxYfMUmC9nQ8VbDyHMRXpq5mqMXk1AJI947DKUfMRsLbqWdL0X2zfCpuROkyjZs8gJ-7oPXfJEEecYB6Mn3gFtdpz1kpk8gJ3wxHvL3ZeI2SgXVbtBZSlF8XNmKSv5A_85bdIPzaoxEQ1Fifhy4Ogf5uh7LZSFQDOQq9zAozB9Ot2dDuSe8VkWHqCbWzkcvbwDhssSahmv-iIcVzKDGes3mleyc_gNGmMiQ5o7Ny7_r769gsu1wmHbvPQCy7T8m4ga57-QYb0Q5ImB1J8HEYJG47FXYfgCxCgtIMF1S1Lu1_ugCAzTwlDTL5G_27yiy2-2ZBykBuiHSIjx4tBcHMTUhvfYhtIH-1pl9e3hI4MKQGDGJOw" charset="UTF-8"></script><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
     :root{
       --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
       --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
@@ -1457,14 +1457,10 @@
     if(!normalized)return "";
     if(normalized==="admin")return SUPABASE_ADMIN_EMAIL;
     if(normalized.includes("@"))return normalized;
-    try{
-      const accs=await sbRest("employee_accounts",`select=login,auth_user_id&login=eq.${encodeURIComponent(normalized)}&limit=1`);
-      if(accs?.[0])return `${normalized}@auth.eco-school.ru`;
-    }catch(e){console.warn("Не удалось проверить employee_accounts:",e);}
-    try{
-      const rows=await sbRest("employees",`select=*&or=(email.eq.${encodeURIComponent(normalized)},mail.eq.${encodeURIComponent(normalized)},login.eq.${encodeURIComponent(normalized)},username.eq.${encodeURIComponent(normalized)})&limit=1`);
-      return rows?.[0]?firstValue(rows[0],["email","mail","Эл. почта","электронная_почта"]):normalized;
-    }catch(e){return normalized;}
+    // Учётные записи учителей, созданные администратором через Edge Function,
+    // получают технический Auth-email вида login@auth.eco-school.ru.
+    // На экране пользователь вводит только свой короткий логин.
+    return `${normalized}@auth.eco-school.ru`;
   }
   async function loginWithSupabase(login,password){
     if(!supabase)return {error:"Не удалось загрузить Supabase."};
