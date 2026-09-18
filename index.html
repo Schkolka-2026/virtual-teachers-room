@@ -515,9 +515,26 @@
         const leaderClasses=[...(leaderClassesByEmp[String(id)]||[])];
         return {id,name:normalizeEmployeeName(row),login,roleKeys,roles:rolesText(roleKeys),classes:leaderClasses,shift:{},attendanceClasses:leaderClasses.slice(),replacement:[],email,phone:firstValue(row,["phone","telephone","Телефон"]),qualification:firstValue(row,["qualification","Квалификация"]),dbRow:row,authUserId:authId};
       });
-      const me=state.users.find(u=>u.authUserId===authUser.id)||state.users.find(u=>u.email===authUser.email);
-      if(!me)throw new Error("В таблице employees не найден сотрудник, связанный с текущей учётной записью.");
-      state.currentUser={...me,login:"admin"}; state.realEmployeesLoaded=true; save(); return true;
+      const metadataEmployeeId=authUser?.user_metadata?.employee_id;
+      const metadataLogin=String(authUser?.user_metadata?.login||"").trim();
+      const metadataName=String(authUser?.user_metadata?.name||"").trim();
+      let me=null;
+      if(metadataEmployeeId!=null){
+        me=state.users.find(u=>String(u.id)===String(metadataEmployeeId))||null;
+      }
+      if(!me)me=state.users.find(u=>u.authUserId===authUser.id)||null;
+      if(!me&&metadataLogin)me=state.users.find(u=>String(u.login).toLowerCase()===metadataLogin.toLowerCase())||null;
+      if(!me&&authUser.email){
+        const email=String(authUser.email).toLowerCase();
+        me=state.users.find(u=>String(u.email||"").toLowerCase()===email)||null;
+      }
+      if(!me){
+        const hint=metadataEmployeeId!=null?` employee_id=${metadataEmployeeId}`:"";
+        throw new Error(`В таблице employees не найден сотрудник, связанный с текущей учётной записью.${hint}`);
+      }
+      const effectiveLogin=metadataLogin||me.login||String(authUser.email||"").split("@")[0];
+      state.currentUser={...me,login:effectiveLogin,name:me.name||metadataName||"Пользователь"};
+      state.realEmployeesLoaded=true; save(); return true;
     }catch(e){console.error(e);state.realEmployeesError=e.message||String(e);return false;}
   }
   function loadState(){
