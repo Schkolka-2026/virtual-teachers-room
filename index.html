@@ -466,19 +466,51 @@
     const r=await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`}});
     if(!r.ok)throw new Error(`${table}: HTTP ${r.status}`); return r.json();
   }
+  async function getCurrentAcademicYearId(){
+    try{
+      const rows=await sbRest("academic_years");
+      const exact=(rows||[]).find(r=>Object.values(r||{}).some(v=>String(v??"").trim()==="2026-2027"));
+      if(exact?.id!=null)return exact.id;
+      const fuzzy=(rows||[]).find(r=>Object.values(r||{}).some(v=>String(v??"").includes("2026-2027")));
+      return fuzzy?.id??"";
+    }catch(e){
+      console.warn("Не удалось определить текущий учебный год:",e);
+      return "";
+    }
+  }
+  function classNameFromRow(r){
+    const explicit=String(firstValue(r,["name","class_name","className","название","класс"])||"").trim();
+    if(explicit)return explicit;
+    const grade=firstValue(r,["grade","класс_ступень"]);
+    const letter=firstValue(r,["letter","буква"]);
+    if(grade!=null && letter!=null && String(grade).trim()!=="" && String(letter).trim()!=="")return `${grade}${String(letter).trim()}`;
+    return "";
+  }
   async function loadClassRoster(){
     try{
       const rows=await sbRest("classes");
-      state.classRoster=(rows||[]).map(r=>({
-        id:r.id,
-        name:String(firstValue(r,["name","class_name","className","название","класс"])||"").trim(),
-        studentCount:+(firstValue(r,["student_count","studentCount","students_count","students","количество_учеников","кол-во учеников"])||0),
-        shift:+(firstValue(r,["shift","смена"])||0),
-        academicYearId:firstValue(r,["academic_year_id","academicYearId"])||""
-      })).filter(r=>r.name);
+      const currentYearId=await getCurrentAcademicYearId();
+      const local=state.classRoster||[];
+      const localByName=Object.fromEntries(local.map(x=>[String(x.name),x]));
+      const filtered=(rows||[]).filter(r=>r.is_active!==false && (!currentYearId || String(r.academic_year_id??r.academicYearId??"")===String(currentYearId)));
+      state.classRoster=filtered.map(r=>{
+        const name=classNameFromRow(r);
+        const prev=localByName[name]||{};
+        return {
+          id:r.id,
+          name,
+          studentCount:+(prev.studentCount ?? (firstValue(r,["student_count","studentCount","students_count","students"]) || 0)),
+          shift:+(prev.shift ?? (firstValue(r,["shift","смена"]) || 0)),
+          academicYearId:firstValue(r,["academic_year_id","academicYearId"])||currentYearId||""
+        };
+      }).filter(r=>r.name);
       if(state.classRoster.length)save();
       return state.classRoster;
-    }catch(e){console.warn("Не удалось загрузить классы:",e);state.classRoster=state.classRoster||[];return state.classRoster;}
+    }catch(e){
+      console.warn("Не удалось загрузить классы:",e);
+      state.classRoster=state.classRoster||[];
+      return state.classRoster;
+    }
   }
   function classRosterForUser(u){
     const all=state.classRoster||[];
@@ -495,47 +527,116 @@
       try{classLeaders=await sbRest("class_leaders");}catch(e){console.warn(e);}
       try{roles=await sbRest("roles");}catch(e){console.warn(e);}
       try{userRoles=await sbRest("user_roles");}catch(e){console.warn(e);}
-      const roleById={}; roles.forEach(r=>{const id=r.id??r.role_id??r.code; if(id!=null)roleById[String(id)]=String(r.code??r.key??r.name??r.role_code??"").toLowerCase();});
-      const accByEmp={}; accounts.forEach(a=>{if(a.employee_id!=null)accByEmp[String(a.employee_id)]=a;});
+
+      const roleById={};
+      roles.forEach(r=>{
+        const id=r.id??r.role_id??r.code;
+        if(id!=null)roleById[String(id)]=String(r.code??r.key??r.name??r.role_code??"").toLowerCase();
+      });
+
+      const accByEmp={};
+      accounts.forEach(a=>{if(a.employee_id!=null)accByEmp[String(a.employee_id)]=a;});
+
+      const accByAuth={};
+      accounts.forEach(a=>{
+        const aid=a.auth_user_id??a.user_id;
+        if(aid)accByAuth[String(aid)]=a;
+      });
+
       const leaderClassesByEmp={};
       (classLeaders||[]).forEach(cl=>{
         const emp=cl.employee_id??cl.employeeId??cl.emp_id;
         let cn=String(firstValue(cl,["class_name","className","name","класс"])||"").trim();
         const classId=cl.class_id??cl.classId;
-        if(!cn&&classId!=null){const rr=(state.classRoster||[]).find(x=>String(x.id)===String(classId));cn=rr?.name||"";}
+        if(!cn&&classId!=null){
+          const rr=(state.classRoster||[]).find(x=>String(x.id)===String(classId));
+          cn=rr?.name||"";
+        }
         if(emp!=null&&cn)(leaderClassesByEmp[String(emp)]??=[]).push(cn);
       });
-      const rolesByAuth={}; userRoles.forEach(ur=>{const vals=Object.values(ur).map(String),auth=vals.find(v=>v===authUser.id); if(!auth)return; const rid=ur.role_id??ur.roleId??ur.roles_id; const code=roleById[String(rid)]??String(ur.role_code??ur.code??ur.role??"").toLowerCase(); if(code)(rolesByAuth[auth]??=[]).push(code);});
+
+      const rolesByAuth={};
+      userRoles.forEach(ur=>{
+        const vals=Object.values(ur).map(String),auth=vals.find(v=>v===authUser.id);
+        if(!auth)return;
+        const rid=ur.role_id??ur.roleId??ur.roles_id;
+        const code=roleById[String(rid)]??String(ur.role_code??ur.code??ur.role??"").toLowerCase();
+        if(code)(rolesByAuth[auth]??=[]).push(code);
+      });
+
+      const normalizeRoles=(raw)=>{
+        const mapped=(raw||[]).map(k=>{
+          const x=String(k).toLowerCase();
+          return x.includes("admin")?"admin":x.includes("director")?"director":x.includes("deputy")?"deputy":x.includes("dispatcher")?"dispatcher":x.includes("secretary")?"secretary":"teacher";
+        });
+        const clean=[...new Set(mapped)].filter(Boolean);
+        return clean.length?clean:["teacher"];
+      };
+
       state.users=rows.map((row,i)=>{
         const id=row.id??row.employee_id??i+1,acc=accByEmp[String(id)]||{},authId=acc.auth_user_id??acc.user_id;
-        let roleKeys=authId&&rolesByAuth[authId]?rolesByAuth[authId].map(k=>k.includes("admin")?"admin":k.includes("director")?"director":k.includes("deputy")?"deputy":k.includes("dispatcher")?"dispatcher":k.includes("secretary")?"secretary":"teacher"):inferRoleKeys(row);
+        let roleKeys=authId&&rolesByAuth[authId]?normalizeRoles(rolesByAuth[authId]):inferRoleKeys(row);
         if(authId===authUser.id && authUser.id==="452539e6-f627-4767-bcf6-a22a10c0c997")roleKeys=["admin"];
-        roleKeys=[...new Set(roleKeys)]; const email=firstValue(row,["email","mail","Эл. почта","электронная_почта"]);
+        const email=firstValue(row,["email","mail","Эл. почта","электронная_почта"]);
         const login=firstValue(acc,["login","username","логин"])||firstValue(row,["login","username","логин"])||(authId===authUser.id?"admin":email||`employee_${id}`);
         const leaderClasses=[...(leaderClassesByEmp[String(id)]||[])];
         return {id,name:normalizeEmployeeName(row),login,roleKeys,roles:rolesText(roleKeys),classes:leaderClasses,shift:{},attendanceClasses:leaderClasses.slice(),replacement:[],email,phone:firstValue(row,["phone","telephone","Телефон"]),qualification:firstValue(row,["qualification","Квалификация"]),dbRow:row,authUserId:authId};
       });
+
       const metadataEmployeeId=authUser?.user_metadata?.employee_id;
       const metadataLogin=String(authUser?.user_metadata?.login||"").trim();
       const metadataName=String(authUser?.user_metadata?.name||"").trim();
+      const ownAcc=accByAuth[authUser.id]||null;
+      const targetId=metadataEmployeeId!=null?String(metadataEmployeeId):String(ownAcc?.employee_id??"");
       let me=null;
-      if(metadataEmployeeId!=null){
-        me=state.users.find(u=>String(u.id)===String(metadataEmployeeId))||null;
-      }
+
+      // Normal case: the employee row is visible through RLS.
+      if(targetId)me=state.users.find(u=>String(u.id)===targetId)||null;
       if(!me)me=state.users.find(u=>u.authUserId===authUser.id)||null;
       if(!me&&metadataLogin)me=state.users.find(u=>String(u.login).toLowerCase()===metadataLogin.toLowerCase())||null;
       if(!me&&authUser.email){
         const email=String(authUser.email).toLowerCase();
         me=state.users.find(u=>String(u.email||"").toLowerCase()===email)||null;
       }
+
+      // Fallback for a teacher whose employees row is hidden by RLS.
+      // We already have the verified employee_id/login/name in Auth user_metadata.
+      if(!me && targetId){
+        const roleKeys=authUser.id==="452539e6-f627-4767-bcf6-a22a10c0c997"?["admin"]:normalizeRoles(rolesByAuth[authUser.id]);
+        const leaderClasses=[...(leaderClassesByEmp[targetId]||[])];
+        me={
+          id:Number(targetId),
+          name:metadataName||"Сотрудник",
+          login:metadataLogin||ownAcc?.login||String(authUser.email||"").split("@")[0],
+          roleKeys,
+          roles:rolesText(roleKeys),
+          classes:leaderClasses,
+          shift:{},
+          attendanceClasses:leaderClasses.slice(),
+          replacement:[],
+          email:authUser.email||"",
+          phone:"",
+          qualification:"",
+          dbRow:null,
+          authUserId:authUser.id
+        };
+      }
+
       if(!me){
         const hint=metadataEmployeeId!=null?` employee_id=${metadataEmployeeId}`:"";
         throw new Error(`В таблице employees не найден сотрудник, связанный с текущей учётной записью.${hint}`);
       }
-      const effectiveLogin=metadataLogin||me.login||String(authUser.email||"").split("@")[0];
+
+      const effectiveLogin=metadataLogin||me.login||ownAcc?.login||String(authUser.email||"").split("@")[0];
       state.currentUser={...me,login:effectiveLogin,name:me.name||metadataName||"Пользователь"};
-      state.realEmployeesLoaded=true; save(); return true;
-    }catch(e){console.error(e);state.realEmployeesError=e.message||String(e);return false;}
+      state.realEmployeesLoaded=true;
+      save();
+      return true;
+    }catch(e){
+      console.error(e);
+      state.realEmployeesError=e.message||String(e);
+      return false;
+    }
   }
   function loadState(){
     try{
@@ -874,7 +975,7 @@
       <div class="card"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("dispatcher")||state.dispatcherIds.includes(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveDispatcher()">Сохранить</button></div>
       <div class="card"><h3>Секретарь</h3><label>Назначить пользователя с ролью «Секретарь»</label><select id="secretarySelect"><option value="">Выберите пользователя</option>${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("secretary")?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveSecretary()">Сохранить</button><p class="muted">Секретарь входит под своим обычным логином и может загружать приказы и получать результаты ознакомления.</p></div>
       <div class="card admin-span12"><h3>Расписание звонков</h3><p class="muted">Таблица соответствует утверждённому расписанию школы: три группы по сменам, отдельно понедельник и вторник-пятница.</p><div class="table-wrap">${renderBellMatrixTable(true)}</div><button class="btn green" style="margin-top:12px" onclick="saveBellMatrix()">Сохранить расписание звонков</button></div>
-      <div class="card admin-span12"><h3>Контингент классов</h3><p class="muted">Excel-файл с тремя столбцами: «Класс» / «Кол-во учеников» / «Смена». Новая загрузка заменяет предыдущие данные.</p><div class="roster-upload"><input id="rosterFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn green" style="margin-top:10px" onclick="uploadClassRoster()">Загрузить и заменить данные</button><div id="rosterInfo" class="roster-meta">В системе загружено классов: ${(state.classRoster||[]).length}.</div></div></div>
+      <div class="card admin-span12"><h3>Контингент классов</h3><p class="muted">Excel-файл с тремя столбцами: «Класс» / «Кол-во учеников» / «Смена». Классы сохраняются в Supabase; прежние классы только деактивируются после успешной проверки новой загрузки.</p><div class="roster-upload"><input id="rosterFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn green" style="margin-top:10px" onclick="uploadClassRoster()">Загрузить и заменить данные</button><div id="rosterInfo" class="roster-meta">В системе загружено классов: ${(state.classRoster||[]).length}.</div></div></div>
       <div class="card"><h3>Ответственные за направления</h3><p class="muted">Администратор указывает ФИО заместителя, курирующего каждый модуль.</p><div class="responsible-admin-list">${Object.entries(respNames).map(([k,n])=>`<label>${n}<input id="resp_${k}" value="${escapeHtml(state.responsibles[k]||"")}" placeholder="ФИО заместителя"></label>`).join("")}</div><button class="btn green" style="margin-top:12px" onclick="saveResponsibles()">Сохранить ответственных</button></div>
       <div class="card admin-span12"><h3>Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон 1</th><th>ФИО 2</th><th>Телефон 2</th></tr>${state.dutySchedule.map((x,i)=>`<tr><td>${escapeHtml(x.day)}</td><td><input id="duty_name1_${i}" value="${escapeHtml(x.name1||"")}"></td><td><input id="duty_phone1_${i}" value="${escapeHtml(x.phone1||"")}"></td><td><input id="duty_name2_${i}" value="${escapeHtml(x.name2||"")}"></td><td><input id="duty_phone2_${i}" value="${escapeHtml(x.phone2||"")}"></td></tr>`).join("")}</table></div><button class="btn green" style="margin-top:12px" onclick="saveDuty()">Сохранить график дежурства</button></div>
       <div class="card admin-span12"><h3>Сроки каникул</h3><p class="muted">Сюда можно вставить полный график каникул на учебный год — несколько строк, таблицу или текстовый приказ.</p><label>Расписание каникул</label><textarea id="vacationsText" class="vacations-editor" rows="12" placeholder="Например:\nОсенние каникулы — ...\nЗимние каникулы — ...\nВесенние каникулы — ...\nЛетние каникулы — ...">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить расписание каникул</button></div>
@@ -1438,7 +1539,93 @@
   };
   window.uploadPortfolio=function(){if(isGuest())return alert("В режиме гостя добавление документов недоступно.");const f=document.getElementById("portfolioFile")?.files[0];if(!f)return alert("Выберите документ.");const r=new FileReader();r.onload=e=>{state.portfolio[state.currentUser.login]=state.portfolio[state.currentUser.login]||[];state.portfolio[state.currentUser.login].push({name:f.name,data:e.target.result,uploadedAt:new Date().toISOString()});save();render();};r.readAsDataURL(f);};
   window.deletePortfolio=function(i){const a=state.portfolio[state.currentUser.login]||[];if(confirm("Удалить документ из портфолио?")){a.splice(i,1);state.portfolio[state.currentUser.login]=a;save();render();}};
-    window.uploadClassRoster=async function(){if(!isAdmin())return;const f=document.getElementById("rosterFile")?.files?.[0];if(!f)return alert("Выберите Excel-файл.");try{const data=await f.arrayBuffer();const wb=XLSX.read(data,{type:"array"});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:""});const normalizeKey=k=>String(k||"").toLowerCase().replace(/[^a-zа-яё0-9]/gi,"");const get=(row,candidates)=>{for(const key of Object.keys(row)){const nk=normalizeKey(key);if(candidates.some(c=>nk===normalizeKey(c)||nk.includes(normalizeKey(c))))return row[key];}return "";};const parsed=rows.map(r=>({name:String(get(r,["Класс","class","class_name"])||"").trim(),studentCount:+String(get(r,["Кол-во учеников","Количество учеников","student_count","students"])||0).replace(/,/g,"."),shift:+String(get(r,["Смена","shift"])||0)})).filter(x=>x.name);if(!parsed.length)throw new Error("Не найдены строки с классами.");state.classRoster=parsed;save();let synced=false;try{const {data:{session}}=await supabase.auth.getSession();if(session){const del=await fetch(`${SUPABASE_URL}/rest/v1/classes?select=id`,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`}});if(del.ok){const current=await del.json();for(const r of current||[])await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(r.id)}`,{method:"DELETE",headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`}});const payload=parsed.map(x=>({name:x.name,student_count:x.studentCount,shift:x.shift}));const ins=await fetch(`${SUPABASE_URL}/rest/v1/classes`,{method:"POST",headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(payload)});synced=ins.ok;}}}catch(e){console.warn(e);}document.getElementById("rosterInfo").textContent=`Загружено классов: ${parsed.length}. ${synced?"Данные обновлены в Supabase.":"Данные сохранены локально; синхронизация с Supabase не выполнена."}`;alert("Данные о классах обновлены.");render();}catch(e){alert("Не удалось прочитать Excel: "+(e.message||"проверьте заголовки столбцов."));}};
+    window.uploadClassRoster=async function(){
+      if(!isAdmin())return;
+      const f=document.getElementById("rosterFile")?.files?.[0];
+      if(!f)return alert("Выберите Excel-файл.");
+      try{
+        const data=await f.arrayBuffer();
+        const wb=XLSX.read(data,{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+        const normalizeKey=k=>String(k||"").toLowerCase().replace(/[^a-zа-яё0-9]/gi,"");
+        const get=(row,candidates)=>{
+          for(const key of Object.keys(row)){
+            const nk=normalizeKey(key);
+            if(candidates.some(c=>nk===normalizeKey(c)||nk.includes(normalizeKey(c))))return row[key];
+          }
+          return "";
+        };
+        const normalizeClassName=value=>String(value||"").trim().replace(/\s+/g,"").replace(/-/g,"").toUpperCase();
+        const parsed=rows.map((r,i)=>{
+          const rawName=get(r,["Класс","class","class_name"]);
+          const name=normalizeClassName(rawName);
+          const m=name.match(/^(\d{1,2})([А-ЯЁA-Z])$/);
+          const studentCount=+String(get(r,["Кол-во учеников","Количество учеников","student_count","students"])||0).replace(/,/g,".");
+          const shift=+String(get(r,["Смена","shift"])||0);
+          return {row:i+2,name,grade:m?+m[1]:0,letter:m?m[2]:"",studentCount,shift};
+        }).filter(x=>x.name);
+        const invalid=parsed.filter(x=>!x.grade||!x.letter||x.grade<1||x.grade>11);
+        if(!parsed.length)throw new Error("Не найдены строки с классами.");
+        if(invalid.length)throw new Error(`Не удалось распознать класс(ы): ${invalid.map(x=>`строка ${x.row}: ${x.name}`).join(", ")}. Используйте формат 6А, 6Б, 7А и т.п.`);
+        const duplicateNames=parsed.filter((x,i,a)=>a.findIndex(y=>y.name===x.name)===i && a.filter(y=>y.name===x.name).length>1).map(x=>x.name);
+        if(duplicateNames.length)throw new Error(`В Excel повторяются классы: ${duplicateNames.join(", ")}. Оставьте по одной строке на класс.`);
+
+        const yearId=await getCurrentAcademicYearId();
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session)throw new Error("Нет активной сессии Supabase.");
+        if(!yearId)throw new Error("Не найден учебный год 2026-2027 в таблице academic_years.");
+
+        const currentRows=await sbRest("classes");
+        const existing=(currentRows||[]).filter(r=>String(r.academic_year_id??"")===String(yearId));
+        const existingByName={};
+        existing.forEach(r=>{const n=classNameFromRow(r);if(n)existingByName[n]=r;});
+
+        // Сначала убеждаемся, что все нужные классы можно создать/активировать.
+        for(const item of parsed){
+          const old=existingByName[item.name];
+          if(old){
+            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(old.id)}`,{
+              method:"PATCH",
+              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},
+              body:JSON.stringify({grade:item.grade,letter:item.letter,is_active:true,academic_year_id:yearId})
+            });
+            if(!resp.ok)throw new Error(`Не удалось обновить класс ${item.name}: HTTP ${resp.status}`);
+          }else{
+            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes`,{
+              method:"POST",
+              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=representation"},
+              body:JSON.stringify({grade:item.grade,letter:item.letter,is_active:true,academic_year_id:yearId})
+            });
+            if(!resp.ok){const txt=await resp.text();throw new Error(`Не удалось добавить класс ${item.name}: HTTP ${resp.status} ${txt}`);}
+          }
+        }
+
+        // Только после успешной обработки всех нужных классов деактивируем отсутствующие в новой ведомости.
+        const wanted=new Set(parsed.map(x=>x.name));
+        for(const old of existing){
+          const oldName=classNameFromRow(old);
+          if(oldName && !wanted.has(oldName)){
+            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(old.id)}`,{
+              method:"PATCH",
+              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},
+              body:JSON.stringify({is_active:false})
+            });
+            if(!resp.ok)throw new Error(`Не удалось деактивировать прежний класс ${oldName}: HTTP ${resp.status}`);
+          }
+        }
+
+        state.classRoster=parsed.map(x=>({name:x.name,grade:x.grade,letter:x.letter,studentCount:x.studentCount,shift:x.shift,academicYearId:yearId}));
+        save();
+        const info=document.getElementById("rosterInfo");
+        if(info)info.textContent=`Загружено классов: ${parsed.length}. Данные классов сохранены в Supabase для 2026-2027 учебного года.`;
+        alert(`Контингент обновлён: ${parsed.length} классов.`);
+        render();
+      }catch(e){
+        console.error(e);
+        alert("Не удалось обновить контингент: "+(e.message||"проверьте Excel и права доступа."));
+      }
+    };
   window.changePassword=function(){const p=prompt("Новый пароль:");if(p)alert("В MVP пароль изменен локально. В серверной версии изменение будет сохранено в учетной записи.");};
   function downloadCSV(headers,rows,name){const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
   function searchCatalogue(){return [
