@@ -1576,36 +1576,46 @@
         if(!session)throw new Error("Нет активной сессии Supabase.");
         if(!yearId)throw new Error("Не найден учебный год 2026-2027 в таблице academic_years.");
 
-        const currentRows=await sbRest("classes");
-        const existing=(currentRows||[]).filter(r=>String(r.academic_year_id??"")===String(yearId));
-        const existingByName={};
-        existing.forEach(r=>{const n=classNameFromRow(r);if(n)existingByName[n]=r;});
-
-        // Сначала убеждаемся, что все нужные классы можно создать/активировать.
+        // Важно: больше не пытаемся сначала найти класс через SELECT, а затем POST.
+        // Даже если SELECT ограничен RLS, upsert корректно обработает уже существующий
+        // класс по уникальному ключу (grade, letter, academic_year_id).
         for(const item of parsed){
-          const old=existingByName[item.name];
-          if(old){
-            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(old.id)}`,{
-              method:"PATCH",
-              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},
-              body:JSON.stringify({grade:item.grade,letter:item.letter,is_active:true,academic_year_id:yearId})
-            });
-            if(!resp.ok)throw new Error(`Не удалось обновить класс ${item.name}: HTTP ${resp.status}`);
-          }else{
-            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes`,{
-              method:"POST",
-              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=representation"},
-              body:JSON.stringify({grade:item.grade,letter:item.letter,is_active:true,academic_year_id:yearId})
-            });
-            if(!resp.ok){const txt=await resp.text();throw new Error(`Не удалось добавить класс ${item.name}: HTTP ${resp.status} ${txt}`);}
+          const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?on_conflict=grade,letter,academic_year_id`,{
+            method:"POST",
+            headers:{
+              apikey:SUPABASE_PUBLISHABLE_KEY,
+              Authorization:`Bearer ${session.access_token}`,
+              "Content-Type":"application/json",
+              Prefer:"resolution=merge-duplicates,return=minimal"
+            },
+            body:JSON.stringify({
+              grade:item.grade,
+              letter:item.letter,
+              is_active:true,
+              academic_year_id:yearId,
+              student_count:item.studentCount,
+              shift:item.shift
+            })
+          });
+          if(!resp.ok){
+            const txt=await resp.text();
+            throw new Error(`Не удалось сохранить класс ${item.name}: HTTP ${resp.status} ${txt}`);
           }
         }
 
-        // Только после успешной обработки всех нужных классов деактивируем отсутствующие в новой ведомости.
+        // Только после успешного upsert всех строк деактивируем классы,
+        // которых нет в новой ведомости.
+        let currentRows=[];
+        try{
+          currentRows=await sbRest("classes");
+        }catch(e){
+          console.warn("Не удалось прочитать классы для деактивации:",e);
+        }
+        const existing=(currentRows||[]).filter(r=>String(r.academic_year_id??"")===String(yearId));
         const wanted=new Set(parsed.map(x=>x.name));
         for(const old of existing){
           const oldName=classNameFromRow(old);
-          if(oldName && !wanted.has(oldName)){
+          if(oldName && !wanted.has(oldName) && old.is_active!==false){
             const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(old.id)}`,{
               method:"PATCH",
               headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},
