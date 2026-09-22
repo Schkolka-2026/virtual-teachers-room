@@ -272,7 +272,7 @@
 
 <section id="authScreen">
   <div class="auth-brand">
-    <img class="brand-logo" src="Logo.jpg" alt="Логотип Школы Экодолье">
+    <img class="brand-logo" src="https://igxtfnoqjrykgntsftve.supabase.co/functions/v1/yandex-disk-upload?action=logo" alt="Логотип Школы Экодолье">
     <h1>Школа<br>решений</h1>
     <p>Виртуальная учительская МАОУ «Школа Экодолье»</p>
     <div class="slogan">Меньше рутины. Больше времени для детей.</div>
@@ -302,7 +302,7 @@
   <div class="mobile-overlay" id="mobileOverlay"></div>
   <aside class="sidebar">
     <div class="side-brand">
-      <img src="Logo.jpg" alt="Логотип">
+      <img src="https://igxtfnoqjrykgntsftve.supabase.co/functions/v1/yandex-disk-upload?action=logo" alt="Логотип">
       <div class="side-brand-text"><strong>Виртуальная учительская</strong></div>
     </div>
     <div class="date-title" id="sideDate"></div>
@@ -381,7 +381,8 @@
     psych:"https://disk.yandex.ru/d/Geci2NxJpfBgeQ",
     education:"https://disk.yandex.ru/d/AYLfigo9zJ9CmA",
     journal:"https://disk.yandex.ru/d/DA8UBHbPOmF2QQ",
-    reports:"https://disk.yandex.ru/d/522hEgXqfaRQBg"
+    reports:"https://disk.yandex.ru/d/522hEgXqfaRQBg",
+    olymp:"https://disk.yandex.ru/client/disk/SHKOLKA/Олимпиады"
   };
   const supabase = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
   const USERS = {guest:{login:"guest",password:"",name:"Гость",role:"Родитель / обучающийся",roleKey:"guest"}};
@@ -682,8 +683,16 @@
     }catch(e){console.warn("Не удалось загрузить постоянные настройки:",e);}
   }
   async function saveAppSetting(key,value){
-    try{await sbMutate("app_settings","POST","on_conflict=key",{key,value,updated_at:new Date().toISOString()});return true;}
-    catch(e){console.warn("Не удалось сохранить настройку",key,e);return false;}
+    const payload={key,value,updated_at:new Date().toISOString()};
+    try{
+      const updated=await sbMutate("app_settings","PATCH",`key=eq.${encodeURIComponent(key)}`,{value,updated_at:payload.updated_at});
+      if(Array.isArray(updated)&&updated.length)return true;
+      const inserted=await sbMutate("app_settings","POST","",payload);
+      return Array.isArray(inserted)&&inserted.length>0;
+    }catch(e){
+      console.warn("Не удалось сохранить настройку",key,e);
+      return false;
+    }
   }
   async function loadUserAssignments(){
     try{
@@ -723,7 +732,15 @@
     const p=await r.json().catch(()=>({}));if(!r.ok)throw new Error(p.error||`Ошибка загрузки на Яндекс Диск: ${r.status}`);return p;
   }
   async function saveDocumentRecord(record){return await sbMutate("document_records","POST","",record);}
-  async function acknowledgeDocumentRecord(id){await sbMutate("document_ack","POST","on_conflict=document_id,employee_id",{document_id:Number(id),employee_id:Number(state.currentUser.id),ack_at:new Date().toISOString()});}
+  async function acknowledgeDocumentRecord(id){
+    const employeeId=Number(state.currentUser.id),now=new Date().toISOString();
+    try{
+      const updated=await sbMutate("document_ack","PATCH",`document_id=eq.${encodeURIComponent(id)}&employee_id=eq.${encodeURIComponent(employeeId)}`,{ack_at:now});
+      if(Array.isArray(updated)&&updated.length)return updated[0];
+    }catch(_e){}
+    const inserted=await sbMutate("document_ack","POST","",{document_id:Number(id),employee_id:employeeId,ack_at:now});
+    return Array.isArray(inserted)?inserted[0]:inserted;
+  }
   function loadState(){
     try{
       const saved=localStorage.getItem("schoolSolutionsMVP_v4");
@@ -991,7 +1008,12 @@
     const responsible=state.responsibles?.[page]||"";
     const responsibleBlock=`<div class="responsible-line"><b>Ответственный за направление:</b><span>${escapeHtml(responsible||"не назначен")}</span>${(isAdmin()||state.currentUser?.roleKeys?.includes("director"))?`<button class="small-btn" onclick="setResponsible('${page}')">Изменить</button>`:""}</div>`;
     if(isGuest()&&!guestPageAllowed(page)){shell("Доступ ограничен",responsibleBlock+"Режим гостя — только просмотр доступных разделов.",`<div class="card"><div class="empty">Раздел недоступен пользователю Гость.</div></div>`);return;}
-    if(page==="olymp"){shell(names[page],responsibleBlock+"Готовый модуль олимпиадного и конкурсного движения.",`<div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);return;}
+    if(page==="olymp"){
+      shell(names[page],responsibleBlock+"Готовый модуль олимпиадного и конкурсного движения.",
+        `<div class="module-grid" style="margin-bottom:18px">${moduleCard("Приказы","Приказы по олимпиадному и конкурсному движению. Непрочитанные документы подсвечиваются.","left",true)}</div>
+         <div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);
+      return;
+    }
     if(page==="vseobuch"){shell("Всеобуч",responsibleBlock+"Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы","left")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся","right")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию","left")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами","right")}</div>`);return;}
     if(page==="education"){shell("Учебная работа",responsibleBlock+"Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("ВПР","Всероссийские проверочные работы")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}${moduleCard("Сроки каникул","Сроки и график каникул")}</div>`);return;}
     if(page==="journal"){shell("Электронный журнал",responsibleBlock+"Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Приказы","Новые приказы по электронному журналу. Непрочитанные документы подсвечиваются.","left",true)}${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
@@ -1797,7 +1819,7 @@
     document.getElementById("loginError").textContent=error?error.message:"Письмо для смены пароля отправлено на почту.";
   }
   function showRecoveryForm(){
-    document.getElementById("authScreen").innerHTML=`<div class="auth-brand"><img class="brand-logo" src="Logo.jpg" alt="Логотип Школы Экодолье"><h1>Школа<br>решений</h1><p>Виртуальная учительская МАОУ «Школа Экодолье»</p><div class="slogan">Меньше рутины. Больше времени для детей.</div></div><div class="auth-panel"><form class="login-card" id="recoveryForm"><h2>Новый пароль</h2><p class="sub">Введите новый пароль для входа в виртуальную учительскую.</p><label for="newPassword">Новый пароль</label><input id="newPassword" type="password" minlength="6" required placeholder="Введите новый пароль"><label for="newPassword2">Повторите пароль</label><input id="newPassword2" type="password" minlength="6" required placeholder="Повторите новый пароль"><button class="primary" type="submit">Сохранить пароль</button><div class="error" id="recoveryError"></div></form></div>`;
+    document.getElementById("authScreen").innerHTML=`<div class="auth-brand"><img class="brand-logo" src="https://igxtfnoqjrykgntsftve.supabase.co/functions/v1/yandex-disk-upload?action=logo" alt="Логотип Школы Экодолье"><h1>Школа<br>решений</h1><p>Виртуальная учительская МАОУ «Школа Экодолье»</p><div class="slogan">Меньше рутины. Больше времени для детей.</div></div><div class="auth-panel"><form class="login-card" id="recoveryForm"><h2>Новый пароль</h2><p class="sub">Введите новый пароль для входа в виртуальную учительскую.</p><label for="newPassword">Новый пароль</label><input id="newPassword" type="password" minlength="6" required placeholder="Введите новый пароль"><label for="newPassword2">Повторите пароль</label><input id="newPassword2" type="password" minlength="6" required placeholder="Повторите новый пароль"><button class="primary" type="submit">Сохранить пароль</button><div class="error" id="recoveryError"></div></form></div>`;
     document.getElementById("recoveryForm").addEventListener("submit",async e=>{
       e.preventDefault();
       const a=document.getElementById("newPassword").value,b=document.getElementById("newPassword2").value,err=document.getElementById("recoveryError");
@@ -2282,6 +2304,410 @@ window.navigate=async function(page){
   try{await refreshRuntimeData();}catch(e){}
   render();window.scrollTo({top:0,behavior:'smooth'});
 };
+
+
+/* ===== FINAL FIXES 2026-09 ===== */
+
+/* ---------- Shared settings: always persist to Supabase before reporting success ---------- */
+window.saveResponsibles = async function(){
+  if(!isAdmin()) return;
+  const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
+  const next={...(state.responsibles||{})};
+  keys.forEach(k=>{ next[k]=document.getElementById(`resp_${k}`)?.value.trim()||""; });
+  if(!(await saveAppSetting("responsibles",next))) return alert("Не удалось сохранить ответственных в базе данных.");
+  state.responsibles=next;
+  save();
+  alert("Ответственные за направления сохранены.");
+  render();
+};
+
+window.saveDuty = async function(){
+  if(!(isAdmin()||state.currentUser?.roleKeys?.includes("deputy"))) return;
+  const next=(state.dutySchedule||[]).map((x,i)=>({
+    ...x,
+    name1:document.getElementById(`duty_name1_${i}`)?.value.trim()||"",
+    phone1:document.getElementById(`duty_phone1_${i}`)?.value.trim()||"",
+    name2:document.getElementById(`duty_name2_${i}`)?.value.trim()||"",
+    phone2:document.getElementById(`duty_phone2_${i}`)?.value.trim()||""
+  }));
+  if(!(await saveAppSetting("dutySchedule",next))) return alert("Не удалось сохранить график дежурства в базе данных.");
+  state.dutySchedule=next;
+  save();
+  alert("График дежурства сохранён.");
+  render();
+};
+
+/* ---------- Notifications: real teacher dropdown ---------- */
+function teacherLikeUsers(){
+  const all=(state.users||[]).filter(u=>!u.roleKeys?.includes("guest"));
+  const excluded=["admin","director","deputy","secretary","dispatcher"];
+  let teachers=all.filter(u=>(u.roleKeys||[]).includes("teacher"));
+  if(!teachers.length) teachers=all.filter(u=>!(u.roleKeys||[]).some(r=>excluded.includes(r)));
+  return teachers.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ru"));
+}
+
+function teacherSelectHtml(id,users,placeholder="Выберите учителя"){
+  return `<select id="${id}" style="width:100%"><option value="">${escapeHtml(placeholder)}</option>${users.map(u=>`<option value="${Number(u.id)}">${escapeHtml(u.name)}</option>`).join("")}</select>`;
+}
+
+window.sendText = function(){
+  if(!isManager()) return;
+  const users=teacherLikeUsers();
+  if(!users.length) return alert("Список учителей пока не загружен.");
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal">
+    <h3>Сообщение учителю</h3>
+    <div class="notify-form">
+      <div class="notify-row"><label>Учитель</label>${teacherSelectHtml("notifyTeacherId",users)}</div>
+      <div class="notify-row"><label>Сообщение</label><textarea id="notifyMessage" rows="5" placeholder="Введите сообщение"></textarea></div>
+    </div>
+    <div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitTextNotification()">Отправить</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML("beforeend",html);
+};
+
+window.submitTextNotification = async function(){
+  const id=Number(document.getElementById("notifyTeacherId")?.value||0);
+  const msg=document.getElementById("notifyMessage")?.value.trim();
+  const u=teacherLikeUsers().find(x=>Number(x.id)===id);
+  if(!u)return alert("Выберите учителя из списка.");
+  if(!msg)return alert("Введите сообщение.");
+  try{
+    const row=await saveServerNotification({
+      notification_type:"text",title:"Новое сообщение",body:msg,
+      recipient_employee_id:Number(u.id),sender_employee_id:Number(state.currentUser.id),
+      sender_name:state.currentUser.name,visit_data:{}
+    });
+    state.notifications.unshift({
+      id:Number(row?.id||Date.now()),type:"text",title:"Новое сообщение",text:msg,date:"Сегодня",
+      read:false,teacher:u.login,teacherId:Number(u.id),senderName:state.currentUser.name
+    });
+    save();closeNotifyModal();alert("Уведомление отправлено.");render();
+  }catch(e){alert("Не удалось отправить уведомление: "+(e.message||e));}
+};
+
+window.sendVisit = function(){
+  if(!isManager()) return;
+  const teachers=teacherLikeUsers();
+  const deputies=state.users.filter(u=>(u.roleKeys||[]).some(r=>["deputy","director"].includes(r)))
+    .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ru"));
+  const classes=[...new Set((state.schedule?.entries||[]).map(x=>x.className).concat(state.classRoster?.map(x=>x.name)||[]).filter(Boolean))].sort(classSort);
+  const subjects=[...new Set((state.schedule?.entries||[]).map(x=>x.subject).filter(Boolean))].sort();
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal"><h3>Уведомление о посещении урока</h3>
+    <div class="notify-form">
+      <div class="notify-row"><label>1. Учитель</label>${teacherSelectHtml("visitTeacherId",teachers)}</div>
+      <div class="notify-row"><label>2. Заместитель / директор</label><select id="visitDeputyName" style="width:100%"><option value="">Выберите</option>${deputies.map(u=>`<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join("")}</select></div>
+      <div class="notify-row"><label>3. Класс</label><select id="visitClass" style="width:100%"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select></div>
+      <div class="notify-row"><label>4. Предмет</label><select id="visitSubject" style="width:100%"><option value="">Выберите предмет</option>${subjects.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("")}</select></div>
+      <div class="notify-row"><label>5. Цель посещения</label><textarea id="visitPurpose" rows="3" placeholder="Цель посещения урока"></textarea></div>
+    </div>
+    <div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitVisitNotification()">Отправить</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML("beforeend",html);
+};
+
+window.submitVisitNotification = async function(){
+  const teacherId=Number(document.getElementById("visitTeacherId")?.value||0);
+  const dn=document.getElementById("visitDeputyName")?.value.trim();
+  const cls=document.getElementById("visitClass")?.value.trim();
+  const subject=document.getElementById("visitSubject")?.value.trim();
+  const purpose=document.getElementById("visitPurpose")?.value.trim();
+  const teacher=teacherLikeUsers().find(u=>Number(u.id)===teacherId);
+  const deputy=flexibleUserByName(dn,state.users.filter(u=>(u.roleKeys||[]).some(r=>["deputy","director"].includes(r))));
+  if(!teacher||!deputy||!cls||!subject||!purpose)return alert("Заполните все 5 строк.");
+  try{
+    const visit={teacher:teacher.name,deputy:deputy.name,cls,subject,purpose};
+    const row=await saveServerNotification({
+      notification_type:"visit",title:"Уведомление о посещении урока",
+      body:`Класс: ${cls}. Предмет: ${subject}. Цель: ${purpose}. Посетитель: ${deputy.name}.`,
+      recipient_employee_id:Number(teacher.id),sender_employee_id:Number(state.currentUser.id),
+      sender_name:state.currentUser.name,visit_data:visit
+    });
+    state.notifications.unshift({
+      id:Number(row?.id||Date.now()),type:"visit",title:"Уведомление о посещении урока",
+      text:`Класс: ${cls}. Предмет: ${subject}. Цель: ${purpose}. Посетитель: ${deputy.name}.`,
+      date:"Сегодня",read:false,teacher:teacher.login,teacherId:Number(teacher.id),visit
+    });
+    save();closeNotifyModal();alert("Уведомление отправлено.");render();
+  }catch(e){alert("Не удалось отправить уведомление: "+(e.message||e));}
+};
+
+/* ---------- Documents / orders: recipients, acknowledgement and "Кто ознакомился" ---------- */
+function canViewDocAck(d){
+  return !!d && (canViewAckReport() || d.uploadedBy===state.currentUser?.login);
+}
+
+function userCanSeeDoc(doc){
+  if(!doc||!state.currentUser)return false;
+  const u=state.currentUser;
+  if(canViewDocAck(doc)) return true;
+  if(doc.targetAll || doc.targetType==="all") return true;
+  if((doc.targetEmployeeIds||[]).map(Number).includes(Number(u.id))) return true;
+  const isClassLeader=(u.classes||[]).length>0;
+  if(doc.targetClassLeaderAll || doc.targetType==="classleaders") if(isClassLeader) return true;
+  const parallels=(doc.targetClassLeaderParallels||[]).map(String);
+  if(parallels.length && isClassLeader && (u.classes||[]).some(c=>parallels.includes(String(c).match(/^\d+/)?.[0]))) return true;
+  if((doc.targetUsers||[]).includes(u.login)) return true;
+  return false;
+}
+
+window.renderDocSection = function(page,title){
+  const docs=sectionDocs(page,title),canUpload=docUploadAllowed(page,title),manager=canViewAckReport();
+  shell(title,"Документы раздела. У каждого документа можно задать адресатов.",
+    `${canUpload?`<div class="doc-upload">
+      <div class="doc-upload-grid"><div><label>Документ</label><input id="docFile" type="file"></div><div><label>Название документа</label><input id="docTitle" placeholder="Например: Приказ №..."></div></div>
+      <div style="margin-top:12px"><label>Для кого предназначен документ</label>
+        <div class="target-grid target-grid-four">
+          <label class="target-choice"><input type="checkbox" id="targetAll" checked onchange="toggleDocTarget()"> Все</label>
+          <label class="target-choice"><input type="checkbox" id="targetClassLeaderAll" onchange="toggleDocTarget()"> Все классные руководители</label>
+          <label class="target-choice"><input type="checkbox" id="targetClassLeaderParallel" onchange="toggleDocTarget()"> Классные руководители по параллелям</label>
+          <label class="target-choice"><input type="checkbox" id="targetSpecific" onchange="toggleDocTarget()"> Конкретные пользователи</label>
+        </div>
+        <div id="parallelBox" class="checkbox-list hidden" style="margin-top:8px">${[...new Set(state.users.flatMap(u=>(u.classes||[]).map(c=>String(c).match(/^\d+/)?.[0]).filter(Boolean)))].sort((a,b)=>+a-+b).map(p=>`<label><input type="checkbox" value="${p}"> ${p} классы</label>`).join("")}</div>
+        <div id="specificUsersBox" class="checkbox-list hidden" style="margin-top:8px">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<label><input type="checkbox" value="${escapeHtml(u.login)}"> ${escapeHtml(u.name)}</label>`).join("")}</div>
+      </div>
+      <button class="btn green" style="margin-top:12px" onclick="uploadDocument('${escapeHtml(page)}','${escapeHtml(title)}')">＋ Загрузить документ</button>
+    </div>`:""}
+    ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).join("")}</div>`:'<div class="empty">Документов пока нет.</div>'}`);
+};
+
+function renderDocItem(d,manager){
+  const seen=d.readBy?.[state.currentUser.login];
+  const visible=userCanSeeDoc(d);
+  const unread=visible&&!seen;
+  const ackAt=typeof seen==="object"?seen.at:null;
+  const canReport=canViewDocAck(d);
+  const isOrder=d.sectionKey.split("::")[1]?.includes("Приказы");
+  return `<div class="doc-item ${unread?'unread':''}">
+    <div class="doc-item-title">📄 ${escapeHtml(d.title||d.fileName)} ${unread?'<span class="unread-marker">• новое</span>':''}</div>
+    <div class="doc-meta">Загружен: ${escapeHtml(d.uploadedByName||"")} · ${new Date(d.uploadedAt).toLocaleString('ru-RU')}</div>
+    <div class="doc-targets">Предназначен: ${escapeHtml(docTargetLabel(d))}</div>
+    ${ackAt?`<div class="ack-info">✓ Ознакомлен: ${new Date(ackAt).toLocaleString('ru-RU')}</div>`:""}
+    <div class="doc-actions">
+      ${(d.url||d.data)?`<a class="btn" href="${escapeHtml(d.url||d.data)}" target="_blank" rel="noopener">Открыть</a>`:""}
+      ${visible&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}
+      ${canReport?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}
+      ${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}
+    </div>
+  </div>`;
+}
+window.toggleDocTarget=function(){
+  const parallel=document.getElementById("targetClassLeaderParallel")?.checked;
+  const specific=document.getElementById("targetSpecific")?.checked;
+  document.getElementById("parallelBox")?.classList.toggle("hidden",!parallel);
+  document.getElementById("specificUsersBox")?.classList.toggle("hidden",!specific);
+  if(parallel||specific){
+    const all=document.getElementById("targetAll");
+    if(all)all.checked=false;
+  }
+};
+window.uploadDocument = async function(page,title){
+  const f=document.getElementById("docFile")?.files[0];if(!f)return alert("Выберите документ.");
+  const folderUrl=yandexFolderForPage(page);if(!folderUrl)return alert("Для этого раздела ещё не настроена папка Яндекс Диска.");
+  const name=document.getElementById("docTitle")?.value.trim()||f.name;
+  let targetType="all",targetUsers=[],targetAll=!!document.getElementById("targetAll")?.checked,targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked,targetClassLeaderParallels=[...document.querySelectorAll("#parallelBox input:checked")].map(x=>x.value);
+  targetUsers=[...document.querySelectorAll("#specificUsersBox input:checked")].map(x=>x.value);
+  const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;
+  if(!any)return alert("Выберите хотя бы одного адресата.");
+  if(title.includes("Приказы") && !canManageOrders())return alert("Приказы могут загружать только директор, заместитель директора, администратор и секретарь.");
+  targetType=targetAll?"all":targetUsers.length?"specific":"classleaders";
+  try{
+    const targetEmployeeIds=(state.users||[]).filter(u=>{
+      if(targetAll)return !u.roleKeys?.includes("guest");
+      if(targetUsers.includes(u.login))return true;
+      if(targetClassLeaderAll&&u.classes?.length)return true;
+      if(targetClassLeaderParallels.length&&(u.classes||[]).some(c=>targetClassLeaderParallels.includes(String(c).match(/^\d+/)?.[0])))return true;
+      return false;
+    }).map(u=>Number(u.id)).filter(Number.isFinite);
+    const uploaded=await uploadToYandexFolder(f,folderUrl,page,title);
+    const record={section_key:docKey(page,title),title:name,file_name:f.name,storage_url:uploaded.public_url||uploaded.url||"",storage_path:uploaded.path||"",uploaded_by:state.currentUser.login,uploaded_by_name:state.currentUser.name,target_type:targetType,target_users:targetUsers,target_all:targetAll,target_class_leader_all:targetClassLeaderAll,target_class_leader_parallels:targetClassLeaderParallels,target_employee_ids:targetEmployeeIds};
+    const saved=await saveDocumentRecord(record),d=Array.isArray(saved)?saved[0]:saved;
+    state.documents.unshift({id:Number(d?.id||Date.now()),sectionKey:record.section_key,title:name,fileName:f.name,data:"",url:record.storage_url,storagePath:record.storage_path,uploadedBy:record.uploaded_by,uploadedByName:record.uploaded_by_name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,targetEmployeeIds,readBy:{}});
+    save();alert("Документ загружен и сохранён на Яндекс Диске.");renderDocSection(page,title);
+  }catch(e){console.error(e);alert("Не удалось загрузить документ: "+(e.message||"проверьте настройку Яндекс Диска."));}
+};
+window.ackDocument=async function(id){
+  const d=state.documents.find(x=>Number(x.id)===Number(id));if(!d||!userCanSeeDoc(d))return;
+  try{const saved=await acknowledgeDocumentRecord(id);const at=new Date().toISOString();d.readBy=d.readBy||{};d.readBy[state.currentUser.login]={at};save();renderDocSection(state.currentPage,d.sectionKey.split("::")[1]);}catch(e){alert("Не удалось сохранить ознакомление: "+(e.message||"ошибка Supabase"));}
+};
+window.whoRead=async function(id){
+  const d=state.documents.find(x=>Number(x.id)===Number(id));if(!d||!canViewDocAck(d))return;
+  const targetIds=(d.targetEmployeeIds||[]).map(Number).filter(Number.isFinite);
+  let recipients;
+  if(targetIds.length) recipients=state.users.filter(u=>targetIds.includes(Number(u.id))&&!u.roleKeys?.includes("guest"));
+  else recipients=state.users.filter(u=>{
+    if(u.roleKeys?.includes("guest"))return false;
+    if(d.targetAll||d.targetType==="all")return true;
+    if(d.targetClassLeaderAll||d.targetType==="classleaders")if((u.classes||[]).length)return true;
+    const ps=(d.targetClassLeaderParallels||[]).map(String);
+    if(ps.length&&(u.classes||[]).some(c=>ps.includes(String(c).match(/^\d+/)?.[0])))return true;
+    return (d.targetUsers||[]).includes(u.login);
+  });
+  const rows=recipients.map(u=>{const seen=d.readBy?.[u.login];return [d.title||d.fileName,u.name,seen?(typeof seen==="object"?new Date(seen.at).toLocaleString("ru-RU"):""):"Не ознакомлен"];});
+  const csv=[["Документ","ФИО","Дата и время"],...rows];downloadCSV(csv[0],csv.slice(1),`ознакомление_${d.id}.csv`);
+  const lines=rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td></tr>`).join("");
+  const w=window.open("","_blank","width=900,height=600");if(w){w.document.write(`<title>Кто ознакомился</title><body style="font-family:Arial;padding:20px"><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Документ</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table></body>`);w.document.close();}
+};
+
+
+/* ---------- Work plan: one modal, server-backed ---------- */
+function ensurePlanModalStyles(){
+  if(document.getElementById("planModalStyles"))return;
+  const s=document.createElement("style");s.id="planModalStyles";s.textContent=`
+    .plan-modal-backdrop{position:fixed;inset:0;background:rgba(6,61,43,.28);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10020}
+    .plan-modal{background:#fff;width:min(820px,100%);max-height:92vh;overflow:auto;border-radius:20px;box-shadow:0 20px 70px rgba(6,61,43,.28);padding:22px}
+    .plan-modal h3{margin:0 0 5px}.plan-modal .muted{margin-bottom:16px}
+    .plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.plan-grid .wide{grid-column:1/-1}
+    .plan-grid label{margin:0}.plan-grid input,.plan-grid select,.plan-grid textarea{width:100%}
+    .plan-grid textarea{min-height:90px;resize:vertical}
+    .plan-class-box{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}
+    .plan-class-box label{display:flex;gap:6px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:#f7faf8;font-size:12px}
+    .plan-class-box input{width:auto}
+    .plan-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+    .plan-help{font-size:11px;color:var(--muted);margin-top:5px}
+    @media(max-width:700px){.plan-grid{grid-template-columns:1fr}.plan-grid .wide{grid-column:auto}}
+  `;document.head.appendChild(s);
+}
+function planManagers(){
+  return (state.users||[]).filter(u=>
+    !u.roleKeys?.includes("guest") &&
+    (u.roleKeys||[]).some(r=>["deputy","director","admin"].includes(r))
+  ).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ru"));
+}
+function planTeacherClasses(){
+  const u=state.currentUser||{};
+  const arr=[...(u.classes||[]),...(u.attendanceClasses||[])].filter(Boolean);
+  return [...new Set(arr.map(String))].sort(classSort);
+}
+function parsePlanParticipantClass(text,classes){
+  const upper=String(text||"").toUpperCase();
+  return classes.find(c=>upper.includes(String(c).toUpperCase()))||"";
+}
+function closePlanModal(){document.querySelector(".plan-modal-backdrop")?.remove();}
+window.closePlanModal=closePlanModal;
+
+renderPlan=function(){
+  const all=(state.plan||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time).localeCompare(String(b.time)));
+  const visible=isManager()?all:all.filter(x=>x.status==="Опубликовано"||Number(x.authorEmployeeId)===Number(state.currentUser?.id));
+  const can=isManager();
+  shell("План работы","Заместители и директор формируют общий план. Учителя предлагают мероприятия своих классов.",`
+    <div class="card">
+      <div class="toolbar"><button class="btn green" onclick="addPlan()">＋ Добавить мероприятие</button>${can?'<span class="chip">Публикация и редактирование доступны заместителям и директору</span>':''}</div>
+      <div class="table-wrap"><table class="data-table">
+        <tr><th>Дата</th><th>Время</th><th>Мероприятие</th><th>Место</th><th>Участники</th><th>Ответственный заместитель</th><th>Статус</th><th>Действия</th></tr>
+        ${visible.map(x=>`<tr>
+          <td>${escapeHtml(formatPlanDate(x.date))}</td><td>${escapeHtml(x.time||"")}</td><td>${escapeHtml(x.title||"")}</td><td>${escapeHtml(x.place||"")}</td><td>${escapeHtml(x.participants||"")}</td><td>${escapeHtml(x.responsible||"—")}</td>
+          <td><span class="chip">${escapeHtml(x.status||"")}</span></td>
+          <td>${canEditPlanItem(x)?`<div class="icon-actions">${can&&x.status==="На согласовании"?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:""}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:"—"}</td>
+        </tr>`).join("")||'<tr><td colspan="8"><div class="empty">План пока пуст.</div></td></tr>'}
+      </table></div>
+    </div>`);
+};
+
+function openPlanModal(mode="add",id=null){
+  ensurePlanModalStyles();
+  const edit=mode==="edit"||mode==="publish";
+  const x=edit?(state.plan||[]).find(p=>Number(p.id)===Number(id)):null;
+  if(edit && !x)return;
+  if(edit && !canEditPlanItem(x))return;
+  const teachers=!isManager(),classes=teachers?planTeacherClasses():[];
+  const chosenClass=teachers?(parsePlanParticipantClass(x?.participants,classes)||classes[0]||""):"";
+  const managerList=planManagers();
+  const selectedResponsible=Number(x?.responsibleEmployeeId||0);
+  const title=x?.title||"",date=x?.date||new Date().toISOString().slice(0,10),time=x?.time||"12:00",place=x?.place||"",participants=teachers?(x?.participants||"").replace(chosenClass,"").replace(/^\\s*[,;]\\s*/,"").trim():(x?.participants||"");
+  const selectedStatus=x?.status||"На согласовании";
+  const managerOptions=`<option value="">${mode==="publish"?"Выберите ответственного":"Не назначен"}</option>${managerList.map(u=>`<option value="${Number(u.id)}" ${selectedResponsible===Number(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}`;
+  const ownClassBox=teachers?`<div class="wide"><label>Класс мероприятия</label><select id="planClass">${classes.length?classes.map(c=>`<option value="${escapeHtml(c)}" ${String(c)===String(chosenClass)?"selected":""}>${escapeHtml(c)}</option>`).join(""):'<option value="">Классное руководство не назначено</option>'}</select><div class="plan-help">Учитель может предложить мероприятие только для класса из своего классного руководства.</div></div>`:"";
+  const responsibleField=`<div><label>Ответственный заместитель</label><select id="planResponsible">${managerOptions}</select><div class="plan-help">${teachers?"Можно оставить пустым — заместитель назначит при публикации.":"Для опубликованного мероприятия поле желательно заполнить."}</div></div>`;
+  const actionLabel=mode==="add"?"Сохранить мероприятие":mode==="publish"?"Сохранить и опубликовать":"Сохранить изменения";
+  const html=`<div class="plan-modal-backdrop" onclick="if(event.target===this)closePlanModal()"><div class="plan-modal">
+    <h3>${edit?"Редактирование мероприятия":"Новое мероприятие"}</h3>
+    <div class="muted">${mode==="publish"?"Заполните недостающие данные и подтвердите публикацию.":"Все поля находятся в одном окне."}</div>
+    <div class="plan-grid">
+      <div><label>Дата</label><input id="planDate" type="date" value="${escapeHtml(date)}"></div>
+      <div><label>Время</label><input id="planTime" type="time" value="${escapeHtml(time)}"></div>
+      <div class="wide"><label>Мероприятие</label><input id="planTitle" value="${escapeHtml(title)}" placeholder="Название мероприятия"></div>
+      <div><label>Место</label><input id="planPlace" value="${escapeHtml(place)}" placeholder="Кабинет, актовый зал, площадка..."></div>
+      ${ownClassBox}
+      <div class="${teachers?'wide':''}"><label>Участники</label><textarea id="planParticipants" placeholder="Классы, педагоги, родители, обучающиеся...">${escapeHtml(participants)}</textarea></div>
+      ${responsibleField}
+    </div>
+    <div class="plan-modal-actions"><button class="btn" onclick="closePlanModal()">Отмена</button><button class="btn green" onclick="savePlanModal('${mode}',${x?Number(x.id):"null"})">${actionLabel}</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML("beforeend",html);
+}
+
+window.addPlan=function(){openPlanModal("add");};
+window.editPlan=function(id){openPlanModal("edit",id);};
+
+window.savePlanModal=async function(mode,id){
+  const teacher=!isManager();
+  const title=document.getElementById("planTitle")?.value.trim();
+  const date=document.getElementById("planDate")?.value;
+  const time=document.getElementById("planTime")?.value||"";
+  const place=document.getElementById("planPlace")?.value.trim();
+  const respId=Number(document.getElementById("planResponsible")?.value||0)||null;
+  const respUser=planManagers().find(u=>Number(u.id)===respId);
+  const respName=respUser?.name||"";
+  let participants=document.getElementById("planParticipants")?.value.trim()||"";
+  if(!title||!date||!time||!place)return alert("Заполните дату, время, мероприятие и место.");
+  if(teacher){
+    const cls=document.getElementById("planClass")?.value.trim();
+    if(!cls)return alert("Выберите класс мероприятия.");
+    participants=participants?`${cls}, ${participants}`:cls;
+  }
+  if(!participants)return alert("Заполните участников.");
+  if((mode==="publish"||isManager())&&!respName)return alert("Выберите ответственного заместителя/директора.");
+  const existing=id?(state.plan||[]).find(p=>Number(p.id)===Number(id)):null;
+  const status=mode==="add"?(isManager()?"Опубликовано":"На согласовании"):(mode==="publish"?"Опубликовано":existing?.status||"На согласовании");
+  const payload={event_date:date,event_time:time,event_title:title,place,participants,responsible_employee_id:respId,responsible_name:respName,status,author_employee_id:Number(existing?.authorEmployeeId||state.currentUser.id),author_name:existing?.author||state.currentUser.name,updated_at:new Date().toISOString()};
+  try{
+    let saved;
+    if(existing) saved=await sbMutate("work_plan","PATCH",`id=eq.${encodeURIComponent(existing.id)}`,payload);
+    else saved=await sbMutate("work_plan","POST","",payload);
+    const row=Array.isArray(saved)?saved[0]:saved;
+    if(existing)Object.assign(existing,{date,time,title,place,participants,responsible:respName,responsibleEmployeeId:respId,status,authorEmployeeId:payload.author_employee_id,author:payload.author_name});
+    else{
+      state.plan.push({id:Number(row?.id||Date.now()),date,time,title,place,participants,responsible:respName,responsibleEmployeeId:respId,status,author:payload.author_name,authorEmployeeId:payload.author_employee_id});
+    }
+    save();closePlanModal();render();
+  }catch(e){alert("Не удалось сохранить мероприятие: "+(e.message||e));}
+};
+
+window.publishPlan=function(id){
+  const x=(state.plan||[]).find(p=>Number(p.id)===Number(id));
+  if(!x||!isManager())return;
+  openPlanModal("publish",id);
+};
+
+window.deletePlan=async function(id){
+  const x=(state.plan||[]).find(p=>Number(p.id)===Number(id));
+  if(!x||!canEditPlanItem(x))return;
+  if(!confirm("Удалить мероприятие?"))return;
+  try{
+    await sbMutate("work_plan","DELETE",`id=eq.${encodeURIComponent(id)}`);
+    state.plan=state.plan.filter(p=>Number(p.id)!==Number(id));
+    save();render();
+  }catch(e){alert("Не удалось удалить мероприятие: "+(e.message||e));}
+};
+
+/* ---------- Replace Olympiad page only by adding the same приказ section above the existing iframe ---------- */
+const __renderPlaceholderFixed = renderPlaceholder;
+renderPlaceholder = function(){
+  if(state.currentPage==="olymp"){
+    const page="olymp", title="Приказы";
+    const responsible=state.responsibles?.[page]||"";
+    const responsibleBlock=`<div class="responsible-line"><b>Ответственный за направление:</b><span>${escapeHtml(responsible||"не назначен")}</span>${(isAdmin()||state.currentUser?.roleKeys?.includes("director"))?`<button class="small-btn" onclick="setResponsible('${page}')">Изменить</button>`:""}</div>`;
+    shell("Олимпиадное и конкурсное движение",responsibleBlock+"Готовый модуль олимпиадного и конкурсного движения.",`
+      <div class="module-grid" style="margin-bottom:18px">${moduleCard("Приказы","Приказы по олимпиадному и конкурсному движению. Непрочитанные документы подсвечиваются.","left",true)}</div>
+      <div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);
+    return;
+  }
+  __renderPlaceholderFixed();
+};
+
+/* ---------- Final acknowledgement guard: uploader + all management roles ---------- */
+window.whoRead=window.whoRead || function(){};
+
 
 })();
 </script>
