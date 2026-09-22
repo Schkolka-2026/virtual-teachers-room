@@ -263,6 +263,10 @@
 @media(max-width:1000px){.schedule-page-grid{grid-template-columns:1fr 1fr}.target-grid-four{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.home-grid{display:block!important}.schedule-page-grid{grid-template-columns:1fr}.target-grid-four{grid-template-columns:1fr}}
 </style>
+
+<style>
+.home-inline-alert{margin-top:14px;padding:12px;border-top:1px solid var(--line);background:#f8fbf9;border-radius:12px}.home-inline-alert.has-alert{background:#fff8e7;border:1px solid #edd477}.home-inline-alert-title{font-weight:800}.home-inline-alert-text{margin-top:6px;font-size:13px}.home-inline-alert-text.success{color:#237547}.home-inline-alert-dates{margin-top:6px;font-size:11px;color:var(--muted)}.home-inline-alert .small-btn{margin-top:9px}.home-plan{margin-top:16px}.home-plan-head{display:flex;align-items:center;justify-content:space-between;gap:14px}.plan-near-item{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--line)}.plan-near-date{min-width:86px;font-weight:800;color:var(--green-800)}.plan-near-date span{font-weight:600;color:var(--muted)}.journal-report-date{margin-bottom:10px}.journal-report-date label{display:flex;gap:8px;align-items:center;font-size:12px}.journal-report-date input{padding:8px 10px;border:1px solid var(--line);border-radius:10px}.plan-status-pending{background:#fff8e7}.plan-status-published{background:#eef8f1}
+</style>
 </head>
 <body>
 
@@ -729,7 +733,7 @@
       result.users=result.users.filter(u=>u.login!=="secretary");
       result.notifications=(result.notifications||[]).filter(n=>!(n.id===1||n.id===2||/Подготовить сведения к оперативному совещанию|К вам завтра придут на урок/.test(String(n.text||"")+" "+String(n.title||""))));
       result.transport=(result.transport||[]).filter(t=>!(t.id===1||/утренний рейс отправится на 15 минут позже/.test(String(t.text||""))));
-      result.users.forEach(u=>{u.roleKeys=(u.roleKeys||["teacher"]).filter(r=>r!=="secretary");u.roles=u.roles||rolesText(u.roleKeys);});
+      result.users.forEach(u=>{u.roleKeys=u.roleKeys||["teacher"];u.roles=u.roles||rolesText(u.roleKeys);});
       result.responsibles=result.responsibles||{};result.responsibles.transport=result.responsibles.transport||"";
       result.dutySchedule=(result.dutySchedule||[]).map(x=>({day:x.day,name1:x.name1||x.name||"",phone1:x.phone1||x.phone||"",name2:x.name2||"",phone2:x.phone2||""}));
       result.transportSchedule=result.transportSchedule||[];
@@ -1539,7 +1543,7 @@
   function sectionDocs(page,title){return state.documents.filter(d=>d.sectionKey===docKey(page,title));}
   window.openDocs=function(page,title){state.currentPage=page;renderDocSection(page,title);};
   function renderDocSection(page,title){
-    const docs=sectionDocs(page,title),canUpload=docUploadAllowed(page,title),manager=canManageOrders();
+    const docs=sectionDocs(page,title),canUpload=docUploadAllowed(page,title),manager=canViewAckReport();
     const order=title.includes("Приказы");
     shell(title,"Документы раздела. Для приказов ознакомление фиксируется отдельной кнопкой.",`${canUpload?`<div class="doc-upload"><div class="doc-upload-grid"><div><label>Документ</label><input id="docFile" type="file"></div><div><label>Название документа</label><input id="docTitle" placeholder="Например: Приказ №..."></div></div>${order?`<div style="margin-top:12px"><label>Для кого предназначен приказ</label>
 <div class="target-grid target-grid-four">
@@ -1826,6 +1830,458 @@
     const {data:{session}}=await supabase.auth.getSession();
     if(session?.user && await loadRealEmployees(session.user)){await loadAppSettingsFromSupabase();await loadUserAssignments();await loadDocumentsFromSupabase();document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
   })();
+
+// PATCH: server-backed password, settings, schedule, notifications, journal control, read reports and work plan.
+
+async function refreshRuntimeData(){
+  try{await loadAppSettingsFromSupabase();}catch(e){console.warn('refresh settings',e);}
+  const jobs=[
+    ['schedule',loadScheduleServer],
+    ['notifications',loadNotificationsServer],
+    ['plan',loadWorkPlanServer],
+    ['journal',loadJournalOverdueServer]
+  ];
+  await Promise.all(jobs.map(async ([name,fn])=>{try{await fn();}catch(e){console.warn('refresh '+name,e);}}));
+  try{save();}catch(e){}
+}
+
+async function loadScheduleServer(){
+  let daily=await sbRest('school_schedule_lessons','select=*&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc');
+  let base=await sbRest('school_base_schedule','select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc');
+
+  // Одноразовая миграция старого localStorage-расписания, которое уже было
+  // загружено администратором до перехода на серверное хранение.
+  if(!(daily||[]).length && isDispatcher() && (state.schedule.entries||[]).length){
+    const groups={};
+    (state.schedule.entries||[]).forEach(x=>{const k=`${x.date}::${x.shift}`;(groups[k]??=[]).push(x);});
+    for(const arr of Object.values(groups)){
+      if(arr.length)await saveScheduleRows({date:arr[0].date,shift:arr[0].shift,entries:arr});
+    }
+    daily=await sbRest('school_schedule_lessons','select=*&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc');
+  }
+  if(!(base||[]).length && isDispatcher() && (state.schedule.baseEntries||[]).length){
+    const groups={};
+    (state.schedule.baseEntries||[]).forEach(x=>{const k=String(x.shift);(groups[k]??=[]).push(x);});
+    for(const arr of Object.values(groups)){
+      if(arr.length)await saveBaseScheduleRows({shift:arr[0].shift,entries:arr});
+    }
+    base=await sbRest('school_base_schedule','select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc');
+  }
+  state.schedule.entries=(daily||[]).map(x=>({
+    id:Number(x.id),date:x.schedule_date,shift:Number(x.shift),lesson:Number(x.lesson),className:x.class_name,
+    subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
+  }));
+  state.schedule.baseEntries=(base||[]).map(x=>({
+    id:Number(x.id),shift:Number(x.shift),dayIndex:Number(x.day_index),lesson:Number(x.lesson),className:x.class_name,
+    subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
+  }));
+  state.schedule.versions=(daily||[]).reduce((acc,x)=>{
+    const k=`${x.schedule_date}::${x.shift}`;
+    if(!acc.some(v=>v.key===k))acc.push({key:k,date:x.schedule_date,shift:Number(x.shift),fileName:''});
+    return acc;
+  },[]);
+  return true;
+}
+
+async function loadNotificationsServer(){
+  const rows=await sbRest('school_notifications','select=*&order=created_at.desc');
+  state.notifications=(rows||[]).map(x=>({
+    id:Number(x.id),type:x.notification_type,title:x.title,text:x.body,date:new Date(x.created_at).toLocaleDateString('ru-RU'),
+    read:!!x.read_at,readAt:x.read_at||'',teacher:(state.users.find(u=>Number(u.id)===Number(x.recipient_employee_id))||{}).login||'',
+    teacherId:Number(x.recipient_employee_id),visit:x.visit_data||{},senderName:x.sender_name||''
+  }));
+  return true;
+}
+
+async function loadWorkPlanServer(){
+  const rows=await sbRest('work_plan','select=*&order=event_date.asc,event_time.asc,id.asc');
+  state.plan=(rows||[]).map(x=>({
+    id:Number(x.id),date:x.event_date,time:x.event_time||'',title:x.event_title||'',place:x.place||'',participants:x.participants||'',
+    responsible:x.responsible_name||'',responsibleEmployeeId:x.responsible_employee_id?Number(x.responsible_employee_id):null,
+    status:x.status,author:x.author_name||'',authorEmployeeId:Number(x.author_employee_id),createdAt:x.created_at,updatedAt:x.updated_at
+  }));
+  return true;
+}
+
+async function loadJournalOverdueServer(){
+  const rows=await sbRest('journal_overdue','select=*&order=report_date.desc,employee_name.asc');
+  state.journalOverdue=(rows||[]).map(x=>({
+    id:Number(x.id),employeeId:Number(x.employee_id),login:x.employee_login||'',name:x.employee_name||'',date:x.report_date,count:Number(x.overdue_count)||0
+  }));
+  return true;
+}
+
+async function saveScheduleRows(parsed){
+  const date=parsed.date, shift=Number(parsed.shift), now=new Date().toISOString();
+  await sbMutate('school_schedule_lessons','DELETE',`schedule_date=eq.${encodeURIComponent(date)}&shift=eq.${shift}`);
+  const rows=(parsed.entries||[]).map(x=>({
+    schedule_date:date,shift,lesson:Number(x.lesson)||0,class_name:String(x.className||''),subject:String(x.subject||''),
+    teacher:String(x.teacher||''),room:String(x.room||''),uploaded_at:now,uploaded_by:Number(state.currentUser.id)
+  }));
+  if(rows.length)await sbMutate('school_schedule_lessons','POST','',rows);
+}
+
+async function saveBaseScheduleRows(parsed){
+  const shift=Number(parsed.shift),now=new Date().toISOString();
+  await sbMutate('school_base_schedule','DELETE',`shift=eq.${shift}`);
+  const rows=(parsed.entries||[]).map(x=>({
+    shift,day_index:Number(x.dayIndex)||0,lesson:Number(x.lesson)||0,class_name:String(x.className||''),subject:String(x.subject||''),
+    teacher:String(x.teacher||''),room:String(x.room||''),uploaded_at:now,uploaded_by:Number(state.currentUser.id)
+  }));
+  if(rows.length)await sbMutate('school_base_schedule','POST','',rows);
+}
+
+function teacherLikeUsers(){
+  return (state.users||[]).filter(u=>!u.roleKeys?.includes('guest') && (
+    u.roleKeys?.includes('teacher') || u.roleKeys?.includes('deputy') || u.roleKeys?.includes('director')
+  ));
+}
+function flexibleUserByName(name, candidates=state.users||[]){
+  const n=normalizePersonName(name);
+  if(!n)return null;
+  return candidates.find(u=>normalizePersonName(u.name)===n)
+    || candidates.find(u=>normalizePersonName(u.name).includes(n))
+    || candidates.find(u=>n.includes(normalizePersonName(u.name)));
+}
+function canViewAckReport(){
+  const r=state.currentUser?.roleKeys||[];
+  return r.includes('admin')||r.includes('director')||r.includes('deputy')||r.includes('secretary');
+}
+function applySecretarySetting(){
+  try{
+    const id=state.__secretaryEmployeeId;
+    (state.users||[]).forEach(u=>{u.roleKeys=(u.roleKeys||[]).filter(r=>r!=='secretary');u.roles=rolesText(u.roleKeys);});
+    if(id!=null){
+      const u=(state.users||[]).find(x=>Number(x.id)===Number(id));
+      if(u){u.roleKeys=[...(u.roleKeys||[]),'secretary'];u.roles=rolesText(u.roleKeys);}
+    }
+    if(state.currentUser){
+      state.currentUser.roleKeys=(state.currentUser.roleKeys||[]).filter(r=>r!=='secretary');
+      if(id!=null && Number(state.currentUser.id)===Number(id))state.currentUser.roleKeys.push('secretary');
+      state.currentUser.roles=rolesText(state.currentUser.roleKeys);
+    }
+  }catch(e){console.warn('secretary role sync',e);}
+}
+
+const __loadAppSettingsBase = loadAppSettingsFromSupabase;
+loadAppSettingsFromSupabase = async function(){
+  await __loadAppSettingsBase();
+  try{
+    const rows=await sbRest('app_settings','select=key,value&key=eq.secretaryEmployeeId');
+    const r=rows?.[0];
+    state.__secretaryEmployeeId=r?.value??null;
+    applySecretarySetting();
+  }catch(e){console.warn('secretary setting',e);}
+  return true;
+};
+
+// Replace MVP-only password change with real Supabase Auth update.
+window.changePassword=async function(){
+  const p=prompt('Введите новый пароль (не менее 6 символов):');
+  if(p===null)return;
+  if(p.length<6)return alert('Пароль должен содержать не менее 6 символов.');
+  const p2=prompt('Повторите новый пароль:');
+  if(p2===null)return;
+  if(p!==p2)return alert('Пароли не совпадают.');
+  try{
+    const {error}=await supabase.auth.updateUser({password:p});
+    if(error)throw error;
+    alert('Пароль успешно изменён в учётной записи. При следующем входе используйте новый пароль.');
+  }catch(e){alert('Не удалось изменить пароль: '+(e.message||e));}
+};
+
+// Notifications: save/read on server, not only in localStorage.
+async function saveServerNotification(payload){
+  const rows=await sbMutate('school_notifications','POST','',payload);
+  return Array.isArray(rows)?rows[0]:rows;
+}
+
+window.sendText=function(){
+  if(!isManager())return;
+  const users=teacherLikeUsers();
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal"><h3>Сообщение учителю</h3><div class="notify-form"><div class="notify-row"><label>ФИО учителя</label><input id="notifyTeacherName" list="notifyTeacherList" placeholder="Начните вводить ФИО"><datalist id="notifyTeacherList">${users.map(u=>`<option value="${escapeHtml(u.name)}"></option>`).join('')}</datalist></div><div class="notify-row"><label>Сообщение</label><textarea id="notifyMessage" rows="5" placeholder="Введите сообщение"></textarea></div></div><div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitTextNotification()">Отправить</button></div></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+};
+window.submitTextNotification=async function(){
+  const name=document.getElementById('notifyTeacherName')?.value.trim(),msg=document.getElementById('notifyMessage')?.value.trim();
+  const u=flexibleUserByName(name,teacherLikeUsers());
+  if(!u)return alert('Выберите учителя из списка или введите точное ФИО.');
+  if(!msg)return alert('Введите сообщение.');
+  try{
+    const row=await saveServerNotification({notification_type:'text',title:'Новое сообщение',body:msg,recipient_employee_id:Number(u.id),sender_employee_id:Number(state.currentUser.id),sender_name:state.currentUser.name,visit_data:{}});
+    state.notifications.unshift({id:Number(row?.id||Date.now()),type:'text',title:'Новое сообщение',text:msg,date:'Сегодня',read:false,teacher:u.login,teacherId:Number(u.id),senderName:state.currentUser.name});
+    save();closeNotifyModal();alert('Уведомление отправлено.');render();
+  }catch(e){alert('Не удалось отправить уведомление: '+(e.message||e));}
+};
+window.sendVisit=function(){
+  if(!isManager())return;
+  const teachers=teacherLikeUsers(),deputies=state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director'));
+  const classes=[...new Set((state.schedule?.entries||[]).map(x=>x.className).concat(state.classRoster?.map(x=>x.name)||[]).filter(Boolean))].sort(classSort);
+  const subjects=[...new Set((state.schedule?.entries||[]).map(x=>x.subject).filter(Boolean))].sort();
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal"><h3>Уведомление о посещении урока</h3><div class="notify-form"><div class="notify-row"><label>1. Учитель</label><input id="visitTeacherName" list="visitTeacherList" placeholder="Начните вводить ФИО"><datalist id="visitTeacherList">${teachers.map(u=>`<option value="${escapeHtml(u.name)}"></option>`).join('')}</datalist></div><div class="notify-row"><label>2. Заместитель / директор</label><input id="visitDeputyName" list="visitDeputyList" placeholder="Начните вводить ФИО"><datalist id="visitDeputyList">${deputies.map(u=>`<option value="${escapeHtml(u.name)}"></option>`).join('')}</datalist></div><div class="notify-row"><label>3. Класс</label><input id="visitClass" list="visitClassList" placeholder="Например, 7Б"><datalist id="visitClassList">${classes.map(c=>`<option value="${escapeHtml(c)}"></option>`).join('')}</datalist></div><div class="notify-row"><label>4. Предмет</label><input id="visitSubject" list="visitSubjectList" placeholder="Предмет"><datalist id="visitSubjectList">${subjects.map(x=>`<option value="${escapeHtml(x)}"></option>`).join('')}</datalist></div><div class="notify-row"><label>5. Цель посещения</label><textarea id="visitPurpose" rows="3" placeholder="Цель посещения урока"></textarea></div></div><div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitVisitNotification()">Отправить</button></div></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+};
+window.submitVisitNotification=async function(){
+  const tn=document.getElementById('visitTeacherName')?.value.trim(),dn=document.getElementById('visitDeputyName')?.value.trim(),cls=document.getElementById('visitClass')?.value.trim(),subject=document.getElementById('visitSubject')?.value.trim(),purpose=document.getElementById('visitPurpose')?.value.trim();
+  const teacher=flexibleUserByName(tn,teacherLikeUsers());
+  const deputy=flexibleUserByName(dn,state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director')));
+  if(!teacher||!deputy||!cls||!subject||!purpose)return alert('Заполните все 5 строк и укажите ФИО учителя и заместителя/директора из списков.');
+  try{
+    const visit={teacher:teacher.name,deputy:deputy.name,cls,subject,purpose};
+    const row=await saveServerNotification({notification_type:'visit',title:'Уведомление о посещении урока',body:`Класс: ${cls}. Предмет: ${subject}. Цель: ${purpose}. Посетитель: ${deputy.name}.`,recipient_employee_id:Number(teacher.id),sender_employee_id:Number(state.currentUser.id),sender_name:state.currentUser.name,visit_data:visit});
+    state.notifications.unshift({id:Number(row?.id||Date.now()),type:'visit',title:'Уведомление о посещении урока',text:`Класс: ${cls}. Предмет: ${subject}. Цель: ${purpose}. Посетитель: ${deputy.name}.`,date:'Сегодня',read:false,teacher:teacher.login,teacherId:Number(teacher.id),visit});
+    save();closeNotifyModal();alert('Уведомление отправлено.');render();
+  }catch(e){alert('Не удалось отправить уведомление: '+(e.message||e));}
+};
+window.readNotification=async function(id){
+  const n=state.notifications.find(x=>Number(x.id)===Number(id));
+  if(!n||n.read)return;
+  try{await sbMutate('school_notifications','PATCH',`id=eq.${encodeURIComponent(n.id)}`,{read_at:new Date().toISOString()});}catch(e){console.warn(e);}
+  n.read=true;n.readAt=new Date().toISOString();save();render();
+};
+window.markNotificationsRead=async function(){
+  const unread=state.notifications.filter(n=>!n.read);
+  await Promise.all(unread.map(async n=>{try{await sbMutate('school_notifications','PATCH',`id=eq.${encodeURIComponent(n.id)}`,{read_at:new Date().toISOString()});}catch(e){}}));
+  state.notifications.forEach(n=>n.read=true);save();render();
+};
+
+// Electronic journal control.
+window.handleJournalFile=function(event){
+  const f=event?.target?.files?.[0];
+  window.__journalFile=f||null;
+  const el=document.getElementById('journalUploadInfo');
+  if(el)el.innerHTML=f?`Выбран файл: <b>${escapeHtml(f.name)}</b>. Нажмите «Загрузить и обработать».`:'Файл не выбран.';
+};
+window.processJournalUpload=async function(){
+  if(!isManager())return alert('Загрузка отчёта электронного журнала доступна директору и заместителям.');
+  const f=window.__journalFile||document.getElementById('journalFile')?.files?.[0];
+  if(!f)return alert('Сначала выберите Excel-файл.');
+  const reportDate=document.getElementById('journalReportDate')?.value||(()=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})();
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+    const employees=teacherLikeUsers().map(u=>({u,surname:String(u.name||'').trim().split(/\s+/)[0]})).filter(x=>x.surname);
+    const textCells=[];
+    for(const sn of wb.SheetNames){
+      const ws=wb.Sheets[sn];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      rows.forEach(row=>textCells.push(row.map(v=>String(v??'')).join(' ')));
+    }
+    const result=[];
+    for(const item of employees){
+      const pattern=new RegExp(`(^|[^А-Яа-яЁёA-Za-z])${item.surname.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?=$|[^А-Яа-яЁёA-Za-z])`,'gi');
+      let count=0;
+      for(const line of textCells){const m=line.match(pattern);if(m)count+=m.length;}
+      if(count>0)result.push({employee_id:Number(item.u.id),employee_login:item.u.login||'',employee_name:item.u.name,report_date:reportDate,overdue_count:count});
+    }
+    await sbMutate('journal_overdue','DELETE',`report_date=eq.${encodeURIComponent(reportDate)}`);
+    if(result.length)await sbMutate('journal_overdue','POST','',result);
+    state.journalOverdue=(state.journalOverdue||[]).filter(x=>x.date!==reportDate).concat(result.map(x=>({id:Date.now()+Math.random(),employeeId:x.employee_id,login:x.employee_login,name:x.employee_name,date:x.report_date,count:x.overdue_count})));
+    save();
+    const info=document.getElementById('journalUploadInfo');
+    if(info)info.innerHTML=`Обработано: <b>${escapeHtml(f.name)}</b>. Дата отчёта: <b>${reportDate}</b>. Педагогов с просрочками: <b>${result.length}</b>.`;
+    alert(`Отчёт электронного журнала обработан. Выявлено педагогов с просрочками: ${result.length}.`);
+    showJournalAnalytics();
+  }catch(e){console.error(e);alert('Не удалось обработать отчёт электронного журнала: '+(e.message||e));}
+};
+
+const __renderAnalyticsBase = renderAnalytics;
+renderAnalytics=function(){
+  __renderAnalyticsBase();
+  const card=[...document.querySelectorAll('#content .card')].find(c=>c.querySelector('h3')?.textContent.includes('Контроль электронного журнала'));
+  if(card && !document.getElementById('journalReportDate')){
+    const bar=card.querySelector('.toolbar');
+    if(bar)bar.insertAdjacentHTML('beforebegin',`<div class="journal-report-date"><label>Дата отчёта <input id="journalReportDate" type="date" value="${(()=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})()}"></label></div>`);
+  }
+};
+
+// Schedule uploads now write to Supabase and become visible to all authenticated users.
+window.uploadSchedule=async function(){
+  if(!isDispatcher())return alert('Загрузка расписания доступна только диспетчеру и администратору.');
+  const f=document.getElementById('scheduleFile')?.files?.[0], selectedShift=document.getElementById('scheduleShift')?.value;
+  if(!f)return alert('Выберите Excel-файл расписания.');
+  if(!selectedShift)return alert('Укажите, это 1-я или 2-я смена.');
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+      await saveScheduleRows(parsed);
+      state.schedule.entries=(state.schedule.entries||[]).filter(x=>!(x.date===parsed.date&&Number(x.shift)===Number(parsed.shift))).concat(parsed.entries);
+      state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(v.date===parsed.date&&Number(v.shift)===Number(parsed.shift)));
+      state.schedule.versions.push({id:Date.now(),date:parsed.date,shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length,readBy:{[state.currentUser.login]:{at:new Date().toISOString()}}});
+      state.schedule.uploadedFile=f.name;save();
+      const info=document.getElementById('scheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>.`;
+      alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);render();
+    }catch(err){console.error(err);alert('Не удалось сохранить расписание: '+(err.message||'проверьте формат Excel и права доступа.'));}
+  };
+  reader.readAsArrayBuffer(f);
+};
+window.uploadBaseSchedule=async function(){
+  if(!isDispatcher())return alert('Загрузка базового расписания доступна только диспетчеру и администратору.');
+  const f=document.getElementById('baseScheduleFile')?.files?.[0], selectedShift=document.getElementById('baseScheduleShift')?.value;
+  if(!f)return alert('Выберите Excel-файл базового расписания.');
+  if(!selectedShift)return alert('Укажите, это 1-я или 2-я смена.');
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
+      await saveBaseScheduleRows(parsed);
+      state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>Number(x.shift)!==Number(parsed.shift)).concat(parsed.entries);
+      state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>Number(v.shift)!==Number(parsed.shift));
+      state.schedule.baseVersions.push({id:Date.now(),shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length});
+      state.schedule.baseUploadedFile=f.name;save();
+      const info=document.getElementById('baseScheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>.`;
+      alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);render();
+    }catch(err){console.error(err);alert('Не удалось сохранить базовое расписание: '+(err.message||'проверьте формат Excel и права доступа.'));}
+  };
+  reader.readAsArrayBuffer(f);
+};
+
+// Teachers may inspect any class in the base schedule; "Мое расписание" stays teacher-specific.
+renderScheduleSelector = function(day){
+  const dt=day==='tomorrow'?nextSchoolDay():new Date(), iso=dt.toISOString().slice(0,10);
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
+};
+renderScheduleHomeSelector = function(day='today'){
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
+  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+};
+renderBaseScheduleSelector = function(){
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
+};
+
+// Persistent work plan.
+function formatPlanDate(v){
+  if(!v)return '';
+  const d=new Date(v+'T12:00:00');
+  return isNaN(d.getTime())?v:d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function canEditPlanItem(x){
+  return isManager() || (Number(x.authorEmployeeId)===Number(state.currentUser?.id) && x.status==='На согласовании');
+}
+renderPlan=function(){
+  const rows=(state.plan||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time).localeCompare(String(b.time)));
+  const can=isManager();
+  shell('План работы','Общий план формируют заместители. Учителя могут предложить мероприятия своих классов.',`<div class="card"><div class="toolbar"><button class="btn green" onclick="addPlan()">＋ Добавить мероприятие</button>${can?'<span class="chip">Заместитель / директор: редактирование и публикация</span>':''}</div><div class="table-wrap"><table class="data-table"><tr><th>Дата</th><th>Время</th><th>Мероприятие</th><th>Место</th><th>Участники</th><th>Ответственный заместитель</th><th>Статус</th><th>Действия</th></tr>${rows.map(x=>`<tr><td>${escapeHtml(formatPlanDate(x.date))}</td><td>${escapeHtml(x.time||'')}</td><td>${escapeHtml(x.title)}</td><td>${escapeHtml(x.place)}</td><td>${escapeHtml(x.participants)}</td><td>${escapeHtml(x.responsible||'—')}</td><td><span class="chip">${escapeHtml(x.status)}</span></td><td>${canEditPlanItem(x)?`<div class="icon-actions">${can&&x.status==='На согласовании'?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:''}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="8">План пока пуст.</td></tr>'}</table></div></div>`);
+};
+window.addPlan=async function(){
+  const title=prompt('Мероприятие:','');if(!title?.trim())return;
+  const dateInput=prompt('Дата (дд.мм.гггг или ГГГГ-ММ-ДД):',new Date().toISOString().slice(0,10));
+  const eventDate=normalizePlanDate(dateInput);if(!eventDate)return alert('Не удалось распознать дату.');
+  const time=prompt('Время:','12:00')||'';
+  const place=prompt('Место:','')||'';
+  const defaultParticipants=(state.currentUser.classes||[]).join(', ')||'Мой класс';
+  const participants=prompt('Участники:',defaultParticipants)||'';
+  if(!isManager() && state.currentUser.classes?.length && !state.currentUser.classes.some(c=>participants.toUpperCase().includes(String(c).toUpperCase()))){
+    return alert('Для мероприятия учителя укажите хотя бы один класс из вашего классного руководства.');
+  }
+  let responsible='',responsibleEmployeeId=null;
+  if(isManager()){
+    const def=state.currentUser.name;
+    const r=prompt('Ответственный заместитель / директор:',def);if(r===null)return;
+    const rr=flexibleUserByName(r,state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director')||u.roleKeys?.includes('admin')));
+    responsible=rr?.name||r.trim();responsibleEmployeeId=rr?Number(rr.id):null;
+  }
+  const payload={event_date:eventDate,event_time:time.trim(),event_title:title.trim(),place:place.trim(),participants:participants.trim(),responsible_employee_id:responsibleEmployeeId,responsible_name:responsible,status:isManager()?'Опубликовано':'На согласовании',author_employee_id:Number(state.currentUser.id),author_name:state.currentUser.name,updated_at:new Date().toISOString()};
+  try{
+    const saved=await sbMutate('work_plan','POST','',payload),x=Array.isArray(saved)?saved[0]:saved;
+    state.plan.push({id:Number(x.id),date:x.event_date,time:x.event_time,title:x.event_title,place:x.place,participants:x.participants,responsible:x.responsible_name,responsibleEmployeeId:x.responsible_employee_id,status:x.status,author:x.author_name,authorEmployeeId:Number(x.author_employee_id)});save();render();
+  }catch(e){alert('Не удалось сохранить мероприятие: '+(e.message||e));}
+};
+function normalizePlanDate(v){
+  const s=String(v||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);if(!m)return '';
+  return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+}
+window.publishPlan=async function(id){
+  if(!isManager())return;
+  const x=state.plan.find(p=>Number(p.id)===Number(id));if(!x)return;
+  let responsible=x.responsible||state.currentUser.name,responsibleEmployeeId=x.responsibleEmployeeId||Number(state.currentUser.id);
+  if(!x.responsible){const r=prompt('Ответственный заместитель / директор:',state.currentUser.name);if(r===null)return;const rr=flexibleUserByName(r,state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director')||u.roleKeys?.includes('admin')));responsible=rr?.name||r.trim();responsibleEmployeeId=rr?Number(rr.id):responsibleEmployeeId;}
+  try{await sbMutate('work_plan','PATCH',`id=eq.${encodeURIComponent(id)}`,{status:'Опубликовано',responsible_name:responsible,responsible_employee_id:responsibleEmployeeId,updated_at:new Date().toISOString()});x.status='Опубликовано';x.responsible=responsible;x.responsibleEmployeeId=responsibleEmployeeId;save();render();}catch(e){alert('Не удалось опубликовать мероприятие: '+(e.message||e));}
+};
+window.editPlan=async function(id){
+  const x=state.plan.find(p=>Number(p.id)===Number(id));if(!x||!canEditPlanItem(x))return;
+  const title=prompt('Мероприятие:',x.title);if(title===null)return;
+  const dateInput=prompt('Дата (дд.мм.гггг или ГГГГ-ММ-ДД):',x.date);const eventDate=normalizePlanDate(dateInput);if(!eventDate)return alert('Не удалось распознать дату.');
+  const time=prompt('Время:',x.time);if(time===null)return;
+  const place=prompt('Место:',x.place);if(place===null)return;
+  const participants=prompt('Участники:',x.participants);if(participants===null)return;
+  let responsible=x.responsible,responsibleEmployeeId=x.responsibleEmployeeId||null;
+  if(isManager()){const r=prompt('Ответственный заместитель / директор:',responsible||state.currentUser.name);if(r===null)return;const rr=flexibleUserByName(r,state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director')||u.roleKeys?.includes('admin')));responsible=rr?.name||r.trim();responsibleEmployeeId=rr?Number(rr.id):null;}
+  const payload={event_date:eventDate,event_time:time,event_title:title,place,participants,responsible_name:responsible,responsible_employee_id:responsibleEmployeeId,updated_at:new Date().toISOString()};
+  try{await sbMutate('work_plan','PATCH',`id=eq.${encodeURIComponent(id)}`,payload);Object.assign(x,{date:eventDate,time,title,place,participants,responsible,responsibleEmployeeId});save();render();}catch(e){alert('Не удалось изменить мероприятие: '+(e.message||e));}
+};
+window.deletePlan=async function(id){
+  const x=state.plan.find(p=>Number(p.id)===Number(id));if(!x||!canEditPlanItem(x))return;
+  if(!confirm('Удалить мероприятие?'))return;
+  try{await sbMutate('work_plan','DELETE',`id=eq.${encodeURIComponent(id)}`);state.plan=state.plan.filter(p=>Number(p.id)!==Number(id));save();render();}catch(e){alert('Не удалось удалить мероприятие: '+(e.message||e));}
+};
+
+// Home: notifications + journal warning + nearest published plan.
+const __renderHomeBase=renderHome;
+renderHome=function(){
+  __renderHomeBase();
+  const topRow=document.querySelector('#content .home-top-row');
+  const noticeCard=topRow?.children?.[1];
+  if(noticeCard){
+    const own=(state.journalOverdue||[]).filter(x=>Number(x.employeeId)===Number(state.currentUser.id)||x.login===state.currentUser.login);
+    const total=own.reduce((s,x)=>s+Number(x.count||0),0);
+    const journalHtml=`<div class="home-inline-alert ${total?'has-alert':''}"><div class="home-inline-alert-title">📘 Контроль электронного журнала</div>${total?`<div class="home-inline-alert-text">⚠ Не заполнено страниц: <b>${total}</b>.</div><div class="home-inline-alert-dates">${own.slice(0,5).map(x=>`${escapeHtml(formatRuDate(new Date(x.date+'T12:00:00')))} — ${x.count} стр.`).join('<br>')}</div>`:`<div class="home-inline-alert-text success">✓ Просроченных страниц не обнаружено.</div>`}<button class="small-btn" onclick="navigate('analytics')">Открыть контроль журнала →</button></div>`;
+    noticeCard.insertAdjacentHTML('beforeend',journalHtml);
+  }
+  const published=(state.plan||[]).filter(x=>!isGuest() && x.status==='Опубликовано').sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time).localeCompare(String(b.time))).slice(0,5);
+  const homeMain=document.querySelector('#content .home-main');
+  if(homeMain){
+    const html=`<section class="card home-plan"><div class="home-plan-head"><div><h3>📅 Ближайшее в плане работы</h3><div class="muted">Опубликованные мероприятия школы</div></div><button class="btn" onclick="navigate('plan')">Весь план →</button></div>${published.length?published.map(x=>`<div class="plan-near-item"><div class="plan-near-date">${escapeHtml(formatPlanDate(x.date))}<br><span>${escapeHtml(x.time||'')}</span></div><div><b>${escapeHtml(x.title)}</b><div class="muted">${escapeHtml(x.place||'')}${x.participants?' · '+escapeHtml(x.participants):''}${x.responsible?' · Ответственный: '+escapeHtml(x.responsible):''}</div></div></div>`).join(''):'<div class="empty">Опубликованных мероприятий пока нет.</div>'}</section>`;
+    homeMain.insertAdjacentHTML('beforeend',html);
+  }
+};
+
+// Make "Кто ознакомился" visible to every role that is allowed to inspect orders.
+window.whoRead=async function(id){
+  const d=state.documents.find(x=>Number(x.id)===Number(id));
+  if(!d||!canViewAckReport()||!d.sectionKey.split('::')[1]?.includes('Приказы'))return;
+  const targetIds=(d.targetEmployeeIds||[]).map(Number).filter(Number.isFinite);
+  let recipients;
+  if(targetIds.length)recipients=state.users.filter(u=>targetIds.includes(Number(u.id))&&!u.roleKeys?.includes('guest'));
+  else recipients=state.users.filter(u=>{
+    if(u.roleKeys?.includes('guest'))return false;
+    if(d.targetAll||d.targetType==='all')return true;
+    if(d.targetClassLeaderAll||d.targetType==='classleaders')if((u.classes||[]).length)return true;
+    const ps=(d.targetClassLeaderParallels||[]).map(String);
+    if(ps.length&&(u.classes||[]).some(c=>ps.includes(String(c).match(/^\d+/)?.[0])))return true;
+    return (d.targetUsers||[]).includes(u.login);
+  });
+  const rows=recipients.map(u=>{const seen=d.readBy?.[u.login];return [d.title||d.fileName,u.name,seen?(typeof seen==='object'?new Date(seen.at).toLocaleString('ru-RU'):''):'Не ознакомлен'];});
+  const lines=rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td></tr>`).join('');
+  const w=window.open('','_blank','width=900,height=600');
+  if(w){w.document.write(`<title>Кто ознакомился</title><body style="font-family:Arial;padding:20px"><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Документ</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table></body>`);w.document.close();}
+};
+
+// Correct manager flag used by document cards.
+const __renderDocSectionTextFix = true;
+
+// Live reload for shared server data; also catches changes made by the administrator in another account.
+if(!window.__schoolRuntimeTimer){
+  window.__schoolRuntimeTimer=setInterval(async()=>{
+    if(!state.currentUser||document.visibilityState!=='visible')return;
+    try{await refreshRuntimeData();if(['home','schedule','notifications','plan','analytics'].includes(state.currentPage))render();}catch(e){console.warn(e);}
+  },60000);
+}
+
+// Refresh server-backed state whenever the user navigates.
+window.navigate=async function(page){
+  closeMobileMenu();
+  if(isGuest()&&!guestPageAllowed(page))return;
+  state.currentPage=page;save();document.getElementById('profileMenu').classList.add('hidden');
+  try{await refreshRuntimeData();}catch(e){}
+  render();window.scrollTo({top:0,behavior:'smooth'});
+};
 
 })();
 </script>
