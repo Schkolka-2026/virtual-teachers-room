@@ -363,6 +363,22 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2wiIxwtr6frhlkYSgoUPAw_T0dg6AAt";
   const SUPABASE_ADMIN_EMAIL = "druzhock@ya.ru";
   const SUPABASE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/admin-set-user-credentials`;
+  const YANDEX_UPLOAD_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/yandex-disk-upload`;
+  const YANDEX_FOLDERS = {
+    security:"https://disk.yandex.ru/d/uV44vHHQeDnkdw",
+    upbringing:"https://disk.yandex.ru/d/u7z5uV1QQuCEEQ",
+    vseobuch:"https://disk.yandex.ru/d/O35JWAkiKSdmHQ",
+    gia:"https://disk.yandex.ru/d/9r3qiQ5dxTnr6Q",
+    ovz:"https://disk.yandex.ru/d/-NyUVQ77HmUPvA",
+    attestation:"https://disk.yandex.ru/d/zs0EnJM-X0URxA",
+    mydata:"https://disk.yandex.ru/d/7EkJDqDKSduDVg",
+    transport:"https://disk.yandex.ru/d/e93HLmxwm2ecOg",
+    career:"https://disk.yandex.ru/d/MT52nus5PgfJFw",
+    psych:"https://disk.yandex.ru/d/Geci2NxJpfBgeQ",
+    education:"https://disk.yandex.ru/d/AYLfigo9zJ9CmA",
+    journal:"https://disk.yandex.ru/d/DA8UBHbPOmF2QQ",
+    reports:"https://disk.yandex.ru/d/522hEgXqfaRQBg"
+  };
   const supabase = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
   const USERS = {guest:{login:"guest",password:"",name:"Гость",role:"Родитель / обучающийся",roleKey:"guest"}};
 
@@ -638,6 +654,72 @@
       return false;
     }
   }
+  function yandexFolderForPage(page){return YANDEX_FOLDERS[page]||"";}
+  async function sbMutate(table,method,query,body){
+    const {data:{session}}=await supabase.auth.getSession();
+    if(!session)throw new Error("Нет активной сессии Supabase.");
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/${table}${query?`?${query}`:""}`,{
+      method,
+      headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=representation"},
+      body:body==null?undefined:JSON.stringify(body)
+    });
+    if(!r.ok)throw new Error(`${table}: HTTP ${r.status} ${await r.text()}`);
+    return await r.json().catch(()=>[]);
+  }
+  async function loadAppSettingsFromSupabase(){
+    try{
+      const rows=await sbRest("app_settings","select=key,value"); const by={};(rows||[]).forEach(r=>by[String(r.key)]=r.value);
+      if(by.responsibles)state.responsibles=by.responsibles;
+      if(by.dutySchedule)state.dutySchedule=by.dutySchedule;
+      if(by.vacationsText!=null)state.vacationsText=String(by.vacationsText);
+      if(by.bellMatrix){state.schedule.bellMatrix=by.bellMatrix;state.schedule.bellSchedules={monday:by.bellMatrix.shift1?.monday||[],weekdays:by.bellMatrix.shift1?.weekdays||[]};state.schedule.bells=by.bellMatrix.shift1?.weekdays||[];}
+      if(Array.isArray(by.dispatcherIds))state.dispatcherIds=by.dispatcherIds.map(Number);
+      if(by.transportSchedule)state.transportSchedule=by.transportSchedule;
+    }catch(e){console.warn("Не удалось загрузить постоянные настройки:",e);}
+  }
+  async function saveAppSetting(key,value){
+    try{await sbMutate("app_settings","POST","on_conflict=key",{key,value,updated_at:new Date().toISOString()});return true;}
+    catch(e){console.warn("Не удалось сохранить настройку",key,e);return false;}
+  }
+  async function loadUserAssignments(){
+    try{
+      const rows=isAdmin()?await sbRest("user_assignments","select=*"):await sbRest("user_assignments","select=*&employee_id=eq."+encodeURIComponent(state.currentUser?.id));
+      const by={};(rows||[]).forEach(r=>by[String(r.employee_id)]=r);
+      (state.users||[]).forEach(u=>{const r=by[String(u.id)];if(!r)return;u.attendanceClasses=Array.isArray(r.attendance_classes)?r.attendance_classes:[];u.replacement=Array.isArray(r.replacement_classes)?r.replacement_classes:[];u.shift=r.shift||{};});
+    }catch(e){console.warn("Не удалось загрузить назначения пользователей:",e);}
+  }
+  async function saveUserAssignments(u){
+    try{await sbMutate("user_assignments","POST","on_conflict=employee_id",{employee_id:Number(u.id),attendance_classes:u.attendanceClasses||[],replacement_classes:u.replacement||[],shift:u.shift||{},updated_at:new Date().toISOString()});return true;}
+    catch(e){console.warn("Не удалось сохранить назначения",u.id,e);return false;}
+  }
+  async function syncClassLeadersForUser(u){
+    try{
+      const yearId=await getCurrentAcademicYearId();
+      const wanted=(u.classes||[]).map(normalizeClass).filter(Boolean);
+      const ids=(state.classRoster||[]).filter(r=>wanted.includes(normalizeClass(r.name))).map(r=>Number(r.id));
+      await sbMutate("class_leaders","DELETE",`employee_id=eq.${encodeURIComponent(u.id)}`);
+      for(const classId of ids)await sbMutate("class_leaders","POST","",{employee_id:Number(u.id),class_id:classId,academic_year_id:yearId||null});
+      return true;
+    }catch(e){console.warn("Не удалось сохранить классное руководство:",e);return false;}
+  }
+  async function loadDocumentsFromSupabase(){
+    try{
+      const docs=await sbRest("document_records","select=*&order=uploaded_at.desc");
+      const acks=await sbRest("document_ack","select=document_id,employee_id,ack_at");
+      const loginByEmp={};(state.users||[]).forEach(u=>loginByEmp[String(u.id)]=u.login);
+      const ackMap={};(acks||[]).forEach(a=>(ackMap[a.document_id]??={})[loginByEmp[String(a.employee_id)]||String(a.employee_id)]={at:a.ack_at});
+      state.documents=(docs||[]).map(d=>({id:Number(d.id),sectionKey:d.section_key,title:d.title,fileName:d.file_name,data:"",url:d.storage_url||"",storagePath:d.storage_path||"",uploadedBy:d.uploaded_by,uploadedByName:d.uploaded_by_name,uploadedAt:d.uploaded_at,targetType:d.target_type,targetUsers:d.target_users||[],targetAll:!!d.target_all,targetClassLeaderAll:!!d.target_class_leader_all,targetClassLeaderParallels:d.target_class_leader_parallels||[],targetEmployeeIds:d.target_employee_ids||[],readBy:ackMap[d.id]||{}}));
+      save();
+    }catch(e){console.warn("Документы Supabase пока недоступны:",e);}
+  }
+  async function uploadToYandexFolder(file,folderUrl,page,title){
+    const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error("Сессия завершена. Войдите заново.");
+    const form=new FormData();form.append("file",file);form.append("folderPublicUrl",folderUrl);form.append("page",page);form.append("title",title);form.append("fileName",file.name);
+    const r=await fetch(YANDEX_UPLOAD_FUNCTION_URL,{method:"POST",headers:{Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},body:form});
+    const p=await r.json().catch(()=>({}));if(!r.ok)throw new Error(p.error||`Ошибка загрузки на Яндекс Диск: ${r.status}`);return p;
+  }
+  async function saveDocumentRecord(record){return await sbMutate("document_records","POST","",record);}
+  async function acknowledgeDocumentRecord(id){await sbMutate("document_ack","POST","on_conflict=document_id,employee_id",{document_id:Number(id),employee_id:Number(state.currentUser.id),ack_at:new Date().toISOString()});}
   function loadState(){
     try{
       const saved=localStorage.getItem("schoolSolutionsMVP_v4");
@@ -1115,7 +1197,8 @@
     u.attendanceClasses=attendance.split(",").map(x=>x.trim()).filter(Boolean);
     u.replacement=replacement.split(",").map(x=>x.trim()).filter(Boolean);
     if(!u.roleKeys.includes("dispatcher"))state.dispatcherIds=(state.dispatcherIds||[]).filter(x=>x!==u.id);
-    save();render();
+    save();
+    Promise.all([syncClassLeadersForUser(u),saveUserAssignments(u)]).then(()=>{alert("Данные пользователя сохранены.");render();});
   };
   window.editUserRoles=function(id){return editUser(id);};
   window.deleteUser=function(id){
@@ -1198,44 +1281,36 @@
   function renderBellRows(kind){const arr=state.schedule.bellSchedules?.[kind]||[];return arr.map((b,i)=>`<div class="bell-row"><input id="${kind}_n_${i}" type="number" min="1" value="${b.n}"><input id="${kind}_s_${i}" type="time" value="${b.start}"><span>—</span><input id="${kind}_e_${i}" type="time" value="${b.end}"><button class="small-btn danger" onclick="removeBellRow('${kind}',${i})">×</button></div>`).join("");}
   window.addBellRow=function(kind){state.schedule.bellSchedules[kind].push({n:state.schedule.bellSchedules[kind].length+1,start:"08:30",end:"09:15"});save();render();};
   window.removeBellRow=function(kind,i){state.schedule.bellSchedules[kind].splice(i,1);save();render();};
-  window.saveBellMatrix=function(){
+  window.saveBellMatrix=async function(){
     const bm=ensureBellMatrix();
     document.querySelectorAll(".bell-time").forEach(inp=>{
-      const key=inp.dataset.bellKey,day=inp.dataset.bellDay,n=+inp.dataset.bellN,part=inp.dataset.part;
-      const arr=bm[key][day];
-      let row=arr.find(x=>+x.n===n);
-      if(!row){row={n,start:"",end:""};arr.push(row);}
-      row[part]=inp.value||"";
+      const key=inp.dataset.bellKey,day=inp.dataset.bellDay,n=+inp.dataset.bellN,part=inp.dataset.part; const arr=bm[key][day];
+      let row=arr.find(x=>+x.n===n); if(!row){row={n,start:"",end:""};arr.push(row);} row[part]=inp.value||"";
     });
-    ["shift1","shift2Primary","shift2Grade6"].forEach(k=>["monday","weekdays"].forEach(day=>{
-      bm[k][day]=bm[k][day].sort((a,b)=>+a.n-+b.n);
-    }));
-    state.schedule.bellMatrix=bm;
-    state.schedule.bellSchedules={monday:bm.shift1.monday,weekdays:bm.shift1.weekdays};
-    state.schedule.bells=bm.shift1.weekdays;
-    save();alert("Расписание звонков сохранено.");render();
+    ["shift1","shift2Primary","shift2Grade6"].forEach(k=>["monday","weekdays"].forEach(day=>{bm[k][day]=bm[k][day].sort((a,b)=>+a.n-+b.n);}));
+    state.schedule.bellMatrix=bm;state.schedule.bellSchedules={monday:bm.shift1.monday,weekdays:bm.shift1.weekdays};state.schedule.bells=bm.shift1.weekdays;save();await saveAppSetting("bellMatrix",bm);alert("Расписание звонков сохранено.");render();
   };
-  window.saveVacations=function(){state.vacationsText=document.getElementById("vacationsText").value;save();alert("Сроки каникул сохранены.");render();};
-  window.saveDispatcher=function(){
-    if(!isAdmin())return;
-    const id=+document.getElementById("dispatcherSelect").value;
+  window.saveVacations=async function(){state.vacationsText=document.getElementById("vacationsText").value;save();await saveAppSetting("vacationsText",state.vacationsText);alert("Сроки каникул сохранены.");render();};
+  window.saveDispatcher=async function(){
+    if(!isAdmin())return; const id=+document.getElementById("dispatcherSelect").value;
     state.users.forEach(u=>{if(u.roleKeys?.includes("dispatcher")){u.roleKeys=u.roleKeys.filter(r=>r!=="dispatcher");u.roles=rolesText(u.roleKeys);}});
     const u=state.users.find(x=>x.id===id);if(u&&!u.roleKeys.includes("dispatcher"))u.roleKeys.push("dispatcher");
-    if(u)u.roles=rolesText(u.roleKeys);state.dispatcherIds=[id];save();alert("Диспетчер назначен.");render();
+    if(u)u.roles=rolesText(u.roleKeys);state.dispatcherIds=[id];save();await saveAppSetting("dispatcherIds",state.dispatcherIds);alert("Диспетчер назначен.");render();
   };
-  window.saveSecretary=function(){
-    if(!isAdmin())return;
-    const id=+document.getElementById("secretarySelect")?.value;
+  window.saveSecretary=async function(){
+    if(!isAdmin())return; const id=+document.getElementById("secretarySelect")?.value;
     state.users.forEach(u=>{u.roleKeys=(u.roleKeys||[]).filter(r=>r!=="secretary");u.roles=rolesText(u.roleKeys);});
     const u=state.users.find(x=>x.id===id);if(u){u.roleKeys.push("secretary");u.roles=rolesText(u.roleKeys);}
-    save();alert("Роль «Секретарь» назначена.");render();
+    save();await saveAppSetting("secretaryEmployeeId",id||null);alert("Роль «Секретарь» назначена.");render();
   };
-  window.saveResponsibles=function(){
-    if(!isAdmin())return;
-    const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
-    keys.forEach(k=>state.responsibles[k]=document.getElementById(`resp_${k}`)?.value.trim()||"");save();alert("Ответственные за направления сохранены.");render();
+  window.saveResponsibles=async function(){
+    if(!isAdmin())return; const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
+    keys.forEach(k=>state.responsibles[k]=document.getElementById(`resp_${k}`)?.value.trim()||"");save();await saveAppSetting("responsibles",state.responsibles);alert("Ответственные за направления сохранены.");render();
   };
-  window.saveDuty=function(){if(!(isAdmin()||state.currentUser.roleKeys.includes("deputy")))return;state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();alert("График дежурства сохранён.");render();};
+  window.saveDuty=async function(){
+    if(!(isAdmin()||state.currentUser.roleKeys.includes("deputy")))return;
+    state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();await saveAppSetting("dutySchedule",state.dutySchedule);alert("График дежурства сохранён.");render();
+  };
   function normalizeClass(s){return String(s||"").trim().toUpperCase().replace(/\s+/g,"");}
   function parseDateFromText(v){const s=String(v||"");let m=s.match(/(\d{1,2})\s+([А-Яа-яЁё]+)/);if(!m)return dateInfo().iso;const months={января:0,февраля:1,марта:2,апреля:3,мая:4,июня:5,июля:6,августа:7,сентября:8,октября:9,ноября:10,декабря:11};const mon=months[m[2].toLowerCase()];if(mon===undefined)return dateInfo().iso;const y=new Date().getFullYear();return `${y}-${String(mon+1).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;}
   function cellVal(v){return v==null?"":String(v).trim();}
@@ -1487,7 +1562,7 @@
       <div class="doc-meta">Загружен: ${escapeHtml(d.uploadedByName||"")} · ${new Date(d.uploadedAt).toLocaleString('ru-RU')}</div>
       ${isOrder?`<div class="doc-targets">Предназначен: ${escapeHtml(docTargetLabel(d))}</div>`:""}
       ${ackAt?`<div class="ack-info">✓ Ознакомлен: ${new Date(ackAt).toLocaleString('ru-RU')}</div>`:""}
-      <div class="doc-actions">${d.data?`<a class="btn" href="${d.data}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}</div>
+      <div class="doc-actions">${(d.url||d.data)?`<a class="btn" href="${escapeHtml(d.url||d.data)}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}</div>
     </div>`;
   }
   window.toggleDocSpecific=function(show){document.getElementById("specificUsersBox")?.classList.toggle("hidden",!show);};
@@ -1495,23 +1570,37 @@
     document.getElementById("parallelBox")?.classList.toggle("hidden",!document.getElementById("targetClassLeaderParallel")?.checked);
     document.getElementById("specificUsersBox")?.classList.toggle("hidden",!document.getElementById("targetSpecific")?.checked);
   };
-  window.uploadDocument=function(page,title){
+  window.uploadDocument=async function(page,title){
     const f=document.getElementById("docFile")?.files[0];if(!f)return alert("Выберите документ.");
-    const name=document.getElementById("docTitle")?.value.trim()||f.name;let targetType="all",targetUsers=[],targetAll=true,targetClassLeaderAll=false,targetClassLeaderParallels=[];
+    const folderUrl=yandexFolderForPage(page);if(!folderUrl)return alert("Для этого раздела ещё не настроена папка Яндекс Диска.");
+    const name=document.getElementById("docTitle")?.value.trim()||f.name;
+    let targetType="all",targetUsers=[],targetAll=true,targetClassLeaderAll=false,targetClassLeaderParallels=[];
     if(title.includes("Приказы")){
       if(!canManageOrders())return alert("Приказы могут загружать только директор, заместитель директора, администратор и секретарь.");
-      targetAll=!!document.getElementById("targetAll")?.checked;
-      targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked;
+      targetAll=!!document.getElementById("targetAll")?.checked;targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked;
       targetClassLeaderParallels=[...document.querySelectorAll("#parallelBox input:checked")].map(x=>x.value);
       targetUsers=[...document.querySelectorAll('#specificUsersBox input:checked')].map(x=>x.value);
-      const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;
-      if(!any)return alert("Выберите хотя бы одного адресата.");
-      targetType=targetAll?"all":targetUsers.length?"specific":(targetClassLeaderAll||targetClassLeaderParallels.length)?"classleaders":"specific";
+      const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;if(!any)return alert("Выберите хотя бы одного адресата.");
+      targetType=targetAll?"all":targetUsers.length?"specific":"classleaders";
     }
-    const reader=new FileReader();reader.onload=e=>{state.documents.unshift({id:Date.now(),sectionKey:docKey(page,title),title:name,fileName:f.name,data:e.target.result,uploadedBy:state.currentUser.login,uploadedByName:state.currentUser.name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,readBy:{}});save();alert("Документ загружен.");renderDocSection(page,title);};reader.readAsDataURL(f);
+    try{
+      const targetEmployeeIds=(state.users||[]).filter(u=>{
+        if(targetAll)return !u.roleKeys?.includes("guest");
+        if(targetUsers.includes(u.login))return true;
+        if(targetClassLeaderAll&&u.classes?.length)return true;
+        if(targetClassLeaderParallels.length&&(u.classes||[]).some(c=>targetClassLeaderParallels.includes(String(c).match(/^\d+/)?.[0])))return true;
+        return false;
+      }).map(u=>Number(u.id)).filter(Number.isFinite);
+      const uploaded=await uploadToYandexFolder(f,folderUrl,page,title);
+      const record={section_key:docKey(page,title),title:name,file_name:f.name,storage_url:uploaded.public_url||uploaded.url||"",storage_path:uploaded.path||"",uploaded_by:state.currentUser.login,uploaded_by_name:state.currentUser.name,target_type:targetType,target_users:targetUsers,target_all:targetAll,target_class_leader_all:targetClassLeaderAll,target_class_leader_parallels:targetClassLeaderParallels,target_employee_ids:targetEmployeeIds};
+      const saved=await saveDocumentRecord(record);const d=Array.isArray(saved)?saved[0]:saved;
+      state.documents.unshift({id:Number(d?.id||Date.now()),sectionKey:record.section_key,title:name,fileName:f.name,data:"",url:record.storage_url,storagePath:record.storage_path,uploadedBy:record.uploaded_by,uploadedByName:record.uploaded_by_name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,targetEmployeeIds,readBy:{}});
+      save();alert("Документ загружен и сохранён на Яндекс Диске.");renderDocSection(page,title);
+    }catch(e){console.error(e);alert("Не удалось загрузить документ: "+(e.message||"проверьте настройку Яндекс Диска."));}
   };
-  window.ackDocument=function(id){
+  window.ackDocument=async function(id){
     const d=state.documents.find(x=>x.id===id);if(!d||!userCanSeeDoc(d))return;
+    try{await acknowledgeDocumentRecord(id);}catch(e){return alert("Не удалось сохранить ознакомление: "+(e.message||"ошибка Supabase"));}
     d.readBy=d.readBy||{};d.readBy[state.currentUser.login]={at:new Date().toISOString()};save();renderDocSection(state.currentPage,d.sectionKey.split('::')[1]);
   };
   window.whoRead=function(id){
@@ -1531,13 +1620,19 @@
     const w=window.open("","_blank","width=900,height=600");if(w){w.document.write(`<title>Ознакомление с приказом</title><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Название приказа</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table>`);w.document.close();}
   };
   function canDeleteDocument(d){return isAdmin() || d?.uploadedBy===state.currentUser?.login;}
-  window.deleteDocument=function(id){
+  window.deleteDocument=async function(id){
     const d=state.documents.find(x=>x.id===id);if(!d||!canDeleteDocument(d))return;
-    if(!confirm(`Удалить документ «${d.title||d.fileName}»?`))return;
-    state.documents=state.documents.filter(x=>x.id!==id);save();
-    renderDocSection(state.currentPage,d.sectionKey.split("::")[1]);
+    if(!confirm(`Удалить карточку документа «${d.title||d.fileName}»? Сам файл останется на Яндекс Диске.`))return;
+    try{if(d.id)await sbMutate("document_records","DELETE",`id=eq.${encodeURIComponent(d.id)}`);}catch(e){return alert("Не удалось удалить карточку документа: "+(e.message||"ошибка Supabase"));}
+    state.documents=state.documents.filter(x=>x.id!==id);save();renderDocSection(state.currentPage,d.sectionKey.split("::")[1]);
   };
-  window.uploadPortfolio=function(){if(isGuest())return alert("В режиме гостя добавление документов недоступно.");const f=document.getElementById("portfolioFile")?.files[0];if(!f)return alert("Выберите документ.");const r=new FileReader();r.onload=e=>{state.portfolio[state.currentUser.login]=state.portfolio[state.currentUser.login]||[];state.portfolio[state.currentUser.login].push({name:f.name,data:e.target.result,uploadedAt:new Date().toISOString()});save();render();};r.readAsDataURL(f);};
+  window.uploadPortfolio=async function(){
+    if(isGuest())return alert("В режиме гостя добавление документов недоступно.");
+    const f=document.getElementById("portfolioFile")?.files[0];if(!f)return alert("Выберите документ.");
+    const folderUrl=yandexFolderForPage("mydata");if(!folderUrl)return alert("Для «Мои данные» не настроена папка Яндекс Диска.");
+    try{const uploaded=await uploadToYandexFolder(f,folderUrl,"mydata","Портфолио");state.portfolio[state.currentUser.login]=state.portfolio[state.currentUser.login]||[];state.portfolio[state.currentUser.login].push({name:f.name,url:uploaded.public_url||uploaded.url||"",uploadedAt:new Date().toISOString()});save();alert("Документ добавлен на Яндекс Диск.");render();}
+    catch(e){alert("Не удалось загрузить документ: "+(e.message||"ошибка Яндекс Диска."));}
+  };
   window.deletePortfolio=function(i){const a=state.portfolio[state.currentUser.login]||[];if(confirm("Удалить документ из портфолио?")){a.splice(i,1);state.portfolio[state.currentUser.login]=a;save();render();}};
     window.uploadClassRoster=async function(){
       if(!isAdmin())return;
@@ -1715,6 +1810,7 @@
     e.preventDefault(); const guestMode=document.getElementById("guestMode")?.checked,login=guestMode?"guest":document.getElementById("login").value.trim(),password=document.getElementById("password").value;
     if(guestMode){state.currentUser={...USERS.guest};state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession","guest");document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();return;}
     const result=await loginWithSupabase(login,password); if(result.error){document.getElementById("loginError").textContent=result.error;return;}
+    await loadAppSettingsFromSupabase();await loadUserAssignments();await loadDocumentsFromSupabase();
     state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession","supabase");document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");document.getElementById("loginError").textContent="";render();
   });
   window.navigate=function(page){closeMobileMenu();if(isGuest()&&!guestPageAllowed(page))return;if(page==="attendance"){state.currentPage="attendance";}else{state.currentPage=page;}save();document.getElementById("profileMenu").classList.add("hidden");render();window.scrollTo({top:0,behavior:"smooth"});};
@@ -1728,7 +1824,7 @@
       if(data.session){showRecoveryForm();return;}
     }
     const {data:{session}}=await supabase.auth.getSession();
-    if(session?.user && await loadRealEmployees(session.user)){document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
+    if(session?.user && await loadRealEmployees(session.user)){await loadAppSettingsFromSupabase();await loadUserAssignments();await loadDocumentsFromSupabase();document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
   })();
 
 })();
