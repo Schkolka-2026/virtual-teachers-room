@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075b3f">
   <title>Школа решений — Виртуальная учительская</title>
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=QcVaOIho__JfNdQe6FUkPg2xr6_7_0NneWXCsQ6bjErKS-u_M7uQ0CskXAFeEFeKXgjNNdQrLve_ISqOMHvive7Th4J5CJtb_TCdp6EAjV-U55psMYfA_rxyJCwN--IRRgOwkxIDLrzazVGfmhifF4IrliyLCuP5AA4gaGmswfWzDgPo3oj_ryNqHKcgkyp1i-vkskAkON58XQkwUoLG1ms1ay3wFucGz2zK8c6rfFpv35nPNgavLVtgCoL0fQMX_Kvh3DCpqdyvUhCwkRKhNzkV-S289bznPgSak_SDDPZJYPl_aGSd49AzC95hrnIQRcCq8Ta5G09J-QmcAzX1epfxqRVJeg8fVM9g9paVRYWz6WrrSf82mrbdwWEp6SsYRRivfQRH1Xhee3PJlD6RrFHh_CCEc_ZyGkva2B3YW95TnpVgWqjESJxINTwNSiMdmHz2tfQTRFj1aYrALwGWJV8S8OQuVX9HUwK3MJ7tkQRTBs3GgJAWeaFyRjoQ51TIAAsOUzqBT5DWoS4FhQuJor5xKeFFdd0pa8LWqF_FU9VdcXlqMClfvD6WlbvnnJeL4e2T4SFqaARzVhpccpR5yaxDyrDQBrn1OjawUVJkHgVcoFCpmB9EKCobF8vQ_pV6LbYGKNw2ZQmB62r6qr1yYPQac6proXl7w2iI8JWAMZqDbwD1Z_61S_vHcJB7JKDesHATJuj8kR8RV2_MP1G2HcXQHexk5QeQWuJru7v3VEg" charset="UTF-8"></script><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
     :root{
       --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
       --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
@@ -761,7 +761,7 @@
   }
   function deepMerge(a,b){Object.keys(b||{}).forEach(k=>{if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k]) a[k]=deepMerge(a[k],b[k]); else a[k]=b[k];});return a;}
   function save(){localStorage.setItem("schoolSolutionsMVP_v4",JSON.stringify(state));}
-  function dateInfo(){const d=new Date(),days=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"],months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];return {day:days[d.getDay()],full:`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,iso:d.toISOString().slice(0,10)};}
+  function dateInfo(){const d=new Date(),days=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"],months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;return {day:days[d.getDay()],full:`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,iso};}
   function nextSchoolDay(base=new Date()){const d=new Date(base);d.setHours(12,0,0,0);do{d.setDate(d.getDate()+1);}while(d.getDay()===0||d.getDay()===6);return d;}
   function formatRuDate(d){return d.toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});}
   function ensureBellMatrix(){
@@ -986,7 +986,7 @@
         </div>
       </div>
       ${canDispatch?`<div class="card" style="margin-top:16px"><h3>Загрузка расписания на конкретную дату</h3>
-        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Дата расписания</label><input id="scheduleDate" type="date" value=""></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
         <p class="muted">Загрузить расписание может только диспетчер или администратор. При повторной загрузке той же даты и смены предыдущая версия полностью заменяется.</p>
         <button class="btn green" style="margin-top:12px" onclick="uploadSchedule()">Загрузить и опубликовать</button><div id="scheduleImportInfo" class="muted" style="margin-top:10px"></div>
       </div>
@@ -1338,16 +1338,22 @@
     state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();await saveAppSetting("dutySchedule",state.dutySchedule);alert("График дежурства сохранён.");render();
   };
   function normalizeClass(s){return String(s||"").trim().toUpperCase().replace(/\s+/g,"");}
-  function parseDateFromText(v){const s=String(v||"");let m=s.match(/(\d{1,2})\s+([А-Яа-яЁё]+)/);if(!m)return dateInfo().iso;const months={января:0,февраля:1,марта:2,апреля:3,мая:4,июня:5,июля:6,августа:7,сентября:8,октября:9,ноября:10,декабря:11};const mon=months[m[2].toLowerCase()];if(mon===undefined)return dateInfo().iso;const y=new Date().getFullYear();return `${y}-${String(mon+1).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;}
+  function parseDateFromText(v){const s=String(v??"").trim();if(!s)return null;let m=s.match(/\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})\b/);if(m)return `${m[3]}-${String(+m[2]).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;m=s.match(/\b(\d{1,2})[.\/-](\d{1,2})\b/);if(m)return `${new Date().getFullYear()}-${String(+m[2]).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;m=s.match(/\b(\d{1,2})\s+([А-Яа-яЁё]+)(?:\s+(\d{4}))?\b/);if(!m)return null;const months={января:0,февраля:1,марта:2,апреля:3,мая:4,июня:5,июля:6,августа:7,сентября:8,октября:9,ноября:10,декабря:11};const mon=months[m[2].toLowerCase()];if(mon===undefined)return null;const y=m[3]?+m[3]:new Date().getFullYear();return `${y}-${String(mon+1).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;}
   function cellVal(v){return v==null?"":String(v).trim();}
+  function looksLikeTeacherName(v){const s=String(v||"").trim();if(!s)return false;try{if(flexibleUserByName(s,teacherLikeUsers()))return true;}catch(e){}return /^[А-ЯЁ][а-яё-]{2,}\s+[А-ЯЁ]\.?\s*[А-ЯЁ]\.?$/i.test(s);}
   function parseScheduleWorkbook(wb,fileName,selectedShift){
     const ws=wb.Sheets[wb.SheetNames[0]], a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
-    let dateIso=dateInfo().iso,shift=selectedShift?+selectedShift:null;
-    for(const row of a.slice(0,10)){
+    let dateIso=null,shift=selectedShift?+selectedShift:null;
+    outer: for(const row of a.slice(0,15)){
+      for(const cell of (row||[])){
+        const d=parseDateFromText(cell);
+        if(d){dateIso=d;break outer;}
+      }
       const text=row.map(cellVal).join(" ");
-      if(/День/i.test(text)){const d=parseDateFromText(text);if(d)dateIso=d;}
       const sm=text.match(/([12])\s*(?:смена|см)/i);if(sm&&!selectedShift)shift=+sm[1];
     }
+    if(!dateIso)dateIso=document.getElementById("scheduleDate")?.value||null;
+    if(!dateIso)throw new Error("Не удалось определить дату расписания. Укажите дату вручную в поле «Дата расписания».");
     if(!shift)throw new Error("Не выбрана смена.");
     let headerRow=-1,header=[];
     for(let r=0;r<Math.min(a.length,15);r++){
@@ -1360,7 +1366,7 @@
     for(let c=1;c<header.length;c+=2){const cl=normalizeClass(header[c]);if(cl)classes.push({className:cl,subCol:c,roomCol:c+1});}
     if(!classes.length)throw new Error("Не удалось определить классы в файле.");
     const entries=[];
-    let r=headerRow+2;
+    let r=headerRow+1;
     while(r<a.length){
       const lesson=+cellVal(a[r]?.[0]);
       if(!lesson){r++;continue;}
@@ -1372,6 +1378,7 @@
           const subj=cellVal(a[k]?.[c.subCol]),room=cellVal(a[k]?.[c.roomCol]);
           if(subj){
             let teacher=cellVal(a[k+1]?.[c.subCol]);
+            if(!teacher && looksLikeTeacherName(subj)) continue;
             let actualRoom=room||cellVal(a[k+1]?.[c.roomCol]);
             entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_${k}`,date:dateIso,shift,lesson,className:c.className,subject:subj,room:actualRoom,teacher,group:group++});
           }
@@ -1889,10 +1896,18 @@ async function loadScheduleServer(){
     }
     base=await sbRest('school_base_schedule','select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc');
   }
-  state.schedule.entries=(daily||[]).map(x=>({
+  const mappedDaily=(daily||[]).map(x=>({
     id:Number(x.id),date:x.schedule_date,shift:Number(x.shift),lesson:Number(x.lesson),className:x.class_name,
-    subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
+    subject:x.subject||"",teacher:x.teacher||"",room:x.room||""
   }));
+  const seenKeys=new Set();
+  state.schedule.entries=mappedDaily.filter(x=>{
+    if(!x.subject && !x.teacher)return false;
+    if(!x.teacher && looksLikeTeacherName(x.subject))return false;
+    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join("|");
+    if(seenKeys.has(key))return false;
+    seenKeys.add(key);return true;
+  });
   state.schedule.baseEntries=(base||[]).map(x=>({
     id:Number(x.id),shift:Number(x.shift),dayIndex:Number(x.day_index),lesson:Number(x.lesson),className:x.class_name,
     subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
@@ -2126,6 +2141,8 @@ window.uploadSchedule=async function(){
   reader.onload=async e=>{
     try{
       const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+      const manualDate=document.getElementById("scheduleDate")?.value||"";
+      if(manualDate)parsed.date=manualDate;
       await saveScheduleRows(parsed);
       state.schedule.entries=(state.schedule.entries||[]).filter(x=>!(x.date===parsed.date&&Number(x.shift)===Number(parsed.shift))).concat(parsed.entries);
       state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(v.date===parsed.date&&Number(v.shift)===Number(parsed.shift)));
