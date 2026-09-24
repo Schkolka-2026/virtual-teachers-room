@@ -104,6 +104,38 @@
 .notify-form{display:grid;grid-template-columns:1fr;gap:12px}.notify-form .field{margin:0}.notify-form input,.notify-form textarea{width:100%}.notify-modal-backdrop{position:fixed;inset:0;background:rgba(6,61,43,.28);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10000}.notify-modal{background:#fff;width:min(680px,100%);max-height:90vh;overflow:auto;border-radius:18px;box-shadow:0 20px 60px rgba(6,61,43,.25);padding:22px}.notify-modal h3{margin:0 0 6px}.notify-modal .muted{margin-bottom:16px}.notify-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.notify-row{display:grid;grid-template-columns:220px 1fr;gap:10px;align-items:center}.notify-row label{margin:0;font-weight:700;font-size:13px}.notify-row input,.notify-row textarea{width:100%}.notify-row textarea{min-height:76px;resize:vertical}@media(max-width:680px){.notify-row{grid-template-columns:1fr;gap:5px}}
 @media(max-width:1100px){.home-layout{grid-template-columns:1fr}.home-right{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.home-schedule-row{grid-template-columns:1fr 1fr}.admin-grid{grid-template-columns:1fr}.admin-span12{grid-column:auto}}
 @media(max-width:680px){.home-top-row,.home-schedule-row,.home-right{display:grid;grid-template-columns:1fr}.home-equal-card{min-height:0}.responsible-admin-list{grid-template-columns:1fr}.admin-grid{display:block}.admin-grid>.card{margin-bottom:15px}}
+
+/* v8: visit-analysis + schedule shift clarity */
+.schedule-shift-badges{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.schedule-shift-badge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:900;border:1px solid transparent}
+.schedule-shift-badge.shift1{background:#e8f6ee;color:#075b3f;border-color:#bfe5cf}
+.schedule-shift-badge.shift2{background:#fff6cf;color:#6b5600;border-color:#f2df8a}
+.schedule-table tr.shift-row-1 td{background:#f4fbf7}
+.schedule-table tr.shift-row-2 td{background:#fffaf0}
+.schedule-table tr.shift-row-1:hover td{background:#edf9f2}
+.schedule-table tr.shift-row-2:hover td{background:#fff7df}
+.visit-analysis-actions{display:flex;gap:7px;flex-wrap:wrap}
+.visit-analytics-item{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.visit-analytics-item:last-child{border-bottom:0}
+.visit-analytics-main{min-width:0}
+.visit-analytics-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:700px){.visit-analytics-item{display:block}.visit-analytics-actions{justify-content:flex-start;margin-top:10px}}
+
+
+/* V9 responsive refinements */
+.schedule-table-wrap{overflow-x:hidden!important}
+.compact-schedule-table{width:100%!important;min-width:0!important;table-layout:fixed}
+.compact-schedule-table .sch-c1{width:74px}.compact-schedule-table .sch-c2{width:48px}.compact-schedule-table .sch-c3{width:62px}.compact-schedule-table .sch-c4{width:25%}.compact-schedule-table .sch-c5{width:30%}.compact-schedule-table .sch-c6{width:70px}
+.compact-schedule-table th,.compact-schedule-table td{padding:6px 5px;font-size:10.5px;white-space:normal;word-break:break-word;line-height:1.2}
+.attendance-analytics-wrap{overflow-x:auto}.attendance-analytics-table{min-width:1200px}
+.attendance-missing{margin-top:10px;color:#b42318;font-weight:800;font-size:12px;line-height:1.6}
+@media(max-width:680px){
+  .compact-schedule-table{font-size:9px}.compact-schedule-table .sch-c1{width:54px}.compact-schedule-table .sch-c2{width:38px}.compact-schedule-table .sch-c3{width:48px}.compact-schedule-table .sch-c4{width:23%}.compact-schedule-table .sch-c5{width:28%}.compact-schedule-table .sch-c6{width:52px}
+  .compact-schedule-table th,.compact-schedule-table td{padding:5px 3px;font-size:9px}
+  .schedule-shift-badge{padding:5px 7px;font-size:10px}
+  .attendance-analytics-table{min-width:1100px}
+  .attendance-missing{font-size:11px}
+}
 </style>
 
 <style>
@@ -992,7 +1024,7 @@
         </div>
       </div>
       ${canDispatch?`<div class="card" style="margin-top:16px"><h3>Загрузка расписания на конкретную дату</h3>
-        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Дата расписания</label><input id="scheduleDate" type="date" value=""></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Дата расписания</label><input id="scheduleDate" type="date" value="${dateIsoLocal(nextSchoolDay())}"></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
         <p class="muted">Загрузить расписание может только диспетчер или администратор. При повторной загрузке той же даты и смены предыдущая версия полностью заменяется.</p>
         <button class="btn green" style="margin-top:12px" onclick="uploadSchedule()">Загрузить и опубликовать</button><div id="scheduleImportInfo" class="muted" style="margin-top:10px"></div>
       </div>
@@ -1897,7 +1929,7 @@
       if(data.session){showRecoveryForm();return;}
     }
     const {data:{session}}=await supabase.auth.getSession();
-    if(session?.user && await loadRealEmployees(session.user)){await loadAppSettingsFromSupabase();await loadUserAssignments();await loadDocumentsFromSupabase();document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
+    if(session?.user && await loadRealEmployees(session.user)){await loadAppSettingsFromSupabase();await loadUserAssignments();await loadDocumentsFromSupabase();try{await refreshRuntimeData();}catch(e){}document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render();}
   })();
 
 // PATCH: server-backed password, settings, schedule, notifications, journal control, read reports and work plan.
@@ -1908,7 +1940,8 @@ async function refreshRuntimeData(){
     ['schedule',loadScheduleServer],
     ['notifications',loadNotificationsServer],
     ['plan',loadWorkPlanServer],
-    ['journal',loadJournalOverdueServer]
+    ['journal',loadJournalOverdueServer],
+    ['attendance',loadAttendanceServer]
   ];
   await Promise.all(jobs.map(async ([name,fn])=>{try{await fn();}catch(e){console.warn('refresh '+name,e);}}));
   try{save();}catch(e){}
@@ -1976,6 +2009,15 @@ async function loadWorkPlanServer(){
     id:Number(x.id),date:x.event_date,time:x.event_time||'',title:x.event_title||'',place:x.place||'',participants:x.participants||'',
     responsible:x.responsible_name||'',responsibleEmployeeId:x.responsible_employee_id?Number(x.responsible_employee_id):null,
     status:x.status,author:x.author_name||'',authorEmployeeId:Number(x.author_employee_id),createdAt:x.created_at,updatedAt:x.updated_at
+  }));
+  return true;
+}
+
+async function loadAttendanceServer(){
+  const rows=await sbRest('attendance_records','select=*&order=attendance_date.desc,class_name.asc');
+  state.attendance=(rows||[]).map(x=>({
+    ...(x.data||{}),id:Number(x.id),date:x.attendance_date,className:x.class_name,
+    teacherEmployeeId:Number(x.teacher_employee_id),teacher:x.teacher_name||x.data?.teacher||'',total:Number(x.total)||0,present:Number(x.present)||0
   }));
   return true;
 }
@@ -2779,198 +2821,527 @@ renderHome=function(){
 window.whoRead=window.whoRead || function(){};
 
 
-})();
 
-/* ---------- Lesson visit analysis ---------- */
-async function loadVisitAnalysesServer(){
-  try{
-    const rows=await sbRest("visit_analysis","select=*");
-    const by={};
-    (rows||[]).forEach(x=>by[String(x.notification_id)]={
-      id:Number(x.id),notificationId:Number(x.notification_id),teacherEmployeeId:Number(x.teacher_employee_id),
-      senderEmployeeId:Number(x.sender_employee_id),fileName:x.file_name||"",storageUrl:x.storage_url||"",storagePath:x.storage_path||"",uploadedBy:Number(x.uploaded_by),uploadedAt:x.uploaded_at
-    });
-    state.visitAnalyses=by;
-    (state.notifications||[]).forEach(n=>{n.analysis=by[String(n.id)]||null;});
-  }catch(e){console.warn("Не удалось загрузить анализы посещения уроков:",e);state.visitAnalyses={};}
+/* ===============================================================
+   V8 FINAL PATCH — посещение уроков / анализы + расписание
+   Everything is inside the main app IIFE so local helpers/state are in scope.
+   =============================================================== */
+
+/* ---------- Subject normalization / preservation ---------- */
+function normalizeScheduleSubject(v){
+  const s=String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+  const n=s.toLocaleLowerCase('ru-RU');
+  if(n==='россия мг' || n.includes('россия мг')) return 'Россия МГ';
+  if(n==='ров') return 'РОВ';
+  return s;
 }
-function visitCanUploadAnalysis(n){
-  return Number(n?.senderEmployeeId)===Number(state.currentUser?.id) && isManager();
+function looksLikeLessonNumber(v){
+  const n=Number(String(v??'').trim());
+  return Number.isInteger(n) && n>=1 && n<=20 && /^\d{1,2}$/.test(String(v??'').trim());
 }
-function visitCanSeeAnalysis(n){
-  return Number(n?.teacherId)===Number(state.currentUser?.id) || isManager();
-}
-function visitAnalysisButtons(n){
-  if(n?.type!=="visit")return "";
-  const has=!!n.analysis?.storageUrl;
-  const parts=[];
-  if(has && visitCanSeeAnalysis(n)) parts.push(`<a class="btn small-btn" href="${escapeHtml(n.analysis.storageUrl)}" target="_blank" rel="noopener">Анализ</a>`);
-  if(visitCanUploadAnalysis(n)) parts.push(`<button class="small-btn ${has?"":"green"}" onclick="uploadVisitAnalysis(${n.id});event.stopPropagation();">${has?"Заменить анализ":"Загрузить анализ"}</button>`);
-  return parts.join("");
-}
-const __noticeHtmlBaseV7=noticeHtml;
-noticeHtml=function(n){
-  if(n?.type==="visit"){
-    return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${n.id})">
-      <div class="dot"></div><div style="flex:1;min-width:0">
-      <strong>${escapeHtml(n.title||"Посещение урока")}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}
-      <p>${escapeHtml(n.text||"")}</p><small class="muted">${escapeHtml(n.date||"")}</small>
-      ${n.analysis?.storageUrl?`<div class="ack-info" style="margin-top:7px">📎 Анализ: ${escapeHtml(n.analysis.fileName||"файл Word")}</div>`:""}
-      <div class="doc-actions visit-analysis-actions" style="margin-top:8px">${visitAnalysisButtons(n)}</div>
-      </div></div>`;
+function classHeaderCell(v){return /^\s*\d{1,2}\s*[А-ЯЁA-Z]\s*$/iu.test(String(v??''));}
+function detectSectionShift(rows, headerRow, selectedShift){
+  const from=Math.max(0,headerRow-7), to=Math.min(rows.length,headerRow+4);
+  for(let r=from;r<to;r++){
+    const t=(rows[r]||[]).map(cellVal).join(' ');
+    const m=t.match(/(^|\s)([12])\s*(?:-|–|—)?\s*(?:я|й)?\s*смена\b/i);
+    if(m)return Number(m[2]);
   }
-  return __noticeHtmlBaseV7(n);
-};
+  return Number(selectedShift)||null;
+}
 
-const __renderNotificationsBaseV7=renderNotifications;
-renderNotifications=function(){
-  __renderNotificationsBaseV7();
-  if(!state.__visitAnalysesLoaded){
-    state.__visitAnalysesLoaded=true;
-    loadVisitAnalysesServer().then(()=>{if(state.currentPage==='notifications')render();});
-  }
-};
-
-window.uploadVisitAnalysis=async function(notificationId){
-  const n=(state.notifications||[]).find(x=>Number(x.id)===Number(notificationId));
-  if(!n||!visitCanUploadAnalysis(n))return alert("Загрузить анализ может только заместитель/директор, отправивший уведомление.");
-  const input=document.createElement("input");input.type="file";input.accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  input.onchange=async()=>{
-    const f=input.files?.[0];if(!f)return;
-    try{
-      const uploaded=await uploadToYandexFolder(f,YANDEX_FOLDERS.visitAnalysis,"visitAnalysis","Анализ посещения урока");
-      const existing=n.analysis;
-      const payload={notification_id:Number(n.id),teacher_employee_id:Number(n.teacherId),sender_employee_id:Number(n.senderEmployeeId||n.senderId||state.currentUser.id),file_name:f.name,storage_url:uploaded.public_url||uploaded.url||"",storage_path:uploaded.path||"",uploaded_by:Number(state.currentUser.id),uploaded_at:new Date().toISOString()};
-      let saved;
-      if(existing?.id) saved=await sbMutate("visit_analysis","PATCH",`id=eq.${encodeURIComponent(existing.id)}`,payload);
-      else saved=await sbMutate("visit_analysis","POST","",payload);
-      const row=Array.isArray(saved)?saved[0]:saved;
-      n.analysis={id:Number(row?.id||existing?.id||Date.now()),notificationId:Number(n.id),teacherEmployeeId:Number(n.teacherId),senderEmployeeId:Number(payload.sender_employee_id),fileName:f.name,storageUrl:payload.storage_url,storagePath:payload.storage_path,uploadedBy:Number(state.currentUser.id),uploadedAt:payload.uploaded_at};
-      state.visitAnalyses[String(n.id)]=n.analysis;save();
-      alert("Анализ загружен на Яндекс.Диск.");render();
-    }catch(e){alert("Не удалось загрузить анализ: "+(e.message||e));}
-  };
-  input.click();
-};
-
-const __renderAnalyticsBaseV7=renderAnalytics;
-renderAnalytics=function(){
-  __renderAnalyticsBaseV7();
-  const content=document.getElementById("content");
-  if(!content||!isManager())return;
-  const visits=(state.notifications||[]).filter(n=>n.type==='visit').sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const cards=visits.map(n=>{
-    const vd=n.visit||{}; const has=!!n.analysis?.storageUrl;
-    return `<div class="visit-analytics-item"><div class="visit-analytics-main"><strong>${escapeHtml(vd.teacher||state.users.find(u=>Number(u.id)===Number(n.teacherId))?.name||"Учитель")}</strong><div class="muted">${escapeHtml(n.date||"")} · ${escapeHtml(vd.cls||"")} · ${escapeHtml(vd.subject||"")}</div><div style="margin-top:6px">Посетил: ${escapeHtml(vd.deputy||n.senderName||"—")}</div><div class="muted" style="margin-top:4px">Цель: ${escapeHtml(vd.purpose||"")}</div></div><div class="visit-analytics-actions">${has?`<a class="small-btn" href="${escapeHtml(n.analysis.storageUrl)}" target="_blank" rel="noopener">Просмотреть</a><a class="small-btn" href="${escapeHtml(n.analysis.storageUrl)}" target="_blank" rel="noopener" download>Скачать</a>`:'<span class="muted">Анализ пока не загружен</span>'}</div></div>`;
-  }).join('') || '<div class="empty">Уведомлений о посещении уроков пока нет.</div>';
-  const html=`<div class="card analytics-visits"><h3>Посещение уроков</h3><p class="muted">Уведомления о посещении уроков и связанные файлы анализа.</p>${cards}</div>`;
-  const workspace=content.querySelector('.analytics-workspace');
-  if(workspace)workspace.insertAdjacentHTML('afterend',html); else content.insertAdjacentHTML('beforeend',html);
-};
-
-const __refreshRuntimeDataV7=refreshRuntimeData;
-refreshRuntimeData=async function(){
-  await __refreshRuntimeDataV7();
-  await loadVisitAnalysesServer();
-  try{save();}catch(e){}
-};
-
-
-/* ---------- Final daily schedule parser for the real school Excel layout ---------- */
+/* ---------- Robust daily schedule parser ---------- */
 parseScheduleWorkbook=function(wb,fileName,selectedShift){
-  const ws=wb.Sheets[wb.SheetNames[0]];
-  const a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
-  let shift=Number(selectedShift)||null;
-  let dateIso=document.getElementById("scheduleDate")?.value||null;
-  if(!dateIso){
-    for(const row of a.slice(0,15)){
-      for(const cell of (row||[])){
-        const d=parseDateFromText(cell);
+  const manualDate=document.getElementById('scheduleDate')?.value||'';
+  let dateIso=manualDate;
+  const allEntries=[];
+
+  // Parse every sheet and every timetable section. This is deliberate: some
+  // school schedule workbooks place different shifts/tables on separate sheets.
+  for(const sheetName of (wb.SheetNames||[])){
+    const ws=wb.Sheets[sheetName];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+    if(!dateIso){
+      for(const row of rows.slice(0,25)){
+        const t=(row||[]).map(cellVal).join(' ');
+        const d=parseDateFromText(t);
         if(d){dateIso=d;break;}
       }
-      if(dateIso)break;
+    }
+
+    const headerRows=[];
+    for(let r=0;r<rows.length;r++){
+      const row=rows[r]||[];
+      const classCells=[];
+      for(let c=0;c<row.length;c++) if(classHeaderCell(row[c])) classCells.push(c);
+      if(classCells.length>=1)headerRows.push({row:r,cols:classCells});
+    }
+    if(!headerRows.length)continue;
+
+    for(let h=0;h<headerRows.length;h++){
+      const headerRow=headerRows[h].row;
+      const endBoundary=headerRows[h+1]?.row ?? rows.length;
+      const sectionShift=detectSectionShift(rows,headerRow,selectedShift);
+      if(Number(sectionShift)!==Number(selectedShift))continue;
+      const classes=headerRows[h].cols.map(c=>({className:normalizeClass(rows[headerRow][c]),subCol:c,roomCol:c+1}));
+      const lessonRows=[];
+      for(let r=headerRow+1;r<endBoundary;r++){
+        const row=rows[r]||[];
+        let lesson=null;
+        for(let c=0;c<Math.min(8,row.length);c++){
+          if(looksLikeLessonNumber(row[c])){lesson=Number(String(row[c]).trim());break;}
+        }
+        if(lesson!=null)lessonRows.push({row:r,lesson});
+      }
+
+      for(let i=0;i<lessonRows.length;i++){
+        const start=lessonRows[i].row;
+        const stop=lessonRows[i+1]?.row ?? endBoundary;
+        const lesson=lessonRows[i].lesson;
+        for(const cls of classes){
+          let group=0;
+          const cells=[];
+          for(let r=start;r<stop;r++){
+            const value=normalizeScheduleSubject(rows[r]?.[cls.subCol]);
+            if(!value)continue;
+            if(looksLikeLessonNumber(value) || /^(?:[12](?:-я|-й)?\s*смена|смена\s*[12])$/iu.test(value))continue;
+            const teacherLike=looksLikeTeacherName(value);
+            const room=cellVal(rows[r]?.[cls.roomCol]) || cellVal(rows[r+1]?.[cls.roomCol]);
+            if(teacherLike)continue;
+            // Skip obvious room-only cells accidentally placed in subject column.
+            if(/^\d{1,4}(?:[.,]\d+)?$/.test(value))continue;
+            let teacher='';
+            for(let t=r+1;t<stop;t++){
+              const candidate=cellVal(rows[t]?.[cls.subCol]);
+              if(!candidate)continue;
+              if(looksLikeTeacherName(candidate)){teacher=candidate;break;}
+              // A different non-teacher text means we reached another subject.
+              if(t>r+1 && !looksLikeTeacherName(candidate))break;
+            }
+            cells.push({date:dateIso||'',shift:Number(selectedShift),lesson,className:cls.className,subject:value,teacher,room,group:group++});
+          }
+          allEntries.push(...cells);
+        }
+      }
     }
   }
-  if(!dateIso)throw new Error("Не удалось определить дату. Укажите дату расписания вручную.");
-  if(!shift)throw new Error("Не выбрана смена.");
-  const headerRow=Math.max(0,a.findIndex(row=>String(row?.[0]||"").trim()==="#"));
-  const header=a[headerRow]||[];
-  const classes=[];
-  for(let c=1;c<header.length;c+=2){
-    const className=normalizeClass(header[c]);
-    if(className)classes.push({className,subCol:c,roomCol:c+1});
-  }
-  if(!classes.length)throw new Error("Не удалось определить классы в файле.");
-  const isLesson=v=>/^\d{1,2}$/.test(cellVal(v));
-  const entries=[];
-  let r=headerRow+1;
-  while(r<a.length){
-    if(!isLesson(a[r]?.[0])){r++;continue;}
-    const lesson=Number(cellVal(a[r][0]));
-    let rr=r+1;while(rr<a.length&&!isLesson(a[rr]?.[0]))rr++;
-    for(const c of classes){
-      const subject=cellVal(a[r]?.[c.subCol]);
-      const teacher=cellVal(a[r+1]?.[c.subCol]);
-      const room=cellVal(a[r]?.[c.roomCol]);
-      if(subject&&!looksLikeTeacherName(subject)){
-        entries.push({date:dateIso,shift,lesson,className:c.className,subject,teacher,room,group:0});
-      }
-      let k=r+2,group=1;
-      while(k<rr){
-        const extraSubject=cellVal(a[k]?.[c.subCol]);
-        const extraTeacher=cellVal(a[k+1]?.[c.subCol]);
-        if(extraSubject&&!looksLikeTeacherName(extraSubject)&&extraTeacher&&looksLikeTeacherName(extraTeacher)){
-          const extraRoom=cellVal(a[k]?.[c.roomCol])||cellVal(a[k+1]?.[c.roomCol]);
-          entries.push({date:dateIso,shift,lesson,className:c.className,subject:extraSubject,teacher:extraTeacher,room:extraRoom,group});
-          group++;k+=2;
-        }else k++;
-      }
-    }
-    r=rr;
-  }
+
+  if(!dateIso)throw new Error('Не удалось определить дату расписания. Укажите дату в поле «Дата расписания».');
+  if(!Number(selectedShift))throw new Error('Не выбрана смена.');
   const seen=new Set();
-  const unique=entries.filter(x=>{
-    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join("|");
-    if(seen.has(key))return false;seen.add(key);return true;
+  const unique=allEntries.filter(x=>{
+    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join('|');
+    if(seen.has(key))return false;
+    seen.add(key);return true;
   });
-  return {date:dateIso,shift,entries:unique,classes:[...new Set(unique.map(x=>x.className))],fileName};
+  if(!unique.length)throw new Error('Не удалось распознать ни одного урока для выбранной смены.');
+  return {date:dateIso,shift:Number(selectedShift),entries:unique,classes:[...new Set(unique.map(x=>x.className))],fileName};
 };
 
-/* Replace both legacy upload handlers with one authoritative server-backed version. */
+/* ---------- Server schedule loading: exact + teacher-row dedupe ---------- */
+const __loadScheduleServerV8=loadScheduleServer;
+loadScheduleServer=async function(){
+  await __loadScheduleServerV8();
+  const seen=new Set();
+  state.schedule.entries=(state.schedule.entries||[]).filter(x=>{
+    const key=[x.date,Number(x.shift),Number(x.lesson),normalizeClass(x.className),normalizeScheduleSubject(x.subject),normalizePersonName(x.teacher),String(x.room||'').trim()].join('|');
+    if(!x.subject && !x.teacher)return false;
+    if(looksLikeTeacherName(x.subject) && !x.teacher)return false;
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+  }).map(x=>({...x,subject:normalizeScheduleSubject(x.subject)}));
+  return true;
+};
+
+/* ---------- Authoritative schedule upload ---------- */
 window.uploadSchedule=async function(){
-  if(!isDispatcher())return alert("Загрузка расписания доступна только диспетчеру и администратору.");
-  const f=document.getElementById("scheduleFile")?.files?.[0],selectedShift=Number(document.getElementById("scheduleShift")?.value||0);
-  if(!f)return alert("Выберите Excel-файл расписания.");
-  if(!selectedShift)return alert("Укажите смену.");
+  if(!isDispatcher())return alert('Загрузка расписания доступна только диспетчеру и администратору.');
+  const f=document.getElementById('scheduleFile')?.files?.[0];
+  const selectedShift=Number(document.getElementById('scheduleShift')?.value||0);
+  const dateInput=document.getElementById('scheduleDate')?.value||'';
+  if(!f)return alert('Выберите Excel-файл расписания.');
+  if(!dateInput)return alert('Укажите дату расписания.');
+  if(!selectedShift)return alert('Укажите смену.');
   try{
     const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
     const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
-    await saveScheduleRows(parsed); // deletes the whole date+shift before insert
+    await saveScheduleRows(parsed); // replaces exactly date + shift
     await loadScheduleServer();
     const info=document.getElementById('scheduleImportInfo');
-    if(info)info.innerHTML=`Загружено: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>; классов: <b>${parsed.classes.length}</b>; уроков: <b>${parsed.entries.length}</b>.`;
-    alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена. Уроков: ${parsed.entries.length}.`);
+    if(info)info.innerHTML=`Загружено: <b>${escapeHtml(parsed.date)}</b>, <b>${parsed.shift}-я смена</b>; классов: <b>${parsed.classes.length}</b>; записей: <b>${parsed.entries.length}</b>.`;
+    alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена. Записей: ${parsed.entries.length}.`);
     render();
   }catch(e){console.error(e);alert('Не удалось сохранить расписание: '+(e.message||e));}
 };
 
-/* Dedupe exact repeated rows when loading existing server data. */
-const __loadScheduleServerV7=loadScheduleServer;
-loadScheduleServer=async function(){
-  await __loadScheduleServerV7();
-  const seen=new Set();
-  state.schedule.entries=(state.schedule.entries||[]).filter(x=>{
-    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join('|');
-    if(seen.has(key))return false;seen.add(key);return true;
-  });
-  const baseSeen=new Set();
-  state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>{
-    if(looksLikeTeacherName(x.subject))return false;
-    const key=[x.shift,x.dayIndex,x.lesson,x.className,x.subject,x.teacher,x.room].join('|');
-    if(baseSeen.has(key))return false;baseSeen.add(key);return true;
-  });
-  return true;
+/* ---------- Shift-aware sorting and display ---------- */
+function scheduleSort(a,b){
+  const sa=Number(a.shift)||99,sb=Number(b.shift)||99;
+  return sa-sb || (Number(a.lesson)||99)-(Number(b.lesson)||99) || classSort(a.className,b.className) || String(a.subject||'').localeCompare(String(b.subject||''),'ru');
+}
+scheduleForUser=function(entries,mode){
+  let arr=[];
+  if(isGuest()) arr=[...entries];
+  else if(mode==='mine') arr=entries.filter(x=>teacherMatches(x.teacher,state.currentUser.name));
+  else if(mode&&mode.startsWith('class:')) arr=entries.filter(x=>x.className===mode.slice(6));
+  return arr.sort(scheduleSort);
 };
+scheduleShiftFor=function(entries){
+  const shifts=[...new Set(entries.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
+  if(!shifts.length)return '—';
+  return `<div class="schedule-shift-badges">${shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('')}</div>`;
+};
+renderScheduleTable=function(entries,mode){
+  const arr=scheduleForUser(entries,mode);
+  if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
+  return `<div class="schedule-view"><div class="schedule-shift-badges">${scheduleShiftFor(arr).replace(/^<div class="schedule-shift-badges">|<\/div>$/g,'')}</div><div class="table-wrap"><table class="data-table schedule-table"><tr><th>Смена</th><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr class="shift-row-${Number(x.shift)===2?2:1}"><td><span class="schedule-shift-badge shift${Number(x.shift)===2?2:1}">${Number(x.shift)} смена</span></td><td>${Number(x.lesson)}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}</td><td>${escapeHtml(x.teacher||'—')}</td><td>${escapeHtml(x.room||'—')}</td></tr>`).join('')}</table></div></div>`;
+};
+renderScheduleSelector=function(day){
+  const dt=day==='tomorrow'?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
+};
+window.showScheduleChoice=function(day){
+  const sel=document.getElementById(`scheduleChoice_${day}`);if(!sel)return;
+  const dt=day==='tomorrow'?nextSchoolDay():new Date();
+  const result=document.getElementById(`scheduleResult_${day}`);if(!result)return;
+  result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
+};
+renderScheduleHomeSelector=function(day='today'){
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
+  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+};
+window.showHomeScheduleChoice=function(day='today'){
+  const sel=document.getElementById(`homeScheduleChoice_${day}`),result=document.getElementById(`homeScheduleResult_${day}`);if(!sel||!result)return;
+  const dt=day==='tomorrow'?nextSchoolDay():new Date();
+  result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
+};
+renderBaseScheduleSelector=function(){
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
+};
+window.showBaseScheduleChoice=function(){
+  const c=document.getElementById('baseScheduleChoice')?.value;if(!c)return;
+  const arr=(state.schedule.baseEntries||[]).filter(x=>x.className===c).sort(scheduleSort);
+  if(!arr.length){document.getElementById('baseScheduleResult').innerHTML='<div class="schedule-empty">Базовое расписание для класса не найдено.</div>';return;}
+  const shifts=[...new Set(arr.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
+  const days=['Понедельник','Вторник','Среда','Четверг','Пятница'];
+  const badges=shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('');
+  let html=`<div class="schedule-shift-badges">${badges}</div><div class="table-wrap"><table class="data-table schedule-table"><tr><th>Смена</th><th>Урок</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>`;
+  for(const shift of shifts){
+    for(let lesson=1;lesson<=20;lesson++){
+      const rows=arr.filter(x=>Number(x.shift)===shift&&Number(x.lesson)===lesson);
+      if(!rows.length)continue;
+      html+=`<tr class="shift-row-${shift}"><td><span class="schedule-shift-badge shift${shift}">${shift} смена</span></td><td>${lesson}</td>${days.map((_,i)=>{const cells=rows.filter(x=>x.dayIndex===i);return `<td>${cells.map(x=>`${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}<br><span class="muted">${escapeHtml(x.teacher||'')}</span>`).join('<hr style="border:0;border-top:1px solid var(--line);margin:5px 0">')||'—'}</td>`;}).join('')}</tr>`;
+    }
+  }
+  html+='</table></div>';document.getElementById('baseScheduleResult').innerHTML=html;
+};
+
+/* ---------- Visit analysis ---------- */
+async function loadVisitAnalysesServer(){
+  try{
+    const rows=await sbRest('visit_analysis','select=*&order=uploaded_at.desc');
+    const by={};
+    (rows||[]).forEach(x=>by[String(x.notification_id)]={
+      id:Number(x.id),notificationId:Number(x.notification_id),teacherEmployeeId:Number(x.teacher_employee_id),
+      senderEmployeeId:Number(x.sender_employee_id),fileName:x.file_name||'',storageUrl:x.storage_url||'',storagePath:x.storage_path||'',
+      uploadedBy:Number(x.uploaded_by),uploadedAt:x.uploaded_at
+    });
+    state.visitAnalyses=by;
+    (state.notifications||[]).forEach(n=>n.analysis=by[String(n.id)]||null);
+  }catch(e){console.warn('Не удалось загрузить анализы посещения уроков:',e);state.visitAnalyses={};}
+}
+function visitCanSeeNotification(n){
+  if(!n||n.type!=='visit'||isGuest())return false;
+  return isManager() || Number(n.teacherId)===Number(state.currentUser?.id);
+}
+function visitCanUploadAnalysis(n){
+  return !!n && isManager() && Number(n.senderEmployeeId)===Number(state.currentUser?.id);
+}
+function visitCanSeeAnalysis(n){
+  return visitCanSeeNotification(n) && !!n.analysis?.storageUrl;
+}
+function visitAnalysisButtons(n){
+  if(!visitCanSeeNotification(n))return '';
+  const parts=[];
+  if(visitCanSeeAnalysis(n)){
+    parts.push(`<a class="small-btn" href="${escapeHtml(n.analysis.storageUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Анализ</a>`);
+  }
+  if(visitCanUploadAnalysis(n)){
+    parts.push(`<button class="small-btn ${n.analysis?.storageUrl?'':'green'}" onclick="event.stopPropagation();uploadVisitAnalysis(${Number(n.id)})">${n.analysis?.storageUrl?'Заменить анализ':'Загрузить анализ'}</button>`);
+  }
+  return parts.join('');
+}
+const __noticeHtmlBaseV8=noticeHtml;
+noticeHtml=function(n){
+  if(n?.type==='visit'){
+    const actions=visitAnalysisButtons(n);
+    return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${Number(n.id)})"><div class="dot"></div><div style="flex:1;min-width:0"><strong>${escapeHtml(n.title||'Уведомление о посещении урока')}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${escapeHtml(n.text||'')}</p><small class="muted">${escapeHtml(n.date||'')}</small>${n.analysis?.storageUrl?`<div class="ack-info" style="margin-top:7px">📎 ${escapeHtml(n.analysis.fileName||'Файл анализа')}</div>`:''}${actions?`<div class="doc-actions visit-analysis-actions" style="margin-top:8px">${actions}</div>`:''}</div></div>`;
+  }
+  return __noticeHtmlBaseV8(n);
+};
+
+const __renderNotificationsBaseV8=renderNotifications;
+renderNotifications=function(){
+  __renderNotificationsBaseV8();
+  loadVisitAnalysesServer().then(()=>{if(state.currentPage==='notifications')render();});
+};
+
+window.uploadVisitAnalysis=async function(notificationId){
+  const n=(state.notifications||[]).find(x=>Number(x.id)===Number(notificationId));
+  if(!n||!visitCanUploadAnalysis(n))return alert('Загрузить анализ может только заместитель/директор, отправивший это уведомление.');
+  const input=document.createElement('input');input.type='file';input.accept='.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  input.onchange=async()=>{
+    const f=input.files?.[0];if(!f)return;
+    try{
+      const uploaded=await uploadToYandexFolder(f,YANDEX_FOLDERS.visitAnalysis,'visitAnalysis','Анализ посещения урока');
+      const url=uploaded.public_url||uploaded.url||'';
+      if(!url)throw new Error('Яндекс.Диск не вернул ссылку на загруженный файл.');
+      const existing=n.analysis;
+      const payload={notification_id:Number(n.id),teacher_employee_id:Number(n.teacherId),sender_employee_id:Number(n.senderEmployeeId),file_name:f.name,storage_url:url,storage_path:uploaded.path||'',uploaded_by:Number(state.currentUser.id)};
+      let saved;
+      if(existing?.id)saved=await sbMutate('visit_analysis','PATCH',`id=eq.${encodeURIComponent(existing.id)}`,payload);
+      else saved=await sbMutate('visit_analysis','POST','',payload);
+      const row=Array.isArray(saved)?saved[0]:saved;
+      n.analysis={id:Number(row?.id||existing?.id||Date.now()),notificationId:Number(n.id),teacherEmployeeId:Number(n.teacherId),senderEmployeeId:Number(n.senderEmployeeId),fileName:f.name,storageUrl:url,storagePath:payload.storage_path,uploadedBy:Number(state.currentUser.id),uploadedAt:new Date().toISOString()};
+      state.visitAnalyses=state.visitAnalyses||{};state.visitAnalyses[String(n.id)]=n.analysis;save();
+      alert('Анализ загружен на Яндекс.Диск.');render();
+    }catch(e){console.error(e);alert('Не удалось загрузить анализ: '+(e.message||e));}
+  };
+  input.click();
+};
+
+/* ---------- Analytics: visit cards ---------- */
+const __renderAnalyticsBaseV8=renderAnalytics;
+renderAnalytics=function(){
+  __renderAnalyticsBaseV8();
+  if(!isManager())return;
+  const content=document.getElementById('content');if(!content)return;
+  const visits=(state.notifications||[]).filter(n=>n.type==='visit').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ru'));
+  const cards=visits.map(n=>{
+    const vd=n.visit||{};const a=n.analysis;
+    return `<div class="visit-analytics-item"><div class="visit-analytics-main"><strong>${escapeHtml(vd.teacher||state.users.find(u=>Number(u.id)===Number(n.teacherId))?.name||'Учитель')}</strong><div class="muted">${escapeHtml(n.date||'')} · ${escapeHtml(vd.cls||'')} · ${escapeHtml(normalizeScheduleSubject(vd.subject)||'')}</div><div style="margin-top:6px">Посетил: ${escapeHtml(vd.deputy||n.senderName||'—')}</div><div class="muted" style="margin-top:4px">Цель: ${escapeHtml(vd.purpose||'')}</div></div><div class="visit-analytics-actions">${a?.storageUrl?`<a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener">Просмотреть</a><a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener" download>Скачать</a>`:'<span class="muted">Анализ пока не загружен</span>'}</div></div>`;
+  }).join('')||'<div class="empty">Уведомлений о посещении уроков пока нет.</div>';
+  const html=`<div class="card analytics-visits" style="margin-top:18px"><h3>Посещение уроков</h3><p class="muted">Уведомления о посещении уроков и загруженные Word-файлы анализа.</p>${cards}</div>`;
+  const old=content.querySelector('.analytics-visits');
+  if(old)old.outerHTML=html;else{
+    const workspace=content.querySelector('.analytics-workspace');
+    if(workspace)workspace.insertAdjacentHTML('afterend',html);else content.insertAdjacentHTML('beforeend',html);
+  }
+};
+
+/* ---------- Runtime refresh also reloads analyses ---------- */
+const __refreshRuntimeDataBaseV8=refreshRuntimeData;
+refreshRuntimeData=async function(){
+  await __refreshRuntimeDataBaseV8();
+  try{await loadVisitAnalysesServer();}catch(e){}
+  try{save();}catch(e){}
+};
+
+/* ---------- Visit subject list: use schedule + explicit special names ---------- */
+const __sendVisitBaseV8=sendVisit;
+sendVisit=function(){
+  // Build the existing modal but ensure special subjects are available even
+  // when the daily schedule parser did not return them yet.
+  const teachers=teacherLikeUsers();
+  const deputies=state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director')).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ru'));
+  const classes=[...new Set((state.schedule?.entries||[]).map(x=>x.className).concat(state.classRoster?.map(x=>x.name)||[]).filter(Boolean))].sort(classSort);
+  const subjects=[...new Set((state.schedule?.entries||[]).map(x=>normalizeScheduleSubject(x.subject)).filter(Boolean).concat(['Россия МГ','РОВ']))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal"><h3>Уведомление о посещении урока</h3><div class="notify-form"><div class="notify-row"><label>1. Учитель</label>${teacherSelectHtml('visitTeacherId',teachers)}</div><div class="notify-row"><label>2. Заместитель / директор</label><select id="visitDeputyName" style="width:100%"><option value="">Выберите</option>${deputies.map(u=>`<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join('')}</select></div><div class="notify-row"><label>3. Класс</label><select id="visitClass" style="width:100%"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="notify-row"><label>4. Предмет</label><select id="visitSubject" style="width:100%"><option value="">Выберите предмет</option>${subjects.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('')}</select></div><div class="notify-row"><label>5. Цель посещения</label><textarea id="visitPurpose" rows="3" placeholder="Цель посещения урока"></textarea></div></div><div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitVisitNotification()">Отправить</button></div></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+};
+
+// Ensure analyses load after first authenticated render as well.
+loadVisitAnalysesServer();
+
+
+/* ===============================================================
+   V9 PATCH — attendance analytics, exact teacher matching,
+   compact schedule and mobile parity
+   =============================================================== */
+
+/* ---- Schedule: exact person matching (surname + initials) ---- */
+function personSignature(v){
+  const p=String(v||'').toLowerCase().replace(/ё/g,'е').replace(/[^а-яa-z0-9 ]/gi,' ').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+  if(!p.length)return {surname:'', initials:''};
+  const surname=p[0];
+  const initials=p.slice(1).map(x=>x[0]||'').join('');
+  return {surname,initials};
+}
+teacherMatches=function(entryTeacher,userName){
+  const a=normalizePersonName(entryTeacher), b=normalizePersonName(userName);
+  if(!a||!b)return false;
+  if(a===b)return true;
+  const sa=personSignature(a), sb=personSignature(b);
+  // Do not match people only by surname: identical surnames must remain distinct.
+  return !!sa.surname && sa.surname===sb.surname && !!sa.initials && !!sb.initials && sa.initials===sb.initials;
+};
+
+/* ---- Schedule: normalize special subjects and preserve them ---- */
+function normalizeScheduleSubjectV9(v){
+  const s=normalizeScheduleSubject(v);
+  const n=String(s).toLocaleLowerCase('ru-RU').replace(/\s+/g,' ').trim();
+  if(n==='россия мг' || n.includes('россия мг')) return 'Россия МГ';
+  if(n==='ров' || n==='ров.') return 'РОВ';
+  return s;
+}
+
+/* ---- Schedule: compact desktop/mobile table ---- */
+const __renderScheduleTableV8=renderScheduleTable;
+renderScheduleTable=function(entries,mode){
+  const arr=scheduleForUser(entries,mode);
+  if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
+  const shifts=[...new Set(arr.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
+  const badges=shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('');
+  return `<div class="schedule-view"><div class="schedule-shift-badges">${badges}</div><div class="table-wrap schedule-table-wrap"><table class="data-table schedule-table compact-schedule-table"><colgroup><col class="sch-c1"><col class="sch-c2"><col class="sch-c3"><col class="sch-c4"><col class="sch-c5"><col class="sch-c6"></colgroup><tr><th>Смена</th><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr class="shift-row-${Number(x.shift)===2?2:1}"><td><span class="schedule-shift-badge shift${Number(x.shift)===2?2:1}">${Number(x.shift)} смена</span></td><td>${Number(x.lesson)}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(normalizeScheduleSubjectV9(x.subject)||'—')}</td><td>${escapeHtml(x.teacher||'—')}</td><td>${escapeHtml(x.room||'—')}</td></tr>`).join('')}</table></div></div>`;
+};
+
+/* ---- Attendance: simplified form ---- */
+renderAttendance=function(){
+  const roster=classRosterForUser(state.currentUser);
+  const availableClasses=roster.map(r=>r.name);
+  const cls=availableClasses[0]||'';
+  const firstTotal=(roster.find(r=>r.name===cls)?.studentCount||0);
+  shell('Посещаемость','Компактная форма ежедневного учета.',
+    `<div class="card form-card compact-form-card compact-attendance">
+      <div class="attendance-row">
+        <div class="field"><label>Класс</label><select id="attClass" ${availableClasses.length===1?'class="readonly"':''} onchange="recalcAttendance()">${availableClasses.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select>${availableClasses.length===0?'<small class="muted">Нет доступных классов.</small>':''}</div>
+        <div class="field"><label>Количество обучающихся</label><input id="attTotal" class="readonly" value="${firstTotal}" readonly></div>
+        <div class="field"><label>Количество надомников</label><input id="attHome" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
+        <div class="field"><label>Количество присутствующих</label><input id="attPresent" class="readonly" value="${firstTotal}" readonly></div>
+      </div>
+      <div class="attendance-row three">
+        <div class="field"><label>Количество детей на дистанте по заявлению родителей</label><input id="attRemote" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
+      </div>
+      <div class="present-box" id="attSummary">Присутствуют: ${firstTotal} · Не явились: 0</div>
+      <div class="reason-band">Количество детей, неявившихся по причине:</div>
+      <div class="section-band">Заболевания</div>
+      <div class="attendance-row six">
+        ${attField('Грипп, ОРВИ, ОРЗ','respiratory')}${attField('Острокишечные заболевания','intestinal')}${attField('Энтеровирусная инфекция','enterovirus')}${attField('Ветряная оспа','chickenpox')}
+      </div>
+      <div class="attendance-row"><div class="field"><label>Семейные обстоятельства</label><input class="att-input reason" data-key="family" type="number" min="0" value="0" oninput="recalcAttendance()"></div></div>
+      <div class="section-band">Прочие заболевания — всего: <span id="otherTotal">0</span></div>
+      <div class="attendance-row six">
+        ${attField('Пневмония','pneumonia','other')}${attField('Травмы','trauma','other')}${attField('Зубная боль','toothache','other')}${attField('ЖКТ','gi','other')}${attField('Аллергия','allergy','other')}${attField('Другое','other','other')}
+      </div>
+      <div class="section-band">Другие причины</div>
+      <div class="attendance-row three">${attField('Выезды на конкурсы, соревнования, лагерь','events')}${attField('Без уважительной причины','noReason')}${attField('Погодные условия','weather')}</div>
+      <div id="attValidation"></div>
+      <div class="toolbar" style="justify-content:flex-end;margin-top:12px"><button class="btn green" onclick="submitAttendance()">Отправить посещаемость</button></div>
+    </div>`);
+  recalcAttendance();
+  document.getElementById('attClass')?.addEventListener('change',()=>{const c=document.getElementById('attClass')?.value||'';const total=(state.classRoster||[]).find(r=>r.name===c)?.studentCount||0;if(document.getElementById('attTotal'))document.getElementById('attTotal').value=total;if(document.getElementById('attPresent'))document.getElementById('attPresent').value=total;recalcAttendance();});
+};
+
+recalcAttendance=function(){
+  const total=+(document.getElementById('attTotal')?.value||0);
+  const inputs=[...document.querySelectorAll('.att-input')];
+  const absent=inputs.reduce((s,e)=>s+(+e.value||0),0)+(+(document.getElementById('attHome')?.value||0))+(+(document.getElementById('attRemote')?.value||0));
+  const other=[...document.querySelectorAll('.att-input.other')].reduce((s,e)=>s+(+e.value||0),0);
+  const present=Math.max(0,total-absent);
+  if(document.getElementById('attPresent'))document.getElementById('attPresent').value=present;
+  if(document.getElementById('attSummary'))document.getElementById('attSummary').textContent=`Присутствуют: ${present} · Не явились: ${absent}`;
+  if(document.getElementById('otherTotal'))document.getElementById('otherTotal').textContent=other;
+  const v=document.getElementById('attValidation');if(v)v.innerHTML=absent>total?'<div class="warning-box">⚠ Количество указанных отсутствующих превышает количество детей в классе. Проверьте данные.</div>':'';
+};
+
+submitAttendance=async function(){
+  recalcAttendance();
+  const cls=document.getElementById('attClass')?.value||'', total=+document.getElementById('attTotal')?.value||0, present=+document.getElementById('attPresent')?.value||0;
+  const all={};document.querySelectorAll('.att-input').forEach(e=>all[e.dataset.key]=+e.value||0);
+  const rec={date:dateInfo().iso,className:cls,total,present,filtered:0,home:+document.getElementById('attHome')?.value||0,food:0,remote:+document.getElementById('attRemote')?.value||0,...all,flu:all.respiratory||0,orvi:0,orz:0,teacher:state.currentUser.name};
+  try{
+    const payload={attendance_date:rec.date,class_name:rec.className,teacher_employee_id:Number(state.currentUser.id),teacher_name:rec.teacher,total:rec.total,present:rec.present,data:rec,updated_at:new Date().toISOString()};
+    await sbMutate('attendance_records','POST','on_conflict=attendance_date,class_name,teacher_employee_id',payload);
+    state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&Number(x.teacherEmployeeId||state.currentUser.id)===Number(state.currentUser.id)));
+    state.attendance.push({...rec,teacherEmployeeId:Number(state.currentUser.id)});
+    const t=state.tasks.find(x=>x.id==='attendance');if(t)t.done=true;save();
+    alert('Посещаемость отправлена и сохранена в системе.');navigate('home');
+  }catch(e){console.error(e);alert('Не удалось сохранить посещаемость: '+(e.message||e));}
+};
+
+/* ---- Attendance analytics helpers ---- */
+function attendanceClassesForReport(){
+  const all=state.classRoster||[];
+  const assigned=new Set([...(state.currentUser?.attendanceClasses||[]),...(state.currentUser?.classes||[])].map(String));
+  return isManager()?all.slice():all.filter(r=>assigned.has(String(r.name)));
+}
+function attendanceShiftForClass(cls){
+  const r=(state.classRoster||[]).find(x=>String(x.name)===String(cls));
+  if(r?.shift)return Number(r.shift);
+  const u=(state.users||[]).find(x=>(x.classes||[]).includes(cls)||(x.attendanceClasses||[]).includes(cls));
+  return Number(u?.shift?.[cls]||0)||0;
+}
+function attendanceTeacherForClass(cls){
+  const exact=(state.users||[]).filter(u=>(u.classes||[]).map(String).includes(String(cls))).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  if(exact[0])return exact[0].name;
+  const assigned=(state.users||[]).filter(u=>(u.attendanceClasses||[]).map(String).includes(String(cls))).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  return assigned[0]?.name||'';
+}
+function attendanceReportRange(){
+  let from=document.getElementById('attFrom')?.value||'',to=document.getElementById('attTo')?.value||'';
+  const dates=(state.attendance||[]).map(x=>x.date).filter(Boolean).sort();
+  if(!from)from=dates[0]||dateInfo().iso;
+  if(!to)to=dates[dates.length-1]||from;
+  if(document.getElementById('attFrom'))document.getElementById('attFrom').value=from;
+  if(document.getElementById('attTo'))document.getElementById('attTo').value=to;
+  return {from,to};
+}
+function dateList(from,to){
+  const out=[];let d=new Date(from+'T00:00:00');const end=new Date(to+'T00:00:00');
+  while(d<=end){out.push(dateIsoLocal(d));d.setDate(d.getDate()+1);}return out;
+}
+function attendanceRecordMap(from,to){
+  const m=new Map();(state.attendance||[]).filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).forEach(x=>m.set(`${x.date}::${x.className}`,x));return m;
+}
+const ATT_HEADERS_V9=['Дата','Класс','Учитель','По списку','Присутствуют','Надомники','Дистант','Грипп, ОРВИ, ОРЗ','Острокишечные заболевания','Энтеровирусная инфекция','Ветряная оспа','Семейные обстоятельства','Пневмония','Травмы','Зубная боль','ЖКТ','Аллергия','Другое','Выезды на конкурсы, соревнования, лагерь','Без уважительной причины','Погодные условия'];
+function attendanceValue(x,key){if(!x)return '';if(key==='respiratory')return x.respiratory??x.flu??0;return x[key]??'';}
+function attendanceReportRows(from,to){
+  const map=attendanceRecordMap(from,to), rows=[];
+  for(const date of dateList(from,to)){
+    for(const r of attendanceClassesForReport().sort((a,b)=>classSort(a.name,b.name))){
+      const x=map.get(`${date}::${r.name}`), teacher=x?.teacher||attendanceTeacherForClass(r.name), base=[date,r.name,teacher,r.studentCount||x?.total||0];
+      rows.push({date,className:r.name,shift:Number(r.shift)||attendanceShiftForClass(r.name),teacher,record:x,base});
+    }
+  }
+  return rows;
+}
+function renderAttendanceAnalyticsV9(){
+  const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to);
+  const missing1=rows.filter(r=>!r.record&&Number(r.shift)===1).map(r=>r.className).filter((v,i,a)=>a.indexOf(v)===i);
+  const missing2=rows.filter(r=>!r.record&&Number(r.shift)===2).map(r=>r.className).filter((v,i,a)=>a.indexOf(v)===i);
+  const headers=ATT_HEADERS_V9;
+  const body=rows.map(r=>{const x=r.record;const vals=x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];return `<tr>${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;}).join('');
+  const el=document.getElementById('attAnalytics');if(!el)return;
+  el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${body||`<tr><td colspan="${headers.length}">Нет классов для отображения.</td></tr>`}</table></div><div class="attendance-missing"><div>1 смена: ${missing1.length?missing1.join(', '):'все классы заполнили форму'}</div><div>2 смена: ${missing2.length?missing2.join(', '):'все классы заполнили форму'}</div></div>`;
+}
+filterAttendance=function(){renderAttendanceAnalyticsV9();};
+exportAttendance=function(){
+  const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to), data=[];
+  for(const r of rows){const x=r.record;data.push(x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')]);}
+  if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([ATT_HEADERS_V9,...data]);const firstDataRow=2,lastDataRow=1+data.length;const numericCols=ATT_HEADERS_V9.slice(3).map((_,i)=>i+4);const shifts=[1,2];
+    const rowsByShift={1:rows.filter(r=>Number(r.shift)===1),2:rows.filter(r=>Number(r.shift)===2)};
+    let row=lastDataRow+2;
+    for(const sh of shifts){ws[`A${row}`]=`${sh} смена`;for(const c of numericCols){const col=XLSX.utils.encode_col(c-1);const refs=[];for(let i=0;i<rows.length;i++){if(Number(rows[i].shift)===sh)refs.push(`${col}${i+2}`);}ws[`${col}${row}`]={t:'n',f:refs.length?`SUM(${refs.join(',')})`:'0'};}row++;}
+    ws[`A${row}`]='Итого';for(const c of numericCols){const col=XLSX.utils.encode_col(c-1);ws[`${col}${row}`]={t:'n',f:`SUM(${col}${lastDataRow+2}:${col}${row-1})`};}
+    ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');XLSX.writeFile(wb,'посещаемость.xlsx');
+  }else downloadCSV(ATT_HEADERS_V9,data,'посещаемость.csv');
+};
+
+/* ---- Re-render analytics with the working attendance block and visit block ---- */
+const __renderAnalyticsV8Final=renderAnalytics;
+renderAnalytics=function(){
+  __renderAnalyticsV8Final();
+  renderAttendanceAnalyticsV9();
+};
+
+/* ---- Keep special subjects visible in visit forms ---- */
+/* Already supported by V8; schedule normalization above preserves the names. */
+
+
+})();
 
 </script>
 </body>
