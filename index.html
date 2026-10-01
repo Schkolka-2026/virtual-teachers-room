@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075b3f">
   <title>Школа решений — Виртуальная учительская</title>
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=mBvoPOXo-CO1sW9wwkBYbA9tuCwmzSu6nEyGMutbPkJAtlb69pIly0eeeeF-SjEuA8CKkfq7-2EMTiDyi66U3HhnR7gm5Zc4UptOwZEEnRERr2HUZHpbE49BMwj00k8FaKETjzv2GisEF442lS4o6iYYokzXW2-JmkI2sA44ZJhOCJ-SCMoK7hMeeDRtFmFHsVLfL6ib9HsWZHa3PB7uO4F470kgGVLQvxJHQQbClikaUu5AE9awNc4A3dAKs3SEegedTi-m44uO6IFrPTWiadhc3D36vXmiCPOrF53oUd8OILheHHcFp05uLT9AZK7KDHayII7WEVUDWUls3JhMbGFlQSHBBqagDW_hJLfJynY" charset="UTF-8"></script><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
     :root{
       --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
       --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
@@ -1186,7 +1186,7 @@
     const arr=state.attendance.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>classSort(a.className,b.className));
     const headers=["Дата","Класс","Учитель","По списку","Отстранены на утреннем фильтре","Присутствуют","Надомники","Питаются","Дистант","Грипп","ОРВИ","ОРЗ","Острокишечные заболевания","Энтеровирусная инфекция","Ветряная оспа","Семейные обстоятельства","Пневмония","Травмы","Зубная боль","ЖКТ","Аллергия","Другое","Выезды на конкурсы, соревнования, лагерь","Без уважительной причины","Погодные условия"];
     const rows=arr.map(x=>[x.date,x.className,x.teacher,x.total,x.filtered,x.present,x.home,x.food,x.remote,x.flu,x.orvi,x.orz,x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]);
-    if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([headers,...rows]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');XLSX.writeFile(wb,'посещаемость.xlsx');}else downloadCSV(headers,rows,'посещаемость.csv');
+    if(window.XLSX){const ws=window.XLSX.utils.aoa_to_sheet([headers,...rows]),wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');window.XLSX.writeFile(wb,'посещаемость.xlsx');}else downloadCSV(headers,rows,'посещаемость.csv');
   };
   window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
   window.showJournalAnalytics=function(){
@@ -1428,7 +1428,7 @@
   function looksLikeTeacherName(v){const s=String(v||"").trim();if(!s)return false;try{if(flexibleUserByName(s,teacherLikeUsers()))return true;}catch(e){}return /^[А-ЯЁ][а-яё-]{2,}\s+[А-ЯЁ]\.?\s*[А-ЯЁ]\.?$/i.test(s);}
   function parseScheduleWorkbook(wb,fileName,selectedShift){
     const ws=wb.Sheets[wb.SheetNames[0]];
-    const a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
+    const a=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
     let dateIso=null,shift=selectedShift?+selectedShift:null;
     for(const row of a.slice(0,15)){
       for(const cell of (row||[])){
@@ -1509,7 +1509,7 @@
   }
 
   function parseBaseScheduleWorkbook(wb,fileName,selectedShift){
-    const ws=wb.Sheets[wb.SheetNames[0]], a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
+    const ws=wb.Sheets[wb.SheetNames[0]], a=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
     const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
     const entries=[]; let currentClass="", shift=selectedShift?+selectedShift:null;
     for(let r=0;r<a.length;r++){
@@ -1553,7 +1553,7 @@
     const reader=new FileReader();
     reader.onload=e=>{
       try{
-        const wb=XLSX.read(e.target.result,{type:"array"});
+        const wb=window.XLSX.read(e.target.result,{type:"array"});
         const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
         const old=state.schedule.entries.filter(x=>x.date===parsed.date&&x.shift===parsed.shift);
         state.schedule.entries=state.schedule.entries.filter(x=>!(x.date===parsed.date&&x.shift===parsed.shift));
@@ -1580,7 +1580,7 @@
     const reader=new FileReader();
     reader.onload=e=>{
       try{
-        const wb=XLSX.read(e.target.result,{type:"array"});
+        const wb=window.XLSX.read(e.target.result,{type:"array"});
         const parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
         state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>x.shift!==parsed.shift);
         state.schedule.baseEntries.push(...parsed.entries);
@@ -1792,9 +1792,9 @@
       if(!f)return alert("Выберите Excel-файл.");
       try{
         const data=await f.arrayBuffer();
-        const wb=XLSX.read(data,{type:"array"});
+        const wb=window.XLSX.read(data,{type:"array"});
         const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+        const rows=window.XLSX.utils.sheet_to_json(ws,{defval:""});
         const normalizeKey=k=>String(k||"").toLowerCase().replace(/[^a-zа-яё0-9]/gi,"");
         const get=(row,candidates)=>{
           for(const key of Object.keys(row)){
@@ -2028,10 +2028,21 @@ async function loadScheduleServer(){
     if(seenKeys.has(key))return false;
     seenKeys.add(key);return true;
   });
-  state.schedule.baseEntries=(base||[]).map(x=>({
+  const serverBase=(base||[]).map(x=>({
     id:Number(x.id),shift:Number(x.shift),dayIndex:Number(x.day_index),lesson:Number(x.lesson),className:x.class_name,
     subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
   }));
+  // Не стираем локально сохранённую смену, если сервер вернул для неё 0 строк.
+  // Это защищает от кратковременного пустого ответа при обновлении страницы,
+  // но если сервер содержит строки смены — сервер остаётся источником истины.
+  const localBase=state.schedule.baseEntries||[];
+  const mergedBase=[];
+  [1,2].forEach(sh=>{
+    const sb=serverBase.filter(x=>Number(x.shift)===sh);
+    const lb=localBase.filter(x=>Number(x.shift)===sh);
+    mergedBase.push(...(sb.length?sb:lb));
+  });
+  state.schedule.baseEntries=mergedBase;
   state.schedule.versions=(daily||[]).reduce((acc,x)=>{
     const k=`${x.schedule_date}::${x.shift}`;
     if(!acc.some(v=>v.key===k))acc.push({key:k,date:x.schedule_date,shift:Number(x.shift),fileName:''});
@@ -2245,27 +2256,45 @@ window.processJournalUpload=async function(){
   if(!f)return alert('Сначала выберите Excel-файл.');
   const reportDate=document.getElementById('journalReportDate')?.value||(()=>{const d=new Date();d.setDate(d.getDate()-1);return dateIsoLocal(d);})();
   try{
-    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
-    const employees=teacherLikeUsers().map(u=>({u,surname:String(u.name||'').trim().split(/\s+/)[0]})).filter(x=>x.surname);
-    const textCells=[];
+    const XLSXLib=ensureXlsxLoaded();
+    const wb=XLSXLib.read(await f.arrayBuffer(),{type:'array'});
+    // Отчёт «не заполнили» имеет фиксированную структуру: ищем заголовок
+    // «Учитель», затем считаем каждую последующую непустую строку по ФИО учителя.
+    const records=[];
     for(const sn of wb.SheetNames){
       const ws=wb.Sheets[sn];
-      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      rows.forEach(row=>textCells.push(row.map(v=>String(v??'')).join(' ')));
+      const rows=XLSXLib.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+      let headerRow=-1, teacherCol=-1;
+      for(let r=0;r<Math.min(rows.length,20);r++){
+        const row=rows[r]||[];
+        const idx=row.findIndex(v=>/^(учитель|преподаватель|педагог)$/i.test(String(v||'').trim()));
+        if(idx>=0){headerRow=r;teacherCol=idx;break;}
+      }
+      if(headerRow<0)continue;
+      for(let r=headerRow+1;r<rows.length;r++){
+        const name=String((rows[r]||[])[teacherCol]||'').trim();
+        if(name)records.push(name.replace(/\s+/g,' '));
+      }
     }
+    const employees=teacherLikeUsers();
     const result=[];
-    for(const item of employees){
-      const pattern=new RegExp(`(^|[^А-Яа-яЁёA-Za-z])${item.surname.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?=$|[^А-Яа-яЁёA-Za-z])`,'gi');
-      let count=0;
-      for(const line of textCells){const m=line.match(pattern);if(m)count+=m.length;}
-      if(count>0)result.push({employee_id:Number(item.u.id),employee_login:item.u.login||'',employee_name:item.u.name,report_date:reportDate,overdue_count:count});
+    const counts=new Map();
+    for(const name of records)counts.set(normalizePersonName(name),(counts.get(normalizePersonName(name))||0)+1);
+    for(const [norm,count] of counts){
+      const exact=employees.find(u=>normalizePersonName(u.name)===norm);
+      const surname=norm.split(' ')[0]||'';
+      const surnameMatches=employees.filter(u=>normalizePersonName(u.name).split(' ')[0]===surname);
+      const emp=exact || (surnameMatches.length===1?surnameMatches[0]:null);
+      if(emp){
+        result.push({employee_id:Number(emp.id),employee_login:emp.login||'',employee_name:emp.name,report_date:reportDate,overdue_count:count});
+      }
     }
     await sbMutate('journal_overdue','DELETE',`report_date=eq.${encodeURIComponent(reportDate)}`);
     if(result.length)await sbMutate('journal_overdue','POST','',result);
     state.journalOverdue=(state.journalOverdue||[]).filter(x=>x.date!==reportDate).concat(result.map(x=>({id:Date.now()+Math.random(),employeeId:x.employee_id,login:x.employee_login,name:x.employee_name,date:x.report_date,count:x.overdue_count})));
     save();
     const info=document.getElementById('journalUploadInfo');
-    if(info)info.innerHTML=`Обработано: <b>${escapeHtml(f.name)}</b>. Дата отчёта: <b>${reportDate}</b>. Педагогов с просрочками: <b>${result.length}</b>.`;
+    if(info)info.innerHTML=`Обработано: <b>${escapeHtml(f.name)}</b>. Дата отчёта: <b>${reportDate}</b>. Строк с педагогами: <b>${records.length}</b>. Педагогов с просрочками: <b>${result.length}</b>.`;
     alert(`Отчёт электронного журнала обработан. Выявлено педагогов с просрочками: ${result.length}.`);
     showJournalAnalytics();
   }catch(e){console.error(e);alert('Не удалось обработать отчёт электронного журнала: '+(e.message||e));}
@@ -2287,42 +2316,48 @@ window.uploadSchedule=async function(){
   const f=document.getElementById('scheduleFile')?.files?.[0], selectedShift=document.getElementById('scheduleShift')?.value;
   if(!f)return alert('Выберите Excel-файл расписания.');
   if(!selectedShift)return alert('Укажите, это 1-я или 2-я смена.');
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
-      const manualDate=document.getElementById("scheduleDate")?.value||"";
-      if(manualDate)parsed.date=manualDate;
-      await saveScheduleRows(parsed);
-      state.schedule.entries=(state.schedule.entries||[]).filter(x=>!(x.date===parsed.date&&Number(x.shift)===Number(parsed.shift))).concat(parsed.entries);
-      state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(v.date===parsed.date&&Number(v.shift)===Number(parsed.shift)));
-      state.schedule.versions.push({id:Date.now(),date:parsed.date,shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length,readBy:{[state.currentUser.login]:{at:new Date().toISOString()}}});
-      state.schedule.uploadedFile=f.name;save();
-      const info=document.getElementById('scheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>.`;
-      alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);render();
-    }catch(err){console.error(err);alert('Не удалось сохранить расписание: '+(err.message||'проверьте формат Excel и права доступа.'));}
-  };
-  reader.readAsArrayBuffer(f);
+  const manualDate=document.getElementById('scheduleDate')?.value||'';
+  try{
+    const XLSXLib=ensureXlsxLoaded();
+    const wb=XLSXLib.read(await f.arrayBuffer(),{type:'array'});
+    const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+    if(manualDate)parsed.date=manualDate;
+    if(!parsed.entries?.length)throw new Error('В Excel не найдено ни одной записи урока.');
+    await saveScheduleRows(parsed);
+    // Немедленно проверяем серверную запись, чтобы не показывать «успешно»,
+    // если Supabase не сохранил строки.
+    const check=await sbRest('school_schedule_lessons',`select=id,schedule_date,shift&schedule_date=eq.${encodeURIComponent(parsed.date)}&shift=eq.${Number(parsed.shift)}&limit=1`);
+    if(!check?.length)throw new Error('Supabase не вернул сохранённое расписание. Проверьте права доступа к school_schedule_lessons.');
+    state.schedule.entries=(state.schedule.entries||[]).filter(x=>!(x.date===parsed.date&&Number(x.shift)===Number(parsed.shift))).concat(parsed.entries);
+    state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(v.date===parsed.date&&Number(v.shift)===Number(parsed.shift)));
+    state.schedule.versions.push({id:Date.now(),date:parsed.date,shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length});
+    state.schedule.uploadedFile=f.name;save();
+    await loadScheduleServer();
+    const info=document.getElementById('scheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${escapeHtml(parsed.date)}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>.`;
+    alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена. Записей: ${parsed.entries.length}.`);render();
+  }catch(e){console.error(e);alert('Не удалось сохранить расписание: '+(e.message||e));}
 };
 window.uploadBaseSchedule=async function(){
   if(!isDispatcher())return alert('Загрузка базового расписания доступна только диспетчеру и администратору.');
   const f=document.getElementById('baseScheduleFile')?.files?.[0], selectedShift=document.getElementById('baseScheduleShift')?.value;
   if(!f)return alert('Выберите Excel-файл базового расписания.');
   if(!selectedShift)return alert('Укажите, это 1-я или 2-я смена.');
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
-      await saveBaseScheduleRows(parsed);
-      state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>Number(x.shift)!==Number(parsed.shift)).concat(parsed.entries);
-      state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>Number(v.shift)!==Number(parsed.shift));
-      state.schedule.baseVersions.push({id:Date.now(),shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length});
-      state.schedule.baseUploadedFile=f.name;save();
-      const info=document.getElementById('baseScheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>.`;
-      alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);render();
-    }catch(err){console.error(err);alert('Не удалось сохранить базовое расписание: '+(err.message||'проверьте формат Excel и права доступа.'));}
-  };
-  reader.readAsArrayBuffer(f);
+  try{
+    const XLSXLib=ensureXlsxLoaded();
+    const wb=XLSXLib.read(await f.arrayBuffer(),{type:'array'});
+    const parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
+    if(!parsed.entries?.length)throw new Error('В Excel не найдено ни одной записи базового расписания.');
+    await saveBaseScheduleRows(parsed);
+    const check=await sbRest('school_base_schedule',`select=id,shift&shift=eq.${Number(parsed.shift)}&limit=1`);
+    if(!check?.length)throw new Error('Supabase не вернул сохранённое базовое расписание. Проверьте права доступа к school_base_schedule.');
+    state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>Number(x.shift)!==Number(parsed.shift)).concat(parsed.entries);
+    state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>Number(v.shift)!==Number(parsed.shift));
+    state.schedule.baseVersions.push({id:Date.now(),shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length});
+    state.schedule.baseUploadedFile=f.name;save();
+    await loadScheduleServer();
+    const info=document.getElementById('baseScheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>.`;
+    alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);render();
+  }catch(e){console.error(e);alert('Не удалось сохранить базовое расписание: '+(e.message||e));}
 };
 
 // Teachers may inspect any class in the base schedule; "Мое расписание" stays teacher-specific.
@@ -2928,7 +2963,7 @@ parseScheduleWorkbook=function(wb,fileName,selectedShift){
   // school schedule workbooks place different shifts/tables on separate sheets.
   for(const sheetName of (wb.SheetNames||[])){
     const ws=wb.Sheets[sheetName];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+    const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
     if(!dateIso){
       for(const row of rows.slice(0,25)){
         const t=(row||[]).map(cellVal).join(' ');
@@ -3031,7 +3066,7 @@ window.uploadSchedule=async function(){
   if(!dateInput)return alert('Укажите дату расписания.');
   if(!selectedShift)return alert('Укажите смену.');
   try{
-    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+    const wb=window.XLSX.read(await f.arrayBuffer(),{type:'array'});
     const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
     // Дата из формы является источником истины для ежедневного расписания.
     // Excel может содержать дату создания/выгрузки файла, которая не совпадает с датой уроков.
@@ -3392,12 +3427,12 @@ filterAttendance=function(){renderAttendanceAnalyticsV9();};
 exportAttendance=function(){
   const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to), data=[];
   for(const r of rows){const x=r.record;data.push(x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')]);}
-  if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([ATT_HEADERS_V9,...data]);const firstDataRow=2,lastDataRow=1+data.length;const numericCols=ATT_HEADERS_V9.slice(3).map((_,i)=>i+4);const shifts=[1,2];
+  if(window.XLSX){const ws=window.XLSX.utils.aoa_to_sheet([ATT_HEADERS_V9,...data]);const firstDataRow=2,lastDataRow=1+data.length;const numericCols=ATT_HEADERS_V9.slice(3).map((_,i)=>i+4);const shifts=[1,2];
     const rowsByShift={1:rows.filter(r=>Number(r.shift)===1),2:rows.filter(r=>Number(r.shift)===2)};
     let row=lastDataRow+2;
-    for(const sh of shifts){ws[`A${row}`]=`${sh} смена`;for(const c of numericCols){const col=XLSX.utils.encode_col(c-1);const refs=[];for(let i=0;i<rows.length;i++){if(Number(rows[i].shift)===sh)refs.push(`${col}${i+2}`);}ws[`${col}${row}`]={t:'n',f:refs.length?`SUM(${refs.join(',')})`:'0'};}row++;}
-    ws[`A${row}`]='Итого';for(const c of numericCols){const col=XLSX.utils.encode_col(c-1);ws[`${col}${row}`]={t:'n',f:`SUM(${col}${lastDataRow+2}:${col}${row-1})`};}
-    ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');XLSX.writeFile(wb,'посещаемость.xlsx');
+    for(const sh of shifts){ws[`A${row}`]=`${sh} смена`;for(const c of numericCols){const col=window.XLSX.utils.encode_col(c-1);const refs=[];for(let i=0;i<rows.length;i++){if(Number(rows[i].shift)===sh)refs.push(`${col}${i+2}`);}ws[`${col}${row}`]={t:'n',f:refs.length?`SUM(${refs.join(',')})`:'0'};}row++;}
+    ws[`A${row}`]='Итого';for(const c of numericCols){const col=window.XLSX.utils.encode_col(c-1);ws[`${col}${row}`]={t:'n',f:`SUM(${col}${lastDataRow+2}:${col}${row-1})`};}
+    ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');window.XLSX.writeFile(wb,'посещаемость.xlsx');
   }else downloadCSV(ATT_HEADERS_V9,data,'посещаемость.csv');
 };
 
@@ -3426,7 +3461,7 @@ renderAnalytics=function(){
     if(!f)return alert('Выберите Excel-файл расписания.');
     if(!selectedShift)return alert('Укажите смену.');
     try{
-      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+      const wb=window.XLSX.read(await f.arrayBuffer(),{type:'array'});
       const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
       parsed.date=dateInput;
       await saveScheduleRows(parsed);
