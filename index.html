@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075b3f">
   <title>Школа решений — Виртуальная учительская</title>
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=rYLLGNDt7aMOULb21-VwPM_FwyJBCT62vmFrN0nfXoqTzlwt4-NbFOUXCxKcT9DdPb880r9T1_LP9m-6ZAa29i7-w1AbBpq6T5ZbbyFqKcedkMh6wLO_HdF5bew5heg2Hi_oVdg33sYmfsaa8uM693lzUf0Z3DQGWKQS0pIwsXNLIbRXfcD-sOPo6w_AlSJCHLgTa6sg6jjpHLnIkG-wxQkvbBW8LHxxu4h-9R3dGyrpaqYNfkgMREI5MEnBKNlpApgWVWDlap3id1Bdx21rlr5taD8A6U2xYLC-xTiXeip7RqJ8O09nJ_ok5YymobDtKmAd4HLtmjMxNNNxLuPc6w" charset="UTF-8"></script><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=DCwzuznZ-he1Zd4aT9-y_l68gabBvFFBx-XBOaTmv2VcfgSr7UbhCxCqDZYn2iXybxZ_dHCvw9JUt-ItUqWURqlpzhdvJi_HRhiVVt6M2wjl1syU2fnQpgtyYYMPI6BXMyf5W-7NTGaJgc5ng-iHfoCb58yZ_xGD9pMbza3boelfBr3VoI9ClO5fIY7QNgs_qNGWjh-rkvEOzcNl6qYigix-dIweINdVNTxZbOvY3D7cpQZ9MIFHPTeis0O6vzS4MRorIhrA1Z5dm-8iMlpdNjPHYxL20-yPhKPW7kpCwIGJ-Ur23__G0XdQy8-d3rGIVA7BcJt4VZxJTm4atUjl4A" charset="UTF-8"></script><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=XhiV1o4iLZJHFou058nyaVa6wI5B90UYXXvbPo7n3VuqlLdeG3iUtXd3c3jAguwH6l0MwQ1w8OS360Mzn4d_7zjElCqSknNWWYC09wI3goI8-k_1ifjv9WPPTS1fk0M2adgzNUqd8VSrXcAXbjPn5QFxwFET3J5-By2VwWv1jQRUK2V2OqtJl1KEX9p31VeU3siXvOv-4YUuuSimQ2qNuNbEWDMCSWG--AN8n1jL0lel3WwIg5dT0bsznyNLa2bSeLtr1KAcRw8Olu0vOLCixrwz9F6Pu_TTvIvnGMczCEJ4plLeQoIlMKWpb-kym5LVFNH4pyNkgwPI32kY2jdbdeTbBKwbAiEYU6nUowjLX1Hew9T9VsIEsX85iKaN5Tv9KqcNjQxlkQv5r1aHEl-Kj8fermfQ206oifddeUaprxrRu4n-_JdehFDzBnRz4SYPx9w18ReRd17iGtfpwcnOwq_lu1vYy5BCj8ifOh8oVAM" charset="UTF-8"></script><style>
     :root{
       --green-950:#063d2b; --green-900:#075b3f; --green-800:#08754b;
       --green-700:#15945a; --green-100:#e8f6ee; --green-50:#f4fbf7;
@@ -3467,91 +3467,170 @@ renderAnalytics=function(){
   }
 })();
 
-/* FINAL POINT FIXES: attendance analytics + restore stable schedule navigation */
+})();
+
+
+/* ===== FINAL TARGETED PATCH: schedule lookup + attendance totals ===== */
 (function(){
-  // Attendance: always build the report from the full class roster for the selected dates.
-  window.filterAttendance=function(){
-    try{ renderAttendanceAnalyticsV9(); }
-    catch(e){ console.error('attendance analytics',e); }
-  };
+  function sameClassName(a,b){
+    return normalizeClass(a)===normalizeClass(b);
+  }
 
-  window.exportAttendance=function(){
+  /* The Excel import is already correct. Do not change the schedule UI.
+     The important fix is to keep the successfully saved daily schedule in
+     the current state instead of immediately replacing it with a second
+     server read. */
+  window.uploadSchedule=async function(){
+    if(!isDispatcher())return alert('Загрузка расписания доступна только диспетчеру и администратору.');
+    const f=document.getElementById('scheduleFile')?.files?.[0];
+    const selectedShift=Number(document.getElementById('scheduleShift')?.value||0);
+    const dateInput=document.getElementById('scheduleDate')?.value||'';
+    if(!f)return alert('Выберите Excel-файл расписания.');
+    if(!dateInput)return alert('Укажите дату расписания.');
+    if(!selectedShift)return alert('Укажите смену.');
     try{
-      const {from,to}=attendanceReportRange();
-      const rows=attendanceReportRows(from,to);
-      const data=rows.map(r=>{
-        const x=r.record;
-        return x
-          ? [r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]
-          : [r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')];
-      });
-      if(!window.XLSX)throw new Error('Библиотека Excel недоступна.');
-      const ws=XLSX.utils.aoa_to_sheet([ATT_HEADERS_V9,...data]);
-      const firstDataRow=2, lastDataRow=1+data.length;
-      const numericCols=ATT_HEADERS_V9.slice(3).map((_,i)=>i+4);
-      let totalRow=lastDataRow+2;
-      [1,2].forEach(sh=>{
-        ws[`A${totalRow}`]=`${sh} смена`;
-        numericCols.forEach(c=>{
-          const col=XLSX.utils.encode_col(c-1);
-          const refs=[];
-          rows.forEach((r,i)=>{if(Number(r.shift)===sh)refs.push(`${col}${i+2}`);});
-          ws[`${col}${totalRow}`]={t:'n',f:refs.length?`SUM(${refs.join(',')})`:'0'};
-        });
-        totalRow++;
-      });
-      ws[`A${totalRow}`]='Итого';
-      numericCols.forEach(c=>{
-        const col=XLSX.utils.encode_col(c-1);
-        ws[`${col}${totalRow}`]={t:'n',f:`SUM(${col}${lastDataRow+2}:${col}${totalRow-1})`};
-      });
-      ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));
-      const wb=XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');
-      XLSX.writeFile(wb,'посещаемость.xlsx');
-    }catch(e){console.error(e);alert('Не удалось выгрузить посещаемость: '+(e.message||e));}
-  };
+      const XLSXLib=ensureXlsxLoaded();
+      const wb=XLSXLib.read(await f.arrayBuffer(),{type:'array'});
+      const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+      parsed.date=dateInput;
+      if(!parsed.entries?.length)throw new Error('В файле не найдено ни одного урока для выбранной смены.');
 
-  // Attendance block: force the two red missing-class lines to remain after every analytics render.
-  const __renderAnalyticsPointFix=renderAnalytics;
-  renderAnalytics=function(){
-    __renderAnalyticsPointFix();
-    try{renderAttendanceAnalyticsV9();}catch(e){console.error('attendance analytics render',e);}
-  };
+      await saveScheduleRows(parsed);
 
-  // Schedule: keep the existing page and controls, but make navigation resilient to a render exception.
-  const __renderSchedulePointFix=renderSchedule;
-  renderSchedule=function(){
-    try{
-      __renderSchedulePointFix();
+      /* Keep exactly the rows that were just saved. This prevents the
+         immediate post-upload refresh from clearing the page when the
+         second REST read is temporarily stale. */
+      const oldEntries=state.schedule.entries||[];
+      state.schedule.entries=oldEntries
+        .filter(x=>!(String(x.date)===String(parsed.date)&&Number(x.shift)===Number(parsed.shift)))
+        .concat(parsed.entries.map(x=>({...x,date:parsed.date,shift:Number(parsed.shift)})));
+      const now=new Date().toISOString();
+      state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(String(v.date)===String(parsed.date)&&Number(v.shift)===Number(parsed.shift)));
+      state.schedule.versions.push({id:Date.now(),date:parsed.date,shift:Number(parsed.shift),fileName:f.name,uploadedAt:now,readBy:{[state.currentUser.login]:{at:now}}});
+      state.schedule.uploadedFile=f.name;
+      save();
+
+      const info=document.getElementById('scheduleImportInfo');
+      if(info)info.innerHTML=`Загружено: <b>${escapeHtml(parsed.date)}</b>, <b>${parsed.shift}-я смена</b>; классов: <b>${parsed.classes.length}</b>; записей: <b>${parsed.entries.length}</b>.`;
+      alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена. Записей: ${parsed.entries.length}.`);
+      render();
     }catch(e){
-      console.error('schedule render',e);
-      shell('Расписание','Расписание уроков.',
-        '<div class="card"><div class="schedule-empty">Не удалось отобразить расписание. Данные приложения не изменены. Обновите страницу и попробуйте снова.</div></div>');
+      console.error(e);
+      alert('Не удалось сохранить расписание: '+(e.message||e));
     }
   };
 
-  const __navigatePointFix=window.navigate;
-  window.navigate=function(page){
-    if(page==='schedule'){
-      closeMobileMenu();
-      if(isGuest()&&!guestPageAllowed(page))return;
-      state.currentPage='schedule';
-      save();
-      document.getElementById('profileMenu')?.classList.add('hidden');
-      renderSchedule();
-      document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page==='schedule'));
-      window.scrollTo({top:0,behavior:'smooth'});
+  /* Class names in the roster may contain a space ("6 А"), while the
+     schedule parser normalizes them to "6А". Compare normalized names. */
+  scheduleForUser=function(entries,mode){
+    let arr=[];
+    if(isGuest()) arr=[...(entries||[])];
+    else if(mode==='mine') arr=(entries||[]).filter(x=>teacherMatches(x.teacher,state.currentUser.name));
+    else if(mode&&mode.startsWith('class:')){
+      const wanted=mode.slice(6);
+      arr=(entries||[]).filter(x=>sameClassName(x.className,wanted));
+    }
+    return arr.sort(scheduleSort);
+  };
+
+  window.showBaseScheduleChoice=function(){
+    const c=document.getElementById('baseScheduleChoice')?.value;
+    if(!c)return;
+    const arr=(state.schedule.baseEntries||[])
+      .filter(x=>sameClassName(x.className,c))
+      .sort(scheduleSort);
+    const target=document.getElementById('baseScheduleResult');
+    if(!target)return;
+    if(!arr.length){
+      target.innerHTML='<div class="schedule-empty">Базовое расписание для класса не найдено.</div>';
       return;
     }
-    return __navigatePointFix(page);
+    const shifts=[...new Set(arr.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
+    const days=['Понедельник','Вторник','Среда','Четверг','Пятница'];
+    const badges=shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('');
+    let html=`<div class="schedule-shift-badges">${badges}</div><div class="table-wrap"><table class="data-table schedule-table"><tr><th>Смена</th><th>Урок</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>`;
+    for(const shift of shifts){
+      for(let lesson=1;lesson<=20;lesson++){
+        const rows=arr.filter(x=>Number(x.shift)===shift&&Number(x.lesson)===lesson);
+        if(!rows.length)continue;
+        html+=`<tr class="shift-row-${shift}"><td><span class="schedule-shift-badge shift${shift}">${shift} смена</span></td><td>${lesson}</td>${days.map((_,i)=>{
+          const cells=rows.filter(x=>Number(x.dayIndex)===i);
+          return `<td>${cells.map(x=>`${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}<br><span class="muted">${escapeHtml(x.teacher||'')}</span>`).join('<hr style="border:0;border-top:1px solid var(--line);margin:5px 0">')||'—'}</td>`;
+        }).join('')}</tr>`;
+      }
+    }
+    html+='</table></div>';
+    target.innerHTML=html;
   };
-  document.querySelectorAll('.nav-item[data-page="schedule"]').forEach(b=>{
-    b.onclick=function(e){e.preventDefault();window.navigate('schedule');};
-  });
-})();
 
+  function attendanceNum(x,key){
+    if(!x)return 0;
+    const v=key==='respiratory'?(x.respiratory??x.flu??0):x[key];
+    return Number(v)||0;
+  }
+  function attendanceTotalRows(rows){
+    const numericKeys=['total','present','home','remote','respiratory','intestinal','enterovirus','chickenpox','family','pneumonia','trauma','toothache','gi','allergy','other','events','noReason','weather'];
+    const sums={1:{},2:{},all:{}};
+    for(const sh of [1,2])numericKeys.forEach(k=>sums[sh][k]=0);
+    numericKeys.forEach(k=>sums.all[k]=0);
+    rows.forEach(r=>{
+      const sh=Number(r.shift)===2?2:1;
+      const x=r.record;
+      const vals={total:x?Number(x.total)||0:Number(r.base?.[3])||0,present:attendanceNum(x,'present'),home:attendanceNum(x,'home'),remote:attendanceNum(x,'remote'),respiratory:attendanceNum(x,'respiratory'),intestinal:attendanceNum(x,'intestinal'),enterovirus:attendanceNum(x,'enterovirus'),chickenpox:attendanceNum(x,'chickenpox'),family:attendanceNum(x,'family'),pneumonia:attendanceNum(x,'pneumonia'),trauma:attendanceNum(x,'trauma'),toothache:attendanceNum(x,'toothache'),gi:attendanceNum(x,'gi'),allergy:attendanceNum(x,'allergy'),other:attendanceNum(x,'other'),events:attendanceNum(x,'events'),noReason:attendanceNum(x,'noReason'),weather:attendanceNum(x,'weather')};
+      numericKeys.forEach(k=>{sums[sh][k]+=vals[k];sums.all[k]+=vals[k];});
+    });
+    return sums;
+  }
+  function attendanceSummaryCells(s){
+    return [s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather].map(v=>`<td><b>${v}</b></td>`).join('');
+  }
+
+  /* Keep the complete class list and the red missing-class lines, adding only
+     the requested three summary rows to the visible table. */
+  renderAttendanceAnalyticsV9=function(){
+    const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to);
+    const missing1=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===1).map(r=>r.className))];
+    const missing2=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===2).map(r=>r.className))];
+    const headers=ATT_HEADERS_V9;
+    const body=rows.map(r=>{
+      const x=r.record;
+      const vals=x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];
+      return `<tr>${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;
+    }).join('');
+    const sums=attendanceTotalRows(rows);
+    const summary=(label,s)=>`<tr class="attendance-summary-row"><td colspan="3"><b>${label}</b></td>${attendanceSummaryCells(s)}</tr>`;
+    const el=document.getElementById('attAnalytics');if(!el)return;
+    el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${body||`<tr><td colspan="${headers.length}">Нет классов для отображения.</td></tr>`}${summary('1 смена',sums[1])}${summary('2 смена',sums[2])}${summary('Итого',sums.all)}</table></div><div class="attendance-missing"><div>1 смена: ${missing1.length?missing1.join(', '):'все классы заполнили форму'}</div><div>2 смена: ${missing2.length?missing2.join(', '):'все классы заполнили форму'}</div></div>`;
+  };
+
+  /* Excel export: complete roster + three summary rows at the very end. */
+  exportAttendance=function(){
+    const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to), data=[];
+    for(const r of rows){
+      const x=r.record;
+      data.push(x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')]);
+    }
+    const sums=attendanceTotalRows(rows);
+    const summaryRow=(label,s)=>[label,'','',s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather];
+    const allRows=[...data,summaryRow('1 смена',sums[1]),summaryRow('2 смена',sums[2]),summaryRow('Итого',sums.all)];
+    if(window.XLSX){
+      const XLSXLib=window.XLSX;
+      const ws=XLSXLib.utils.aoa_to_sheet([ATT_HEADERS_V9,...allRows]);
+      ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));
+      const firstSummary=2+data.length;
+      for(let r=firstSummary;r<=firstSummary+2;r++){
+        for(let c=0;c<ATT_HEADERS_V9.length;c++){
+          const cell=ws[XLSXLib.utils.encode_cell({r,c})];
+          if(cell)cell.s={font:{bold:true}};
+        }
+      }
+      const wb=XLSXLib.utils.book_new();XLSXLib.utils.book_append_sheet(wb,ws,'Посещаемость');XLSXLib.writeFile(wb,'посещаемость.xlsx');
+    }else{
+      downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
+    }
+  };
 })();
+/* ===== END FINAL TARGETED PATCH ===== */
 
 </script>
 </body>
