@@ -73,226 +73,76 @@ window.uploadVisitAnalysis=async function(notificationId){
   input.click();
 };
 
-/* ---------- Analytics: visit cards ---------- */
-const __renderAnalyticsBaseV8=renderAnalytics;
-renderAnalytics=function(){
-  try{__renderAnalyticsBaseV8();}catch(e){console.error('Ошибка базовой аналитики:',e);}
-  if(!isManager())return;
-  const content=document.getElementById('content');if(!content)return;
-  const visits=(state.notifications||[]).filter(n=>n.type==='visit').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ru'));
-  const cards=visits.map(n=>{
-    const vd=n.visit||{};const a=n.analysis;
-    return `<div class="visit-analytics-item"><div class="visit-analytics-main"><strong>${escapeHtml(vd.teacher||state.users.find(u=>Number(u.id)===Number(n.teacherId))?.name||'Учитель')}</strong><div class="muted">${escapeHtml(n.date||'')} · ${escapeHtml(vd.cls||'')} · ${escapeHtml(normalizeScheduleSubject(vd.subject)||'')}</div><div style="margin-top:6px">Посетил: ${escapeHtml(vd.deputy||n.senderName||'—')}</div><div class="muted" style="margin-top:4px">Цель: ${escapeHtml(vd.purpose||'')}</div></div><div class="visit-analytics-actions">${a?.storageUrl?`<a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener">Просмотреть</a><a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener" download>Скачать</a>`:'<span class="muted">Анализ пока не загружен</span>'}</div></div>`;
-  }).join('')||'<div class="empty">Уведомлений о посещении уроков пока нет.</div>';
-  const html=`<div class="card analytics-visits" style="margin-top:18px"><h3>Посещение уроков</h3><p class="muted">Уведомления о посещении уроков и загруженные Word-файлы анализа.</p>${cards}</div>`;
-  const old=content.querySelector('.analytics-visits');
-  if(old)old.outerHTML=html;else{
-    const workspace=content.querySelector('.analytics-workspace');
-    if(workspace)workspace.insertAdjacentHTML('afterend',html);else content.insertAdjacentHTML('beforeend',html);
-  }
-};
-
-/* ---------- Runtime refresh also reloads analyses ---------- */
-const __refreshRuntimeDataBaseV8=refreshRuntimeData;
-refreshRuntimeData=async function(){
-  await __refreshRuntimeDataBaseV8();
-  try{await loadVisitAnalysesServer();}catch(e){}
-  try{save();}catch(e){}
-};
-
-/* ---------- Visit subject list: use schedule + explicit special names ---------- */
-const __sendVisitBaseV8=sendVisit;
-sendVisit=function(){
-  // Build the existing modal but ensure special subjects are available even
-  // when the daily schedule parser did not return them yet.
-  const teachers=teacherLikeUsers();
-  const deputies=state.users.filter(u=>u.roleKeys?.includes('deputy')||u.roleKeys?.includes('director')).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ru'));
-  const classes=[...new Set((state.schedule?.entries||[]).map(x=>x.className).concat(state.classRoster?.map(x=>x.name)||[]).filter(Boolean))].sort(classSort);
-  const subjects=[...new Set((state.schedule?.entries||[]).map(x=>normalizeScheduleSubject(x.subject)).filter(Boolean).concat(['Россия МГ','РОВ']))].sort((a,b)=>a.localeCompare(b,'ru'));
-  const html=`<div class="notify-modal-backdrop"><div class="notify-modal"><h3>Уведомление о посещении урока</h3><div class="notify-form"><div class="notify-row"><label>1. Учитель</label>${teacherSelectHtml('visitTeacherId',teachers)}</div><div class="notify-row"><label>2. Заместитель / директор</label><select id="visitDeputyName" style="width:100%"><option value="">Выберите</option>${deputies.map(u=>`<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join('')}</select></div><div class="notify-row"><label>3. Класс</label><select id="visitClass" style="width:100%"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="notify-row"><label>4. Предмет</label><select id="visitSubject" style="width:100%"><option value="">Выберите предмет</option>${subjects.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('')}</select></div><div class="notify-row"><label>5. Цель посещения</label><textarea id="visitPurpose" rows="3" placeholder="Цель посещения урока"></textarea></div></div><div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitVisitNotification()">Отправить</button></div></div></div>`;
-  document.body.insertAdjacentHTML('beforeend',html);
-};
-
-// Ensure analyses load after first authenticated render as well.
-loadVisitAnalysesServer();
-
-
-/* ===============================================================
-   V9 PATCH — attendance analytics, exact teacher matching,
-   compact schedule and mobile parity
-   =============================================================== */
-
-/* ---- Schedule: exact person matching (surname + initials) ---- */
-function personSignature(v){
-  const p=String(v||'').toLowerCase().replace(/ё/g,'е').replace(/[^а-яa-z0-9 ]/gi,' ').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
-  if(!p.length)return {surname:'', initials:''};
-  const surname=p[0];
-  const initials=p.slice(1).map(x=>x[0]||'').join('');
-  return {surname,initials};
+/* ---------- Analytics module ---------- */
+function attendanceNum(x,key){
+  if(!x)return 0;
+  const v=key==='respiratory'?(x.respiratory??x.flu??0):x[key];
+  return Number(v)||0;
 }
-teacherMatches=function(entryTeacher,userName){
-  const a=normalizePersonName(entryTeacher), b=normalizePersonName(userName);
-  if(!a||!b)return false;
-  if(a===b)return true;
-  const sa=personSignature(a), sb=personSignature(b);
-  // Do not match people only by surname: identical surnames must remain distinct.
-  return !!sa.surname && sa.surname===sb.surname && !!sa.initials && !!sb.initials && sa.initials===sb.initials;
-};
-
-/* ---- Schedule: normalize special subjects and preserve them ---- */
-function normalizeScheduleSubjectV9(v){
-  const s=normalizeScheduleSubject(v);
-  const n=String(s).toLocaleLowerCase('ru-RU').replace(/\s+/g,' ').trim();
-  if(n==='россия мг' || n.includes('россия мг')) return 'Россия МГ';
-  if(n==='ров' || n==='ров.') return 'РОВ';
-  return s;
+function attendanceTotalRows(rows){
+  const numericKeys=['total','present','home','remote','respiratory','intestinal','enterovirus','chickenpox','family','pneumonia','trauma','toothache','gi','allergy','other','events','noReason','weather'];
+  const sums={1:{},2:{},all:{}};
+  for(const sh of [1,2])numericKeys.forEach(k=>sums[sh][k]=0);
+  numericKeys.forEach(k=>sums.all[k]=0);
+  rows.forEach(r=>{
+    const sh=Number(r.shift)===2?2:1, x=r.record;
+    const vals={total:x?Number(x.total)||0:Number(r.base?.[3])||0,present:attendanceNum(x,'present'),home:attendanceNum(x,'home'),remote:attendanceNum(x,'remote'),respiratory:attendanceNum(x,'respiratory'),intestinal:attendanceNum(x,'intestinal'),enterovirus:attendanceNum(x,'enterovirus'),chickenpox:attendanceNum(x,'chickenpox'),family:attendanceNum(x,'family'),pneumonia:attendanceNum(x,'pneumonia'),trauma:attendanceNum(x,'trauma'),toothache:attendanceNum(x,'toothache'),gi:attendanceNum(x,'gi'),allergy:attendanceNum(x,'allergy'),other:attendanceNum(x,'other'),events:attendanceNum(x,'events'),noReason:attendanceNum(x,'noReason'),weather:attendanceNum(x,'weather')};
+    numericKeys.forEach(k=>{sums[sh][k]+=vals[k];sums.all[k]+=vals[k];});
+  });
+  return sums;
 }
-
-/* ---- Schedule: compact desktop/mobile table ---- */
-const __renderScheduleTableV8=renderScheduleTable;
-renderScheduleTable=function(entries,mode){
-  const arr=scheduleForUser(entries,mode);
-  if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
-  const shifts=[...new Set(arr.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
-  const badges=shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('');
-  return `<div class="schedule-view"><div class="schedule-shift-badges">${badges}</div><div class="table-wrap schedule-table-wrap"><table class="data-table schedule-table compact-schedule-table"><colgroup><col class="sch-c1"><col class="sch-c2"><col class="sch-c3"><col class="sch-c4"><col class="sch-c5"><col class="sch-c6"></colgroup><tr><th>Смена</th><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr class="shift-row-${Number(x.shift)===2?2:1}"><td><span class="schedule-shift-badge shift${Number(x.shift)===2?2:1}">${Number(x.shift)} смена</span></td><td>${Number(x.lesson)}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(normalizeScheduleSubjectV9(x.subject)||'—')}</td><td>${escapeHtml(x.teacher||'—')}</td><td>${escapeHtml(x.room||'—')}</td></tr>`).join('')}</table></div></div>`;
-};
-
-/* ---- Attendance: simplified form ---- */
-renderAttendance=function(){
-  const roster=classRosterForUser(state.currentUser);
-  const availableClasses=roster.map(r=>r.name);
-  const cls=availableClasses[0]||'';
-  const firstTotal=(roster.find(r=>r.name===cls)?.studentCount||0);
-  shell('Посещаемость','Компактная форма ежедневного учета.',
-    `<div class="card form-card compact-form-card compact-attendance">
-      <div class="attendance-row">
-        <div class="field"><label>Класс</label><select id="attClass" ${availableClasses.length===1?'class="readonly"':''} onchange="recalcAttendance()">${availableClasses.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select>${availableClasses.length===0?'<small class="muted">Нет доступных классов.</small>':''}</div>
-        <div class="field"><label>Количество обучающихся</label><input id="attTotal" class="readonly" value="${firstTotal}" readonly></div>
-        <div class="field"><label>Количество надомников</label><input id="attHome" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
-        <div class="field"><label>Количество присутствующих</label><input id="attPresent" class="readonly" value="${firstTotal}" readonly></div>
-      </div>
-      <div class="attendance-row three">
-        <div class="field"><label>Количество детей на дистанте по заявлению родителей</label><input id="attRemote" type="number" min="0" value="0" oninput="recalcAttendance()"></div>
-      </div>
-      <div class="present-box" id="attSummary">Присутствуют: ${firstTotal} · Не явились: 0</div>
-      <div class="reason-band">Количество детей, неявившихся по причине:</div>
-      <div class="section-band">Заболевания</div>
-      <div class="attendance-row six">
-        ${attField('Грипп, ОРВИ, ОРЗ','respiratory')}${attField('Острокишечные заболевания','intestinal')}${attField('Энтеровирусная инфекция','enterovirus')}${attField('Ветряная оспа','chickenpox')}
-      </div>
-      <div class="attendance-row"><div class="field"><label>Семейные обстоятельства</label><input class="att-input reason" data-key="family" type="number" min="0" value="0" oninput="recalcAttendance()"></div></div>
-      <div class="section-band">Прочие заболевания — всего: <span id="otherTotal">0</span></div>
-      <div class="attendance-row six">
-        ${attField('Пневмония','pneumonia','other')}${attField('Травмы','trauma','other')}${attField('Зубная боль','toothache','other')}${attField('ЖКТ','gi','other')}${attField('Аллергия','allergy','other')}${attField('Другое','other','other')}
-      </div>
-      <div class="section-band">Другие причины</div>
-      <div class="attendance-row three">${attField('Выезды на конкурсы, соревнования, лагерь','events')}${attField('Без уважительной причины','noReason')}${attField('Погодные условия','weather')}</div>
-      <div id="attValidation"></div>
-      <div class="toolbar" style="justify-content:flex-end;margin-top:12px"><button class="btn green" onclick="submitAttendance()">Отправить посещаемость</button></div>
-    </div>`);
-  recalcAttendance();
-  document.getElementById('attClass')?.addEventListener('change',()=>{const c=document.getElementById('attClass')?.value||'';const total=(state.classRoster||[]).find(r=>r.name===c)?.studentCount||0;if(document.getElementById('attTotal'))document.getElementById('attTotal').value=total;if(document.getElementById('attPresent'))document.getElementById('attPresent').value=total;recalcAttendance();});
-};
-
-recalcAttendance=function(){
-  const total=+(document.getElementById('attTotal')?.value||0);
-  const inputs=[...document.querySelectorAll('.att-input')];
-  const absent=inputs.reduce((s,e)=>s+(+e.value||0),0)+(+(document.getElementById('attHome')?.value||0))+(+(document.getElementById('attRemote')?.value||0));
-  const other=[...document.querySelectorAll('.att-input.other')].reduce((s,e)=>s+(+e.value||0),0);
-  const present=Math.max(0,total-absent);
-  if(document.getElementById('attPresent'))document.getElementById('attPresent').value=present;
-  if(document.getElementById('attSummary'))document.getElementById('attSummary').textContent=`Присутствуют: ${present} · Не явились: ${absent}`;
-  if(document.getElementById('otherTotal'))document.getElementById('otherTotal').textContent=other;
-  const v=document.getElementById('attValidation');if(v)v.innerHTML=absent>total?'<div class="warning-box">⚠ Количество указанных отсутствующих превышает количество детей в классе. Проверьте данные.</div>':'';
-};
-
-submitAttendance=async function(){
-  recalcAttendance();
-  const cls=document.getElementById('attClass')?.value||'', total=+document.getElementById('attTotal')?.value||0, present=+document.getElementById('attPresent')?.value||0;
-  const all={};document.querySelectorAll('.att-input').forEach(e=>all[e.dataset.key]=+e.value||0);
-  const rec={date:dateInfo().iso,className:cls,total,present,filtered:0,home:+document.getElementById('attHome')?.value||0,food:0,remote:+document.getElementById('attRemote')?.value||0,...all,flu:all.respiratory||0,orvi:0,orz:0,teacher:state.currentUser.name};
-  try{
-    const payload={attendance_date:rec.date,class_name:rec.className,teacher_employee_id:Number(state.currentUser.id),teacher_name:rec.teacher,total:rec.total,present:rec.present,data:rec,updated_at:new Date().toISOString()};
-    await sbMutate('attendance_records','POST','on_conflict=attendance_date,class_name,teacher_employee_id',payload);
-    state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&Number(x.teacherEmployeeId||state.currentUser.id)===Number(state.currentUser.id)));
-    state.attendance.push({...rec,teacherEmployeeId:Number(state.currentUser.id)});
-    const t=state.tasks.find(x=>x.id==='attendance');if(t)t.done=true;save();
-    alert('Посещаемость отправлена и сохранена в системе.');navigate('home');
-  }catch(e){console.error(e);alert('Не удалось сохранить посещаемость: '+(e.message||e));}
-};
-
-/* ---- Attendance analytics helpers ---- */
-function attendanceClassesForReport(){
-  const all=state.classRoster||[];
-  const assigned=new Set([...(state.currentUser?.attendanceClasses||[]),...(state.currentUser?.classes||[])].map(String));
-  return isManager()?all.slice():all.filter(r=>assigned.has(String(r.name)));
+function attendanceSummaryCells(s){
+  return [s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather].map(v=>`<td><b>${v}</b></td>`).join('');
 }
-function attendanceShiftForClass(cls){
-  const r=(state.classRoster||[]).find(x=>String(x.name)===String(cls));
-  if(r?.shift)return Number(r.shift);
-  const u=(state.users||[]).find(x=>(x.classes||[]).includes(cls)||(x.attendanceClasses||[]).includes(cls));
-  return Number(u?.shift?.[cls]||0)||0;
-}
-function attendanceTeacherForClass(cls){
-  const exact=(state.users||[]).filter(u=>(u.classes||[]).map(String).includes(String(cls))).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  if(exact[0])return exact[0].name;
-  const assigned=(state.users||[]).filter(u=>(u.attendanceClasses||[]).map(String).includes(String(cls))).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  return assigned[0]?.name||'';
-}
-function attendanceReportRange(){
-  let from=document.getElementById('attFrom')?.value||'',to=document.getElementById('attTo')?.value||'';
-  const dates=(state.attendance||[]).map(x=>x.date).filter(Boolean).sort();
-  if(!from)from=dates[0]||dateInfo().iso;
-  if(!to)to=dates[dates.length-1]||from;
-  if(document.getElementById('attFrom'))document.getElementById('attFrom').value=from;
-  if(document.getElementById('attTo'))document.getElementById('attTo').value=to;
-  return {from,to};
-}
-function dateList(from,to){
-  const out=[];let d=new Date(from+'T00:00:00');const end=new Date(to+'T00:00:00');
-  while(d<=end){out.push(dateIsoLocal(d));d.setDate(d.getDate()+1);}return out;
-}
-function attendanceRecordMap(from,to){
-  const m=new Map();(state.attendance||[]).filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).forEach(x=>m.set(`${x.date}::${x.className}`,x));return m;
-}
-const ATT_HEADERS_V9=['Дата','Класс','Учитель','По списку','Присутствуют','Надомники','Дистант','Грипп, ОРВИ, ОРЗ','Острокишечные заболевания','Энтеровирусная инфекция','Ветряная оспа','Семейные обстоятельства','Пневмония','Травмы','Зубная боль','ЖКТ','Аллергия','Другое','Выезды на конкурсы, соревнования, лагерь','Без уважительной причины','Погодные условия'];
-function attendanceValue(x,key){if(!x)return '';if(key==='respiratory')return x.respiratory??x.flu??0;return x[key]??'';}
-function attendanceReportRows(from,to){
-  const map=attendanceRecordMap(from,to), rows=[];
-  for(const date of dateList(from,to)){
-    for(const r of attendanceClassesForReport().sort((a,b)=>classSort(a.name,b.name))){
-      const x=map.get(`${date}::${r.name}`), teacher=x?.teacher||attendanceTeacherForClass(r.name), base=[date,r.name,teacher,r.studentCount||x?.total||0];
-      rows.push({date,className:r.name,shift:Number(r.shift)||attendanceShiftForClass(r.name),teacher,record:x,base});
-    }
-  }
-  return rows;
-}
-function renderAttendanceAnalyticsV9(){
-  const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to);
-  const missing1=rows.filter(r=>!r.record&&Number(r.shift)===1).map(r=>r.className).filter((v,i,a)=>a.indexOf(v)===i);
-  const missing2=rows.filter(r=>!r.record&&Number(r.shift)===2).map(r=>r.className).filter((v,i,a)=>a.indexOf(v)===i);
-  const headers=ATT_HEADERS_V9;
-  const body=rows.map(r=>{const x=r.record;const vals=x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];return `<tr>${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;}).join('');
+function buildAttendanceAnalyticsReport(){
+  const {from}=attendanceReportRange(), rows=attendanceReportRows(from,from), headers=ATT_HEADERS_V9;
+  const missing1=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===1).map(r=>r.className))];
+  const missing2=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===2).map(r=>r.className))];
+  const body=rows.map(r=>{
+    const x=r.record;
+    const vals=x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];
+    return `<tr class="${r.record?'':'attendance-missing-row'}">${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;
+  }).join('');
   const sums=attendanceTotalRows(rows);
   const summary=(label,s)=>`<tr class="attendance-summary-row"><td colspan="3"><b>${label}</b></td>${attendanceSummaryCells(s)}</tr>`;
   const el=document.getElementById('attAnalytics');if(!el)return;
   el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${body||`<tr><td colspan="${headers.length}">Нет классов для отображения.</td></tr>`}${summary('1 смена',sums[1])}${summary('2 смена',sums[2])}${summary('Итого',sums.all)}</table></div><div class="attendance-missing"><div>1 смена: ${missing1.length?missing1.join(', '):'все классы заполнили форму'}</div><div>2 смена: ${missing2.length?missing2.join(', '):'все классы заполнили форму'}</div></div>`;
 }
-filterAttendance=function(){renderAttendanceAnalyticsV9();};
-exportAttendance=function(){
-  const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to), data=[];
-  for(const r of rows){const x=r.record;data.push(x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')]);}
+function filterAttendance(){buildAttendanceAnalyticsReport();}
+function exportAttendance(){
+  const {from}=attendanceReportRange(), rows=attendanceReportRows(from,from), data=rows.map(r=>{
+    const x=r.record;
+    return x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')];
+  });
   const sums=attendanceTotalRows(rows);
   const summaryRow=(label,s)=>[label,'','',s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather];
   const allRows=[...data,summaryRow('1 смена',sums[1]),summaryRow('2 смена',sums[2]),summaryRow('Итого',sums.all)];
   if(window.XLSX){const XLSXLib=window.XLSX;const ws=XLSXLib.utils.aoa_to_sheet([ATT_HEADERS_V9,...allRows]);ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));const wb=XLSXLib.utils.book_new();XLSXLib.utils.book_append_sheet(wb,ws,'Посещаемость');XLSXLib.writeFile(wb,'посещаемость.xlsx');}
   else downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
-};
+}
+function renderAnalytics(){
+  if(!isManager()){shell('Аналитика','Доступна директору и заместителям.',`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
+  const visits=(state.notifications||[]).filter(n=>n.type==='visit').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ru'));
+  const visitCards=visits.map(n=>{
+    const vd=n.visit||{}, a=n.analysis;
+    return `<div class="visit-analytics-item"><div class="visit-analytics-main"><strong>${escapeHtml(vd.teacher||state.users.find(u=>Number(u.id)===Number(n.teacherId))?.name||'Учитель')}</strong><div class="muted">${escapeHtml(n.date||'')} · ${escapeHtml(vd.cls||'')} · ${escapeHtml(normalizeScheduleSubject(vd.subject)||'')}</div><div style="margin-top:6px">Посетил: ${escapeHtml(vd.deputy||n.senderName||'—')}</div><div class="muted" style="margin-top:4px">Цель: ${escapeHtml(vd.purpose||'')}</div></div><div class="visit-analytics-actions">${a?.storageUrl?`<a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener">Просмотреть</a><a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener" download>Скачать</a>`:'<span class="muted">Анализ пока не загружен</span>'}</div></div>`;
+  }).join('')||'<div class="empty">Уведомлений о посещении уроков пока нет.</div>';
+  shell('Аналитика','Контроль посещаемости, электронного журнала и сводных данных.',`
+    <div class="analytics-workspace">
+      <div class="card analytics-attendance-card"><h3>Посещаемость</h3><div class="toolbar analytics-date-row"><label style="margin:0">Дата <input id="attDate" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button></div><div id="attAnalytics"></div></div>
+      <div class="card analytics-journal-card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="journal-period-row hidden">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button></div><div id="journalAnalytics"></div></div>
+      <div class="card analytics-mydata-card"><h3>Сводная таблица «Мои данные»</h3><button class="btn green" onclick="exportMyData()">Выгрузить Excel</button><div class="table-wrap analytics-mydata-wrap" style="margin-top:12px"><table class="data-table"><tr><th>ФИО</th><th>Образование</th><th>Телефон</th><th>Стаж</th><th>Нагрузка</th><th>Квалификация</th><th>Предметы</th></tr>${state.users.filter(u=>u.roleKeys.includes('teacher')||u.roleKeys.includes('deputy')||u.roleKeys.includes('director')).map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml((state.myData[u.login]||{}).education||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).phone||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).totalExperience||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).load||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).qualification||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).subject1||'—')}</td></tr>`).join('')}</table></div></div>
+    </div>
+    <div class="card analytics-visits"><h3>Посещение уроков</h3><p class="muted">Уведомления о посещении уроков и загруженные Word-файлы анализа.</p>${visitCards}</div>`);
+  const {from}=attendanceReportRange();
+  if(document.getElementById('attDate'))document.getElementById('attDate').value=from;
+  filterAttendance();
+  showJournalAnalytics();
+}
 
-/* ---- Keep special subjects visible in visit forms ---- */
-/* Already supported by V8; schedule normalization above preserves the names. */
+loadVisitAnalysesServer();
 
+window.renderAnalytics=renderAnalytics;
 
 /* TARGETED V10 PATCHES: daily schedule date, compact schedule, class shifts, attendance totals. */
 (function(){
@@ -442,73 +292,6 @@ exportAttendance=function(){
     html+='</table></div>';
     target.innerHTML=html;
   };
-
-  function attendanceNum(x,key){
-    if(!x)return 0;
-    const v=key==='respiratory'?(x.respiratory??x.flu??0):x[key];
-    return Number(v)||0;
-  }
-  function attendanceTotalRows(rows){
-    const numericKeys=['total','present','home','remote','respiratory','intestinal','enterovirus','chickenpox','family','pneumonia','trauma','toothache','gi','allergy','other','events','noReason','weather'];
-    const sums={1:{},2:{},all:{}};
-    for(const sh of [1,2])numericKeys.forEach(k=>sums[sh][k]=0);
-    numericKeys.forEach(k=>sums.all[k]=0);
-    rows.forEach(r=>{
-      const sh=Number(r.shift)===2?2:1;
-      const x=r.record;
-      const vals={total:x?Number(x.total)||0:Number(r.base?.[3])||0,present:attendanceNum(x,'present'),home:attendanceNum(x,'home'),remote:attendanceNum(x,'remote'),respiratory:attendanceNum(x,'respiratory'),intestinal:attendanceNum(x,'intestinal'),enterovirus:attendanceNum(x,'enterovirus'),chickenpox:attendanceNum(x,'chickenpox'),family:attendanceNum(x,'family'),pneumonia:attendanceNum(x,'pneumonia'),trauma:attendanceNum(x,'trauma'),toothache:attendanceNum(x,'toothache'),gi:attendanceNum(x,'gi'),allergy:attendanceNum(x,'allergy'),other:attendanceNum(x,'other'),events:attendanceNum(x,'events'),noReason:attendanceNum(x,'noReason'),weather:attendanceNum(x,'weather')};
-      numericKeys.forEach(k=>{sums[sh][k]+=vals[k];sums.all[k]+=vals[k];});
-    });
-    return sums;
-  }
-  function attendanceSummaryCells(s){
-    return [s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather].map(v=>`<td><b>${v}</b></td>`).join('');
-  }
-
-  /* Keep the complete class list and the red missing-class lines, adding only
-     the requested three summary rows to the visible table. */
-  renderAttendanceAnalyticsV9=function(){
-    const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to);
-    const missing1=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===1).map(r=>r.className))];
-    const missing2=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===2).map(r=>r.className))];
-    const headers=ATT_HEADERS_V9;
-    const body=rows.map(r=>{
-      const x=r.record;
-      const vals=x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];
-      return `<tr>${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;
-    }).join('');
-    const sums=attendanceTotalRows(rows);
-    const summary=(label,s)=>`<tr class="attendance-summary-row"><td colspan="3"><b>${label}</b></td>${attendanceSummaryCells(s)}</tr>`;
-    const el=document.getElementById('attAnalytics');if(!el)return;
-    el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${body||`<tr><td colspan="${headers.length}">Нет классов для отображения.</td></tr>`}${summary('1 смена',sums[1])}${summary('2 смена',sums[2])}${summary('Итого',sums.all)}</table></div><div class="attendance-missing"><div>1 смена: ${missing1.length?missing1.join(', '):'все классы заполнили форму'}</div><div>2 смена: ${missing2.length?missing2.join(', '):'все классы заполнили форму'}</div></div>`;
-  };
-
-  /* Excel export: complete roster + three summary rows at the very end. */
-  exportAttendance=function(){
-    const {from,to}=attendanceReportRange(), rows=attendanceReportRows(from,to), data=[];
-    for(const r of rows){
-      const x=r.record;
-      data.push(x?[r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]:[r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')]);
-    }
-    const sums=attendanceTotalRows(rows);
-    const summaryRow=(label,s)=>[label,'','',s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather];
-    const allRows=[...data,summaryRow('1 смена',sums[1]),summaryRow('2 смена',sums[2]),summaryRow('Итого',sums.all)];
-    if(window.XLSX){
-      const XLSXLib=window.XLSX;
-      const ws=XLSXLib.utils.aoa_to_sheet([ATT_HEADERS_V9,...allRows]);
-      ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));
-      const firstSummary=2+data.length;
-      for(let r=firstSummary;r<=firstSummary+2;r++){
-        for(let c=0;c<ATT_HEADERS_V9.length;c++){
-          const cell=ws[XLSXLib.utils.encode_cell({r,c})];
-          if(cell)cell.s={font:{bold:true}};
-        }
-      }
-      const wb=XLSXLib.utils.book_new();XLSXLib.utils.book_append_sheet(wb,ws,'Посещаемость');XLSXLib.writeFile(wb,'посещаемость.xlsx');
-    }else{
-      downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
-    }
-  };
 })();
 
 /* ===== FINAL DAILY SCHEDULE LOOKUP PATCH ===== */
@@ -542,77 +325,10 @@ exportAttendance=function(){
 
 /* ===== END FINAL TARGETED PATCH ===== */
 
-/* ===== FINAL TARGETED PATCH: attendance analytics + GIA order ===== */
-(function(){
-  /* Analytics → Attendance: one selected date, complete class roster,
-     submitted records joined onto the roster, and one source for screen/Excel. */
-  attendanceReportRange=function(){
-    let date=document.getElementById('attDate')?.value||'';
-    if(!date)date=dateInfo().iso;
-    if(document.getElementById('attDate'))document.getElementById('attDate').value=date;
-    return {from:date,to:date};
-  };
-
-  function buildAttendanceAnalyticsReport(){
-    const {from}=attendanceReportRange();
-    const rows=attendanceReportRows(from,from);
-    const headers=ATT_HEADERS_V9;
-    const missing1=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===1).map(r=>r.className))];
-    const missing2=[...new Set(rows.filter(r=>!r.record&&Number(r.shift)===2).map(r=>r.className))];
-    const body=rows.map(r=>{
-      const x=r.record;
-      const vals=x
-        ? [r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]
-        : [r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];
-      return `<tr class="${r.record?'':'attendance-missing-row'}">${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;
-    }).join('');
-    const sums=attendanceTotalRows(rows);
-    const summary=(label,s)=>`<tr class="attendance-summary-row"><td colspan="3"><b>${label}</b></td>${attendanceSummaryCells(s)}</tr>`;
-    const el=document.getElementById('attAnalytics');
-    if(!el)return;
-    el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${body||`<tr><td colspan="${headers.length}">Нет классов для отображения.</td></tr>`}${summary('1 смена',sums[1])}${summary('2 смена',sums[2])}${summary('Итого',sums.all)}</table></div><div class="attendance-missing"><div>1 смена: ${missing1.length?missing1.join(', '):'все классы заполнили форму'}</div><div>2 смена: ${missing2.length?missing2.join(', '):'все классы заполнили форму'}</div></div>`;
-  }
-
-  window.filterAttendance=function(){buildAttendanceAnalyticsReport();};
-  filterAttendance=window.filterAttendance;
-
-  window.exportAttendance=function(){
-    const {from}=attendanceReportRange();
-    const rows=attendanceReportRows(from,from);
-    const data=rows.map(r=>{
-      const x=r.record;
-      return x
-        ? [r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]
-        : [r.date,r.className,r.teacher,r.base[3],...Array(ATT_HEADERS_V9.length-4).fill('')];
-    });
-    const sums=attendanceTotalRows(rows);
-    const summaryRow=(label,s)=>[label,'','',s.total,s.present,s.home,s.remote,s.respiratory,s.intestinal,s.enterovirus,s.chickenpox,s.family,s.pneumonia,s.trauma,s.toothache,s.gi,s.allergy,s.other,s.events,s.noReason,s.weather];
-    const allRows=[...data,summaryRow('1 смена',sums[1]),summaryRow('2 смена',sums[2]),summaryRow('Итого',sums.all)];
-    if(window.XLSX){
-      const XLSXLib=window.XLSX;
-      const ws=XLSXLib.utils.aoa_to_sheet([ATT_HEADERS_V9,...allRows]);
-      ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));
-      const wb=XLSXLib.utils.book_new();
-      XLSXLib.utils.book_append_sheet(wb,ws,'Посещаемость');
-      XLSXLib.writeFile(wb,'посещаемость.xlsx');
-    }else downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
-  };
-
-  /* Attendance rendering is now defined by the Analytics base renderer above. */
-})();
-/* ===== END FINAL TARGETED PATCH ===== */
-
-
-
 window.App = window.App || {};
-window.App.analytics = window.App.analytics || {};
-window.App.analytics.render = function(){
-  if(typeof window.renderAnalytics === 'function') return window.renderAnalytics();
+window.App.analytics = {
+  render:renderAnalytics,
+  attendance:{render:buildAttendanceAnalyticsReport,filter:filterAttendance,export:exportAttendance}
 };
 
-if(typeof state!=='undefined' && state?.currentPage==='analytics'){ setTimeout(()=>window.App.analytics.render(),0); }
-window.App.analytics.attendance = {
-  render:function(){ return typeof window.buildAttendanceAnalyticsReport==='function' ? window.buildAttendanceAnalyticsReport() : (typeof window.renderAttendanceAnalyticsV9==='function' ? window.renderAttendanceAnalyticsV9() : null); },
-  filter:function(){ return typeof window.buildAttendanceAnalyticsReport==='function' ? window.buildAttendanceAnalyticsReport() : (typeof window.filterAttendance==='function' ? window.filterAttendance() : null); },
-  export:function(){ return typeof window.exportAttendance==='function' ? window.exportAttendance() : null; }
-};
+if(typeof state!=='undefined' && state?.currentPage==='analytics') setTimeout(()=>renderAnalytics(),0);

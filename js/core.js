@@ -316,16 +316,6 @@ window.processJournalUpload=async function(){
   }catch(e){console.error(e);alert('Не удалось обработать отчёт электронного журнала: '+(e.message||e));}
 };
 
-const __renderAnalyticsBase = renderAnalytics;
-renderAnalytics=function(){
-  __renderAnalyticsBase();
-  const card=[...document.querySelectorAll('#content .card')].find(c=>c.querySelector('h3')?.textContent.includes('Контроль электронного журнала'));
-  if(card && !document.getElementById('journalReportDate')){
-    const bar=card.querySelector('.toolbar');
-    if(bar)bar.insertAdjacentHTML('beforebegin',`<div class="journal-report-date"><label>Дата отчёта <input id="journalReportDate" type="date" value="${(()=>{const d=new Date();d.setDate(d.getDate()-1);return dateIsoLocal(d);})()}"></label></div>`);
-  }
-};
-
 // Schedule uploads now write to Supabase and become visible to all authenticated users.
 window.uploadSchedule=async function(){
   if(!isDispatcher())return alert('Загрузка расписания доступна только диспетчеру и администратору.');

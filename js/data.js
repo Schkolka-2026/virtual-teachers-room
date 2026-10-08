@@ -503,7 +503,7 @@
     });
     const pages={home:renderHome,tasks:renderTasks,attendance:renderAttendance,transport:renderTransport,plan:renderPlan,notifications:renderNotifications,
       vseobuch:renderPlaceholder,education:renderPlaceholder,journal:renderPlaceholder,upbringing:renderPlaceholder,ovz:renderPlaceholder,olymp:renderPlaceholder,
-      gia:renderPlaceholder,attestation:renderPlaceholder,career:renderPlaceholder,psych:renderPlaceholder,security:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:renderAnalytics,
+      gia:renderPlaceholder,attestation:renderPlaceholder,career:renderPlaceholder,psych:renderPlaceholder,security:renderPlaceholder,reports:renderPlaceholder,archive:renderPlaceholder,analytics:()=>window.renderAnalytics(),
       mydata:renderMyData,settings:renderSettings,admin:renderAdmin,schedule:renderSchedule};
     pages[state.currentPage]?.();
   }
@@ -692,17 +692,6 @@
   function normativeCardNoLocal(exam=""){const suffix=exam?` ${exam}`:"";return `<div class="normative-card full"><h3>Нормативные документы${suffix}</h3><div class="normative-cols two-cols"><div onclick="openDocs('gia','Нормативные документы — Федеральные${suffix}')"><b>Федеральные документы${suffix}</b><p>📂 Открыть</p></div><div onclick="openDocs('gia','Нормативные документы — Региональные/муниципальные${suffix}')"><b>Региональные / муниципальные документы${suffix}</b><p>📂 Открыть</p></div></div></div>`;}
   function securityNormativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div onclick="openDocs('security','Нормативные документы — Федеральные')"><b>Федеральные документы</b><p>📂 Открыть</p></div><div onclick="openDocs('security','Нормативные документы — Региональные/муниципальные')"><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div onclick="openDocs('security','Нормативные документы — Локальные')"><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
   function giaHalf(label){const exam=label==="9 класс"?"ОГЭ":"ЕГЭ";return `${moduleCard(`Расписание ${exam}`,`Расписание консультаций, тренировочных мероприятий, экзаменов ${exam}`)}${moduleCard(`Выбор предметов ${exam}`,`Выбор предметов для ${label}`)}${moduleCard(`Приказы ${exam}`,`Приказы по ${exam}. Новые документы подсвечиваются.`,"left",true)}${normativeCardNoLocal(exam)}${moduleCard(`Тренировочные/Пробные ${exam}`,`Тренировочные и пробные мероприятия для ${label}`)}${moduleCard(`Создание особых условий ${exam}`,`Материалы и документы для ${label}`)}${moduleCard(`Работники ППЭ ${exam}`,`Сведения и документы для ${label}`)}`;}
-  function renderAnalytics(){
-    const isManagerNow=isManager();
-    if(!isManagerNow){shell("Аналитика","Доступна директору и заместителям.",`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
-    shell("Аналитика","Контроль посещаемости, электронного журнала и сводных данных.",
-      `<div class="analytics-workspace">
-      <div class="card"><h3>Посещаемость</h3><div class="toolbar"><label style="margin:0">Дата <input id="attDate" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button></div><div id="attAnalytics"></div></div>
-      <div class="card analytics-journal-card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="hidden" style="margin:0">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button></div><div id="journalAnalytics"></div></div>
-      <div class="card analytics-mydata-card"><h3>Сводная таблица «Мои данные»</h3><button class="btn green" onclick="exportMyData()">Выгрузить Excel</button><div class="table-wrap analytics-mydata-wrap" style="margin-top:12px"><table class="data-table"><tr><th>ФИО</th><th>Образование</th><th>Телефон</th><th>Стаж</th><th>Нагрузка</th><th>Квалификация</th><th>Предметы</th></tr>${state.users.filter(u=>u.roleKeys.includes("teacher")||u.roleKeys.includes("deputy")||u.roleKeys.includes("director")).map(u=>`<tr><td>${u.name}</td><td>${(state.myData[u.login]||{}).education||"—"}</td><td>${(state.myData[u.login]||{}).phone||"—"}</td><td>${(state.myData[u.login]||{}).totalExperience||"—"}</td><td>${(state.myData[u.login]||{}).load||"—"}</td><td>${(state.myData[u.login]||{}).qualification||"—"}</td><td>${(state.myData[u.login]||{}).subject1||"—"}</td></tr>`).join("")}</table></div></div>
-      </div>`);
-    filterAttendance();showJournalAnalytics();
-  }
   function renderMyData(){
     const d=state.myData[state.currentUser.login]||{};
     const fields=[
@@ -749,21 +738,7 @@
     state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&x.teacher===rec.teacher));state.attendance.push(rec);
     const t=state.tasks.find(x=>x.id==="attendance");if(t)t.done=true;save();alert("Посещаемость отправлена и сохранена в аналитике.");navigate("home");
   };
-  window.filterAttendance=function(){
-    const from=document.getElementById("attFrom")?.value||"",to=document.getElementById("attTo")?.value||"";
-    const arr=state.attendance.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>classSort(a.className,b.className));
-    const headers=["Дата","Класс","Учитель","По списку","Отстранены на утреннем фильтре","Присутствуют","Надомники","Питаются","Дистант","Грипп","ОРВИ","ОРЗ","Острокишечные заболевания","Энтеровирусная инфекция","Ветряная оспа","Семейные обстоятельства","Пневмония","Травмы","Зубная боль","ЖКТ","Аллергия","Другое","Выезды на конкурсы, соревнования, лагерь","Без уважительной причины","Погодные условия"];
-    const el=document.getElementById("attAnalytics");if(!el)return;
-    el.innerHTML=`<div class="table-wrap"><table class="data-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${arr.map(x=>`<tr>${[x.date,x.className,x.teacher,x.total,x.filtered,x.present,x.home,x.food,x.remote,x.flu,x.orvi,x.orz,x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather].map(v=>`<td>${v??0}</td>`).join('')}</tr>`).join("")||`<tr><td colspan="25">Нет данных за выбранный период.</td></tr>`}</table></div>`;
-  };
   function classSort(a,b){const pa=String(a).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[],pb=String(b).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[];return (+pa[1]||0)-(+pb[1]||0)||String(pa[2]||'').localeCompare(String(pb[2]||''),'ru');}
-  window.exportAttendance=function(){
-    const from=document.getElementById("attFrom")?.value||"",to=document.getElementById("attTo")?.value||"";
-    const arr=state.attendance.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>classSort(a.className,b.className));
-    const headers=["Дата","Класс","Учитель","По списку","Отстранены на утреннем фильтре","Присутствуют","Надомники","Питаются","Дистант","Грипп","ОРВИ","ОРЗ","Острокишечные заболевания","Энтеровирусная инфекция","Ветряная оспа","Семейные обстоятельства","Пневмония","Травмы","Зубная боль","ЖКТ","Аллергия","Другое","Выезды на конкурсы, соревнования, лагерь","Без уважительной причины","Погодные условия"];
-    const rows=arr.map(x=>[x.date,x.className,x.teacher,x.total,x.filtered,x.present,x.home,x.food,x.remote,x.flu,x.orvi,x.orz,x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]);
-    if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([headers,...rows]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Посещаемость');XLSX.writeFile(wb,'посещаемость.xlsx');}else downloadCSV(headers,rows,'посещаемость.csv');
-  };
   window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
   window.showJournalAnalytics=function(){
     const from=document.getElementById("jFrom")?.value||"",to=document.getElementById("jTo")?.value||"";
@@ -1634,7 +1609,6 @@
   window.__schoolBase["normativeCardNoLocal"] = normativeCardNoLocal;
   window.__schoolBase["securityNormativeCard"] = securityNormativeCard;
   window.__schoolBase["giaHalf"] = giaHalf;
-  window.__schoolBase["renderAnalytics"] = renderAnalytics;
   window.__schoolBase["renderMyData"] = renderMyData;
   window.__schoolBase["renderAdmin"] = renderAdmin;
   window.__schoolBase["renderSettings"] = renderSettings;
