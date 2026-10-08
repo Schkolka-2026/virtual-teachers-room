@@ -128,7 +128,8 @@
 .compact-schedule-table .sch-c1{width:74px}.compact-schedule-table .sch-c2{width:48px}.compact-schedule-table .sch-c3{width:62px}.compact-schedule-table .sch-c4{width:25%}.compact-schedule-table .sch-c5{width:30%}.compact-schedule-table .sch-c6{width:70px}
 .compact-schedule-table th,.compact-schedule-table td{padding:6px 5px;font-size:10.5px;white-space:normal;word-break:break-word;line-height:1.2}
 .attendance-analytics-wrap{overflow-x:auto}.attendance-analytics-table{min-width:1200px}
-.attendance-missing{margin-top:10px;color:#b42318;font-weight:800;font-size:12px;line-height:1.6}.analytics-mydata-wrap{max-height:300px;overflow:auto}.analytics-journal-card{max-height:470px;overflow:hidden}.journal-table-wrap{max-height:250px;overflow:auto}.journal-total{margin:10px 0 12px;font-size:15px;font-weight:800;color:var(--green-800)}
+.attendance-missing{margin-top:10px;color:#b42318;font-weight:800;font-size:12px;line-height:1.6}
+.attendance-analytics-table tr.attendance-missing-row td{background:#fde8e8!important;color:#b42318;font-weight:700}.analytics-mydata-wrap{max-height:300px;overflow:auto}.analytics-journal-card{max-height:470px;overflow:hidden}.journal-table-wrap{max-height:250px;overflow:auto}.journal-total{margin:10px 0 12px;font-size:15px;font-weight:800;color:var(--green-800)}
 @media(max-width:680px){
   .compact-schedule-table{font-size:9px}.compact-schedule-table .sch-c1{width:54px}.compact-schedule-table .sch-c2{width:38px}.compact-schedule-table .sch-c3{width:48px}.compact-schedule-table .sch-c4{width:23%}.compact-schedule-table .sch-c5{width:28%}.compact-schedule-table .sch-c6{width:52px}
   .compact-schedule-table th,.compact-schedule-table td{padding:5px 3px;font-size:9px}
@@ -771,8 +772,8 @@
     }catch(e){console.warn("Не удалось загрузить назначения пользователей:",e);}
   }
   async function saveUserAssignments(u){
-    try{await sbMutate("user_assignments","POST","on_conflict=employee_id",{employee_id:Number(u.id),attendance_classes:u.attendanceClasses||[],replacement_classes:u.replacement||[],shift:u.shift||{},updated_at:new Date().toISOString()});return true;}
-    catch(e){console.warn("Не удалось сохранить назначения",u.id,e);return false;}
+    const payload={employee_id:Number(u.id),attendance_classes:u.attendanceClasses||[],replacement_classes:u.replacement||[],shift:u.shift||{},updated_at:new Date().toISOString()};
+    try{const updated=await sbMutate("user_assignments","PATCH",`employee_id=eq.${encodeURIComponent(Number(u.id))}`,{attendance_classes:payload.attendance_classes,replacement_classes:payload.replacement_classes,shift:payload.shift,updated_at:payload.updated_at});if(Array.isArray(updated)&&updated.length)return true;await sbMutate("user_assignments","POST","",payload);return true;}catch(e){console.warn("Не удалось сохранить назначения",u.id,e);return false;}
   }
   async function syncClassLeadersForUser(u){
     try{
@@ -1094,7 +1095,7 @@
     if(page==="career"){shell("Профориентация",responsibleBlock+"Материалы и документы по профориентационной работе.",`<div class="module-grid">${moduleCard("Расписание мероприятий","Календарь мероприятий по профориентации","left")}${moduleCard("Приказы","Новые приказы по профориентации. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Предпрофильные классы (5–9)","Информация о предпрофильных и профильных направлениях","left")}${moduleCard("Билет в будущее","Материалы и информация проекта «Билет в будущее»","right")}</div>`);return;}
     if(page==="psych"){shell(names[page],responsibleBlock+"Материалы социально-психологической службы.",`<div class="module-grid">${moduleCard("Консультации","Документы и материалы консультационной работы")}${moduleCard("Профилактика","Документы и материалы профилактической работы")}${moduleCard("Родительские собрания","Материалы и документы для родительских собраний")}${moduleCard("Тестирования","Материалы и документы по тестированию")}</div>`);return;}
     if(page==="security"){shell(names[page],responsibleBlock+"Документы и материалы по безопасности.",`<div class="module-grid">${moduleCard("Инструкции ТБ","Инструкции по технике безопасности","left")}${moduleCard("Приказы","Новые приказы по безопасности. Непрочитанные документы подсвечиваются.","right",true)}${securityNormativeCard()}${moduleCard("Шаблоны и образцы","Шаблоны и образцы документов")}</div>`);return;}
-    if(page==="reports"){shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
+    if(page==="reports"){shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}<div class="module-card" onclick="openInputDiagnostics()"><div class="module-card-title">Отчеты за 1 триместр</div><div class="muted">Формы отчетов</div><div class="module-folder">📂 Открыть папку →</div></div>${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
     shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
   }
   function guestPageAllowed(page){return ["home","transport","schedule","vseobuch","education","journal","ovz","olymp","gia"].includes(page);}
@@ -1281,9 +1282,7 @@
     const classes=prompt("Классы классного руководства через запятую (например: 5А, 6Б):",(u.classes||[]).join(","));if(classes===null)return;
     const attendance=prompt("Классы для посещаемости через запятую:",(u.attendanceClasses||[]).join(","));if(attendance===null)return;
     const replacement=prompt("Классы замещений через запятую:",(u.replacement||[]).join(","));if(replacement===null)return;
-    const newLogin=prompt("Логин:",u.login);if(newLogin===null||!newLogin.trim())return;
-    if(state.users.some(x=>x.id!==id&&x.login===newLogin.trim()))return alert("Такой логин уже используется.");
-    u.name=name.trim();u.login=newLogin.trim();
+    u.name=name.trim();
     u.roleKeys=roles.split(",").map(x=>x.trim()).filter(Boolean);
     if(!u.roleKeys.length)u.roleKeys=["teacher"];
     u.roles=rolesText(u.roleKeys);
@@ -2677,24 +2676,19 @@ window.uploadDocument = async function(page,title){
   const f=document.getElementById("docFile")?.files[0];if(!f)return alert("Выберите документ.");
   const folderUrl=yandexFolderForPage(page);if(!folderUrl)return alert("Для этого раздела ещё не настроена папка Яндекс Диска.");
   const name=document.getElementById("docTitle")?.value.trim()||f.name;
-  let targetType="all",targetUsers=[],targetAll=!!document.getElementById("targetAll")?.checked,targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked,targetClassLeaderParallels=[...document.querySelectorAll("#parallelBox input:checked")].map(x=>x.value);
-  targetUsers=[...document.querySelectorAll("#specificUsersBox input:checked")].map(x=>x.value);
-  const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;
-  if(!any)return alert("Выберите хотя бы одного адресата.");
-  if(title.includes("Приказы") && !canManageOrders())return alert("Приказы могут загружать только директор, заместитель директора, администратор и секретарь.");
-  targetType=targetAll?"all":targetUsers.length?"specific":"classleaders";
+  let targetType="all",targetUsers=[],targetAll=true,targetClassLeaderAll=false,targetClassLeaderParallels=[];
+  if(title.includes("Приказы")){
+    if(!canManageOrders())return alert("Приказы могут загружать только директор, заместитель директора, администратор и секретарь.");
+    targetAll=!!document.getElementById("targetAll")?.checked;targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked;
+    targetClassLeaderParallels=[...document.querySelectorAll("#parallelBox input:checked")].map(x=>x.value);targetUsers=[...document.querySelectorAll("#specificUsersBox input:checked")].map(x=>x.value);
+    const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;if(!any)return alert("Выберите хотя бы одного адресата.");
+    targetType=targetAll?"all":targetUsers.length?"specific":"classleaders";
+  }
   try{
-    const targetEmployeeIds=(state.users||[]).filter(u=>{
-      if(targetAll)return !u.roleKeys?.includes("guest");
-      if(targetUsers.includes(u.login))return true;
-      if(targetClassLeaderAll&&u.classes?.length)return true;
-      if(targetClassLeaderParallels.length&&(u.classes||[]).some(c=>targetClassLeaderParallels.includes(String(c).match(/^\d+/)?.[0])))return true;
-      return false;
-    }).map(u=>Number(u.id)).filter(Number.isFinite);
+    const targetEmployeeIds=(state.users||[]).filter(u=>{if(targetAll)return !u.roleKeys?.includes("guest");if(targetUsers.includes(u.login))return true;if(targetClassLeaderAll&&u.classes?.length)return true;if(targetClassLeaderParallels.length&&(u.classes||[]).some(c=>targetClassLeaderParallels.includes(String(c).match(/^\d+/)?.[0])))return true;return false;}).map(u=>Number(u.id)).filter(Number.isFinite);
     const uploaded=await uploadToYandexFolder(f,folderUrl,page,title);
     const record={section_key:docKey(page,title),title:name,file_name:f.name,storage_url:uploaded.public_url||uploaded.url||"",storage_path:uploaded.path||"",uploaded_by:state.currentUser.login,uploaded_by_name:state.currentUser.name,target_type:targetType,target_users:targetUsers,target_all:targetAll,target_class_leader_all:targetClassLeaderAll,target_class_leader_parallels:targetClassLeaderParallels,target_employee_ids:targetEmployeeIds};
-    const saved=await saveDocumentRecord(record),d=Array.isArray(saved)?saved[0]:saved;
-    state.documents.unshift({id:Number(d?.id||Date.now()),sectionKey:record.section_key,title:name,fileName:f.name,data:"",url:record.storage_url,storagePath:record.storage_path,uploadedBy:record.uploaded_by,uploadedByName:record.uploaded_by_name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,targetEmployeeIds,readBy:{}});
+    const saved=await saveDocumentRecord(record),d=Array.isArray(saved)?saved[0]:saved;state.documents.unshift({id:Number(d?.id||Date.now()),sectionKey:record.section_key,title:name,fileName:f.name,data:"",url:record.storage_url,storagePath:record.storage_path,uploadedBy:record.uploaded_by,uploadedByName:record.uploaded_by_name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,targetEmployeeIds,readBy:{}});
     save();alert("Документ загружен и сохранён на Яндекс Диске.");renderDocSection(page,title);
   }catch(e){console.error(e);alert("Не удалось загрузить документ: "+(e.message||"проверьте настройку Яндекс Диска."));}
 };
@@ -3675,7 +3669,7 @@ exportAttendance=function(){
       const vals=x
         ? [r.date,r.className,x.teacher||r.teacher,x.total,x.present,x.home,x.remote,attendanceValue(x,'respiratory'),x.intestinal,x.enterovirus,x.chickenpox,x.family,x.pneumonia,x.trauma,x.toothache,x.gi,x.allergy,x.other,x.events,x.noReason,x.weather]
         : [r.date,r.className,r.teacher,r.base[3],...Array(headers.length-4).fill('')];
-      return `<tr>${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;
+      return `<tr class="${r.record?'':'attendance-missing-row'}">${vals.map(v=>`<td>${escapeHtml(v===null||v===undefined?'':String(v))}</td>`).join('')}</tr>`;
     }).join('');
     const sums=attendanceTotalRows(rows);
     const summary=(label,s)=>`<tr class="attendance-summary-row"><td colspan="3"><b>${label}</b></td>${attendanceSummaryCells(s)}</tr>`;
@@ -3713,6 +3707,14 @@ exportAttendance=function(){
 })();
 /* ===== END FINAL TARGETED PATCH ===== */
 
+/* ---------- Reports → 1 trimester: Input diagnostics ---------- */
+function inputDiagnosticTeacherName(name){const parts=String(name||'').trim().split(/\s+/).filter(Boolean);if(!parts.length)return '';return parts[0]+(parts[1]?' '+parts[1][0]+'.':'')+(parts[2]?' '+parts[2][0]+'.':'');}
+function inputDiagnosticClasses(){const names=new Set();(state.classRoster||[]).forEach(r=>{if(r?.name)names.add(String(r.name).trim());});(state.users||[]).forEach(u=>[...(u.classes||[]),...(u.attendanceClasses||[])].forEach(c=>{if(c)names.add(String(c).trim());}));return [...names].filter(Boolean).sort(classSort);}
+function renderInputDiagnostics(){const classes=inputDiagnosticClasses(),teacher=inputDiagnosticTeacherName(state.currentUser?.name||'');shell('Отчеты за 1 триместр','Входная диагностика',`<div class="card"><h3>Входная диагностика</h3><div class="notify-form"><div class="notify-row"><label>Класс</label><select id="diagClass"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="notify-row"><label>Предмет</label><input id="diagSubject" type="text" placeholder="Введите предмет"></div><div class="notify-row"><label>Учитель</label><input id="diagTeacher" type="text" value="${escapeHtml(teacher)}" readonly></div><div class="notify-row"><label>Дата проведения</label><input id="diagDate" type="date" value="${dateInfo().iso}"></div><div class="notify-row"><label>Кол-во писавших работу</label><input id="diagStudents" type="number" min="0" step="1" inputmode="numeric" oninput="recalcInputDiagnostic()"></div><div class="notify-row"><label>Результаты</label><div class="target-grid target-grid-four"><label>2 <input id="diagGrade2" type="number" min="0" step="1" inputmode="numeric" oninput="recalcInputDiagnostic()"></label><label>3 <input id="diagGrade3" type="number" min="0" step="1" inputmode="numeric" oninput="recalcInputDiagnostic()"></label><label>4 <input id="diagGrade4" type="number" min="0" step="1" inputmode="numeric" oninput="recalcInputDiagnostic()"></label><label>5 <input id="diagGrade5" type="number" min="0" step="1" inputmode="numeric" oninput="recalcInputDiagnostic()"></label></div></div><div class="notify-row"><label>Успеваемость</label><input id="diagAchievement" type="text" readonly value="0,00%"></div><div class="notify-row"><label>Качество</label><input id="diagQuality" type="text" readonly value="0,00%"></div><div class="notify-row"><label>Для заполнения (Значение А)</label><input id="diagValueA" type="text"></div><div class="notify-row"><label>Для заполнения (Значение Б)</label><input id="diagValueB" type="text"></div><div class="notify-row"><label>Для заполнения (Значение В)</label><input id="diagValueV" type="text"></div><div class="notify-row"><label>Для заполнения (Значение Г)</label><input id="diagValueG" type="text"></div><div class="notify-row"><label>Планируемая коррекционная работа</label><textarea id="diagCorrection" maxlength="1000" rows="5" placeholder="До 1000 символов"></textarea></div></div><div class="notify-modal-actions" style="margin-top:16px"><button class="btn" onclick="navigate('reports')">← Назад</button><button class="btn green" onclick="submitInputDiagnostic()">Отправить</button><button class="btn" onclick="exportInputDiagnostics()">Посмотреть результаты</button></div><div id="diagMessage" class="muted" style="margin-top:10px"></div></div>`);}
+window.openInputDiagnostics=function(){state.currentPage='reports';renderInputDiagnostics();};
+window.recalcInputDiagnostic=function(){const total=Number(document.getElementById('diagStudents')?.value)||0,g3=Number(document.getElementById('diagGrade3')?.value)||0,g4=Number(document.getElementById('diagGrade4')?.value)||0,g5=Number(document.getElementById('diagGrade5')?.value)||0,a=total?(g3+g4+g5)/total*100:0,q=total?(g4+g5)/total*100:0,ae=document.getElementById('diagAchievement'),qe=document.getElementById('diagQuality');if(ae)ae.value=a.toFixed(2).replace('.',',')+'%';if(qe)qe.value=q.toFixed(2).replace('.',',')+'%';};
+window.submitInputDiagnostic=async function(){const cls=document.getElementById('diagClass')?.value.trim(),subject=document.getElementById('diagSubject')?.value.trim(),assessmentDate=document.getElementById('diagDate')?.value,total=Number(document.getElementById('diagStudents')?.value)||0,g2=Number(document.getElementById('diagGrade2')?.value)||0,g3=Number(document.getElementById('diagGrade3')?.value)||0,g4=Number(document.getElementById('diagGrade4')?.value)||0,g5=Number(document.getElementById('diagGrade5')?.value)||0;if(!cls||!subject||!assessmentDate)return alert('Заполните класс, предмет и дату проведения.');if(g2+g3+g4+g5!==total)return alert('Сумма результатов по оценкам 2–5 должна совпадать с количеством писавших работу.');const achievement=total?(g3+g4+g5)/total*100:0,quality=total?(g4+g5)/total*100,payload={class_name:cls,subject,teacher_employee_id:Number(state.currentUser?.id)||null,teacher_name:inputDiagnosticTeacherName(state.currentUser?.name||''),assessment_date:assessmentDate,students_count:total,grade_2:g2,grade_3:g3,grade_4:g4,grade_5:g5,value_a:document.getElementById('diagValueA')?.value.trim()||'',value_b:document.getElementById('diagValueB')?.value.trim()||'',value_v:document.getElementById('diagValueV')?.value.trim()||'',value_g:document.getElementById('diagValueG')?.value.trim()||'',achievement_percent:Number(achievement.toFixed(2)),quality_percent:Number(quality.toFixed(2)),correction_work:document.getElementById('diagCorrection')?.value.trim()||''};try{const academicYearId=typeof getCurrentAcademicYearId==='function'?await getCurrentAcademicYearId():null;if(academicYearId!=null)payload.academic_year_id=Number(academicYearId)||null;await sbMutate('input_diagnostics','POST','',payload);const msg=document.getElementById('diagMessage');if(msg)msg.textContent='Отчет сохранён.';alert('Входная диагностика сохранена.');}catch(e){console.error(e);alert('Не удалось сохранить отчет: '+(e.message||e));}};
+window.exportInputDiagnostics=async function(){try{const rows=await sbRest('input_diagnostics','select=*'),headers=['Класс','Предмет','Учитель','Дата проведения','Кол-во писавших','2','3','4','5','Успеваемость','Качество','Значение А','Значение Б','Значение В','Значение Г','Планируемая коррекционная работа'],data=(rows||[]).sort((a,b)=>String(b.assessment_date||'').localeCompare(String(a.assessment_date||''))).map(r=>[r.class_name,r.subject,r.teacher_name,r.assessment_date,r.students_count,r.grade_2,r.grade_3,r.grade_4,r.grade_5,Number(r.achievement_percent||0).toFixed(2)+'%',Number(r.quality_percent||0).toFixed(2)+'%',r.value_a,r.value_b,r.value_v,r.value_g,r.correction_work]);if(window.XLSX){const ws=window.XLSX.utils.aoa_to_sheet([headers,...data]),wb=window.XLSX.utils.book_new();ws['!cols']=headers.map((h,i)=>({wch:i===15?45:(i<4?20:16)}));window.XLSX.utils.book_append_sheet(wb,ws,'Входная диагностика');window.XLSX.writeFile(wb,'входная_диагностика.xlsx');}else downloadCSV(headers,data,'входная_диагностика.csv');}catch(e){console.error(e);alert('Не удалось получить результаты: '+(e.message||e));}};
 </script>
 </body>
 </html>
