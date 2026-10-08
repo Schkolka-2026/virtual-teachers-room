@@ -128,7 +128,7 @@
 .compact-schedule-table .sch-c1{width:74px}.compact-schedule-table .sch-c2{width:48px}.compact-schedule-table .sch-c3{width:62px}.compact-schedule-table .sch-c4{width:25%}.compact-schedule-table .sch-c5{width:30%}.compact-schedule-table .sch-c6{width:70px}
 .compact-schedule-table th,.compact-schedule-table td{padding:6px 5px;font-size:10.5px;white-space:normal;word-break:break-word;line-height:1.2}
 .attendance-analytics-wrap{overflow-x:auto}.attendance-analytics-table{min-width:1200px}
-.attendance-missing{margin-top:10px;color:#b42318;font-weight:800;font-size:12px;line-height:1.6}
+.attendance-missing{margin-top:10px;color:#b42318;font-weight:800;font-size:12px;line-height:1.6}.analytics-mydata-wrap{max-height:300px;overflow:auto}.analytics-journal-card{max-height:470px;overflow:hidden}.journal-table-wrap{max-height:250px;overflow:auto}.journal-total{margin:10px 0 12px;font-size:15px;font-weight:800;color:var(--green-800)}
 @media(max-width:680px){
   .compact-schedule-table{font-size:9px}.compact-schedule-table .sch-c1{width:54px}.compact-schedule-table .sch-c2{width:38px}.compact-schedule-table .sch-c3{width:48px}.compact-schedule-table .sch-c4{width:23%}.compact-schedule-table .sch-c5{width:28%}.compact-schedule-table .sch-c6{width:52px}
   .compact-schedule-table th,.compact-schedule-table td{padding:5px 3px;font-size:9px}
@@ -1126,9 +1126,9 @@
     if(!isManagerNow){shell("Аналитика","Доступна директору и заместителям.",`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
     shell("Аналитика","Контроль посещаемости, электронного журнала и сводных данных.",
       `<div class="analytics-workspace">
-      <div class="card"><h3>Посещаемость</h3><div class="toolbar"><label style="margin:0">Дата с <input id="attFrom" type="date"></label><label style="margin:0">по <input id="attTo" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button></div><div id="attAnalytics"></div></div>
-      <div class="card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="hidden" style="margin:0">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button></div><div id="journalAnalytics"></div></div>
-      <div class="card"><h3>Сводная таблица «Мои данные»</h3><button class="btn green" onclick="exportMyData()">Выгрузить Excel</button><div class="table-wrap" style="margin-top:12px"><table class="data-table"><tr><th>ФИО</th><th>Образование</th><th>Телефон</th><th>Стаж</th><th>Нагрузка</th><th>Квалификация</th><th>Предметы</th></tr>${state.users.filter(u=>u.roleKeys.includes("teacher")||u.roleKeys.includes("deputy")||u.roleKeys.includes("director")).map(u=>`<tr><td>${u.name}</td><td>${(state.myData[u.login]||{}).education||"—"}</td><td>${(state.myData[u.login]||{}).phone||"—"}</td><td>${(state.myData[u.login]||{}).totalExperience||"—"}</td><td>${(state.myData[u.login]||{}).load||"—"}</td><td>${(state.myData[u.login]||{}).qualification||"—"}</td><td>${(state.myData[u.login]||{}).subject1||"—"}</td></tr>`).join("")}</table></div></div>
+      <div class="card"><h3>Посещаемость</h3><div class="toolbar"><label style="margin:0">Дата <input id="attDate" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button></div><div id="attAnalytics"></div></div>
+      <div class="card analytics-journal-card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="hidden" style="margin:0">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button></div><div id="journalAnalytics"></div></div>
+      <div class="card analytics-mydata-card"><h3>Сводная таблица «Мои данные»</h3><button class="btn green" onclick="exportMyData()">Выгрузить Excel</button><div class="table-wrap analytics-mydata-wrap" style="margin-top:12px"><table class="data-table"><tr><th>ФИО</th><th>Образование</th><th>Телефон</th><th>Стаж</th><th>Нагрузка</th><th>Квалификация</th><th>Предметы</th></tr>${state.users.filter(u=>u.roleKeys.includes("teacher")||u.roleKeys.includes("deputy")||u.roleKeys.includes("director")).map(u=>`<tr><td>${u.name}</td><td>${(state.myData[u.login]||{}).education||"—"}</td><td>${(state.myData[u.login]||{}).phone||"—"}</td><td>${(state.myData[u.login]||{}).totalExperience||"—"}</td><td>${(state.myData[u.login]||{}).load||"—"}</td><td>${(state.myData[u.login]||{}).qualification||"—"}</td><td>${(state.myData[u.login]||{}).subject1||"—"}</td></tr>`).join("")}</table></div></div>
       </div>`);
     filterAttendance();showJournalAnalytics();
   }
@@ -1199,7 +1199,8 @@
     const arr=state.journalOverdue.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
     const grouped={};arr.forEach(x=>{grouped[x.login]??={name:x.name,count:0,dates:[]};grouped[x.login].count+=x.count;grouped[x.login].dates.push(x);});
     const el=document.getElementById("journalAnalytics");if(!el)return;
-    el.innerHTML=`<div class="table-wrap"><table class="data-table"><tr><th>Педагог</th><th>Просрочено страниц</th><th>Даты</th></tr>${Object.values(grouped).map((x,i)=>`<tr><td>${x.name}</td><td><button class="link-button" onclick="toggleJournalDates('jd_${i}')">${x.count}</button></td><td><div id="jd_${i}" class="hidden">${x.dates.map(d=>`<div>${d.date} — ${d.count} стр.</div>`).join("")}</div><span>${x.dates.map(d=>d.date).join(', ')}</span></td></tr>`).join("")||'<tr><td colspan="3">Нет просрочек за период.</td></tr>'}</table></div>`;
+    const total=arr.reduce((sum,x)=>sum+Number(x.count||0),0);
+    el.innerHTML=`<div class="journal-total">Всего незаполненных страниц: <b>${total}</b></div><div class="table-wrap journal-table-wrap"><table class="data-table"><tr><th>Педагог</th><th>Просрочено страниц</th><th>Даты</th></tr>${Object.values(grouped).map((x,i)=>`<tr><td>${x.name}</td><td><button class="link-button" onclick="toggleJournalDates('jd_${i}')">${x.count}</button></td><td><div id="jd_${i}" class="hidden">${x.dates.map(d=>`<div>${d.date} — ${d.count} стр.</div>`).join("")}</div><span>${x.dates.map(d=>d.date).join(', ')}</span></td></tr>`).join("")||'<tr><td colspan="3">Нет просрочек за период.</td></tr>'}</table></div>`;
   };
   window.toggleJournalDates=function(id){document.getElementById(id)?.classList.toggle('hidden');};
   window.addPlan=function(){const title=prompt("Мероприятие:");if(!title)return;state.plan.push({id:Date.now(),date:prompt("Дата:","15.08")||"",time:prompt("Время:","12:00")||"",title,place:prompt("Место:","Кабинет")||"",participants:prompt("Участники:","Мой класс")||"",responsible:isManager()?state.currentUser.name:"",status:isManager()?"Опубликовано":"На согласовании",author:state.currentUser.login});save();render();};
@@ -3406,13 +3407,6 @@ exportAttendance=function(){
   else downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
 };
 
-/* ---- Re-render analytics with the working attendance block and visit block ---- */
-const __renderAnalyticsV8Final=renderAnalytics;
-renderAnalytics=function(){
-  __renderAnalyticsV8Final();
-  renderAttendanceAnalyticsV9();
-};
-
 /* ---- Keep special subjects visible in visit forms ---- */
 /* Already supported by V8; schedule normalization above preserves the names. */
 
@@ -3690,8 +3684,8 @@ renderAnalytics=function(){
     el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${body||`<tr><td colspan="${headers.length}">Нет классов для отображения.</td></tr>`}${summary('1 смена',sums[1])}${summary('2 смена',sums[2])}${summary('Итого',sums.all)}</table></div><div class="attendance-missing"><div>1 смена: ${missing1.length?missing1.join(', '):'все классы заполнили форму'}</div><div>2 смена: ${missing2.length?missing2.join(', '):'все классы заполнили форму'}</div></div>`;
   }
 
-  filterAttendance=function(){buildAttendanceAnalyticsReport();};
-  window.filterAttendance=filterAttendance;
+  window.filterAttendance=function(){buildAttendanceAnalyticsReport();};
+  filterAttendance=window.filterAttendance;
 
   window.exportAttendance=function(){
     const {from}=attendanceReportRange();
@@ -3715,21 +3709,7 @@ renderAnalytics=function(){
     }else downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
   };
 
-  /* Replace only the attendance toolbar in the existing Analytics renderer. */
-  const __renderAnalyticsBeforeAttendanceFinal=renderAnalytics;
-  renderAnalytics=function(){
-    __renderAnalyticsBeforeAttendanceFinal();
-    const analyticsCards=document.querySelectorAll('.analytics-workspace > .card');
-    const attendanceCard=analyticsCards[0];
-    if(attendanceCard){
-      const toolbar=attendanceCard.querySelector('.toolbar');
-      if(toolbar)toolbar.innerHTML=`<label style="margin:0">Дата <input id="attDate" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button>`;
-    }
-    const d=dateInfo().iso;
-    const input=document.getElementById('attDate');
-    if(input&&!input.value)input.value=d;
-    buildAttendanceAnalyticsReport();
-  };
+  /* Attendance rendering is now defined by the Analytics base renderer above. */
 })();
 /* ===== END FINAL TARGETED PATCH ===== */
 
