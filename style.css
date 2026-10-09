@@ -306,8 +306,8 @@
 
 /* Compact work areas: collapsed-looking headers, full controls remain on open content. */
 #content .attendance-analytics-wrap, #content .attendance-analytics-table{font-size:12px;}
-#content .attendance-analytics-wrap{max-height:450px;overflow:auto;}
-#content .admin-span12 .table-wrap{max-height:360px;overflow:auto;}
+#content .attendance-analytics-wrap{max-height:500px;overflow:auto;}
+#content .admin-span12 .table-wrap{max-height:250px;overflow:auto;}
 #content .admin-span12 > h3, #content .attendance-analytics-wrap{ }
 .schedule-view .table-wrap{overflow-x:hidden;}
 .schedule-view .data-table{table-layout:fixed;width:100%;font-size:12px;}
