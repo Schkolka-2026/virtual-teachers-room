@@ -126,8 +126,190 @@ function renderInputDiagnostics(){
 }
 window.openInputDiagnostics=function(){const app=window.__appState;if(!app)return alert('Приложение ещё не готово. Обновите страницу.');app.currentPage='reports';renderInputDiagnostics();};
 window.recalcInputDiagnostic=function(){const total=Number(document.getElementById('diagStudents')?.value)||0,g3=Number(document.getElementById('diagGrade3')?.value)||0,g4=Number(document.getElementById('diagGrade4')?.value)||0,g5=Number(document.getElementById('diagGrade5')?.value)||0,a=total?(g3+g4+g5)/total*100:0,q=total?(g4+g5)/total*100:0,ae=document.getElementById('diagAchievement'),qe=document.getElementById('diagQuality');if(ae)ae.value=a.toFixed(2).replace('.',',')+'%';if(qe)qe.value=q.toFixed(2).replace('.',',')+'%';};
-window.submitInputDiagnostic=async function(){const cls=document.getElementById('diagClass')?.value.trim(),subject=document.getElementById('diagSubject')?.value.trim(),assessmentDate=document.getElementById('diagDate')?.value,total=Number(document.getElementById('diagStudents')?.value)||0,g2=Number(document.getElementById('diagGrade2')?.value)||0,g3=Number(document.getElementById('diagGrade3')?.value)||0,g4=Number(document.getElementById('diagGrade4')?.value)||0,g5=Number(document.getElementById('diagGrade5')?.value)||0;if(!cls||!subject||!assessmentDate)return alert('Заполните класс, предмет и дату проведения.');if(g2+g3+g4+g5!==total)return alert('Сумма результатов по оценкам 2–5 должна совпадать с количеством писавших работу.');const achievement=total?(g3+g4+g5)/total*100:0,quality=total?(g4+g5)/total*100:0,payload={class_name:cls,subject,teacher_employee_id:Number(window.__appState?.currentUser?.id)||null,teacher_name:inputDiagnosticTeacherName(window.__appState?.currentUser?.name||''),assessment_date:assessmentDate,students_count:total,grade_2:g2,grade_3:g3,grade_4:g4,grade_5:g5,value_a:document.getElementById('diagValueA')?.value.trim()||'',value_b:document.getElementById('diagValueB')?.value.trim()||'',value_v:document.getElementById('diagValueV')?.value.trim()||'',value_g:document.getElementById('diagValueG')?.value.trim()||'',achievement_percent:Number(achievement.toFixed(2)),quality_percent:Number(quality.toFixed(2)),correction_work:document.getElementById('diagCorrection')?.value.trim()||''};try{const academicYearId=typeof window.__appGetCurrentAcademicYearId==='function'?await window.__appGetCurrentAcademicYearId():null;if(academicYearId!=null)payload.academic_year_id=Number(academicYearId)||null;if(typeof window.__appSbMutate!=='function')throw new Error('Интерфейс приложения ещё не готов.');await window.__appSbMutate('input_diagnostics','POST','',payload);const msg=document.getElementById('diagMessage');if(msg)msg.textContent='Отчет сохранён.';alert('Входная диагностика сохранена.');}catch(e){console.error(e);alert('Не удалось сохранить отчет: '+(e.message||e));}};
-window.exportInputDiagnostics=async function(){try{const rows=await window.__appSbRest('input_diagnostics','select=*'),headers=['Класс','Предмет','Учитель','Дата проведения','Кол-во писавших','2','3','4','5','Успеваемость','Качество','Значение А','Значение Б','Значение В','Значение Г','Планируемая коррекционная работа'],data=(rows||[]).sort((a,b)=>String(b.assessment_date||'').localeCompare(String(a.assessment_date||''))).map(r=>[r.class_name,r.subject,r.teacher_name,r.assessment_date,r.students_count,r.grade_2,r.grade_3,r.grade_4,r.grade_5,Number(r.achievement_percent||0).toFixed(2)+'%',Number(r.quality_percent||0).toFixed(2)+'%',r.value_a,r.value_b,r.value_v,r.value_g,r.correction_work]);if(window.XLSX){const ws=window.XLSX.utils.aoa_to_sheet([headers,...data]),wb=window.XLSX.utils.book_new();ws['!cols']=headers.map((h,i)=>({wch:i===15?45:(i<4?20:16)}));window.XLSX.utils.book_append_sheet(wb,ws,'Входная диагностика');window.XLSX.writeFile(wb,'входная_диагностика.xlsx');}else downloadCSV(headers,data,'входная_диагностика.csv');}catch(e){console.error(e);alert('Не удалось получить результаты: '+(e.message||e));}};
+window.submitInputDiagnostic = async function(){
+  const cls = document.getElementById('diagClass')?.value.trim();
+  const subject = document.getElementById('diagSubject')?.value.trim();
+  const assessmentDate = document.getElementById('diagDate')?.value;
+  const total = Number(document.getElementById('diagStudents')?.value) || 0;
+  const g2 = Number(document.getElementById('diagGrade2')?.value) || 0;
+  const g3 = Number(document.getElementById('diagGrade3')?.value) || 0;
+  const g4 = Number(document.getElementById('diagGrade4')?.value) || 0;
+  const g5 = Number(document.getElementById('diagGrade5')?.value) || 0;
+
+  if (!cls || !subject || !assessmentDate) {
+    return alert('Заполните класс, предмет и дату проведения.');
+  }
+
+  if (g2 + g3 + g4 + g5 !== total) {
+    return alert('Сумма результатов по оценкам 2–5 должна совпадать с количеством писавших работу.');
+  }
+
+  const achievement = total ? (g3 + g4 + g5) / total * 100 : 0;
+  const quality = total ? (g4 + g5) / total * 100 : 0;
+
+  const payload = {
+    class_name: cls,
+    subject,
+    teacher_employee_id: Number(window.__appState?.currentUser?.id) || null,
+    teacher_name: inputDiagnosticTeacherName(
+      window.__appState?.currentUser?.name || ''
+    ),
+    assessment_date: assessmentDate,
+    students_count: total,
+    grade_2: g2,
+    grade_3: g3,
+    grade_4: g4,
+    grade_5: g5,
+    achievement_percent: Number(achievement.toFixed(2)),
+    quality_percent: Number(quality.toFixed(2)),
+    correction_work:
+      document.getElementById('diagCorrection')?.value.trim() || ''
+  };
+
+  try {
+    const academicYearId =
+      typeof window.__appGetCurrentAcademicYearId === 'function'
+        ? await window.__appGetCurrentAcademicYearId()
+        : null;
+
+    if (academicYearId != null) {
+      payload.academic_year_id = Number(academicYearId) || null;
+    }
+
+    if (typeof window.__appSbMutate !== 'function') {
+      throw new Error('Интерфейс приложения ещё не готов.');
+    }
+
+    await window.__appSbMutate('input_diagnostics', 'POST', '', payload);
+
+    const msg = document.getElementById('diagMessage');
+    if (msg) msg.textContent = 'Отчет сохранён.';
+
+    alert('Входная диагностика сохранена.');
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось сохранить отчет: ' + (e.message || e));
+  }
+};
+window.viewInputDiagnostics = async function(){
+  const target = document.getElementById('diagResults');
+  if (!target) return;
+
+  target.innerHTML = '<p class="muted">Загрузка результатов…</p>';
+
+  try {
+    const rows = await window.__appSbRest(
+      'input_diagnostics',
+      'select=*'
+    );
+
+    const esc = window.__appEscapeHtml || (s => String(s ?? ''));
+    const sorted = (rows || []).sort(
+      (a, b) => String(b.assessment_date || '')
+        .localeCompare(String(a.assessment_date || ''))
+    );
+
+    if (!sorted.length) {
+      target.innerHTML = '<div class="empty">Сохранённых результатов пока нет.</div>';
+      return;
+    }
+
+    const headers = [
+      'Класс', 'Предмет', 'Учитель', 'Дата',
+      'Писали', '2', '3', '4', '5',
+      'Успеваемость', 'Качество',
+      'Планируемая коррекционная работа'
+    ];
+
+    const rowsHtml = sorted.map(r => `
+      <tr>
+        <td>${esc(r.class_name)}</td>
+        <td>${esc(r.subject)}</td>
+        <td>${esc(r.teacher_name)}</td>
+        <td>${esc(r.assessment_date)}</td>
+        <td>${esc(r.students_count)}</td>
+        <td>${esc(r.grade_2)}</td>
+        <td>${esc(r.grade_3)}</td>
+        <td>${esc(r.grade_4)}</td>
+        <td>${esc(r.grade_5)}</td>
+        <td>${Number(r.achievement_percent || 0).toFixed(2)}%</td>
+        <td>${Number(r.quality_percent || 0).toFixed(2)}%</td>
+        <td>${esc(r.correction_work)}</td>
+      </tr>
+    `).join('');
+
+    target.innerHTML = `
+      <h3>Сохранённые результаты</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    target.innerHTML = '<div class="empty">Не удалось загрузить результаты.</div>';
+    alert('Не удалось получить результаты: ' + (e.message || e));
+  }
+};
+
+window.exportInputDiagnostics = async function(){
+  try {
+    const rows = await window.__appSbRest(
+      'input_diagnostics',
+      'select=*'
+    );
+
+    const headers = [
+      'Класс', 'Предмет', 'Учитель', 'Дата проведения',
+      'Кол-во писавших', '2', '3', '4', '5',
+      'Успеваемость', 'Качество',
+      'Планируемая коррекционная работа'
+    ];
+
+    const data = (rows || [])
+      .sort((a, b) =>
+        String(b.assessment_date || '')
+          .localeCompare(String(a.assessment_date || ''))
+      )
+      .map(r => [
+        r.class_name,
+        r.subject,
+        r.teacher_name,
+        r.assessment_date,
+        r.students_count,
+        r.grade_2,
+        r.grade_3,
+        r.grade_4,
+        r.grade_5,
+        Number(r.achievement_percent || 0).toFixed(2) + '%',
+        Number(r.quality_percent || 0).toFixed(2) + '%',
+        r.correction_work
+      ]);
+
+    if (window.XLSX) {
+      const ws = window.XLSX.utils.aoa_to_sheet([headers, ...data]);
+      const wb = window.XLSX.utils.book_new();
+
+      ws['!cols'] = headers.map((h, i) => ({
+        wch: i === 11 ? 45 : (i < 4 ? 20 : 16)
+      }));
+
+      window.XLSX.utils.book_append_sheet(
+        wb, ws, 'Входная диагностика'
+      );
+      window.XLSX.writeFile(wb, 'входная_диагностика.xlsx');
+    } else {
+      downloadCSV(headers, data, 'входная_диагностика.csv');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось получить результаты: ' + (e.message || e));
+  }
+};
   window.App = window.App || {};
   window.App.reports = window.App.reports || {};
   
