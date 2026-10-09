@@ -38,7 +38,7 @@ const __noticeHtmlBaseV8=noticeHtml;
 noticeHtml=function(n){
   if(n?.type==='visit'){
     const actions=visitAnalysisButtons(n);
-    return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${Number(n.id)})"><div class="dot"></div><div style="flex:1;min-width:0"><strong>${escapeHtml(n.title||'Уведомление о посещении урока')}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${escapeHtml(n.text||'')}</p><small class="muted">${escapeHtml(n.date||'')}</small>${n.analysis?.storageUrl?`<div class="ack-info" style="margin-top:7px">📎 ${escapeHtml(n.analysis.fileName||'Файл анализа')}</div>`:''}${actions?`<div class="doc-actions visit-analysis-actions" style="margin-top:8px">${actions}</div>`:''}</div></div>`;
+    return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${Number(n.id)})"><div class="dot"></div><div style="flex:1;min-width:0"><strong>${escapeHtml(n.title||'Уведомление о посещении урока')}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${escapeHtml(n.text||'')}</p><small class="muted">${escapeHtml(n.visit?.date||n.date||'')}</small>${n.analysis?.storageUrl?`<div class="ack-info" style="margin-top:7px">📎 ${escapeHtml(n.analysis.fileName||'Файл анализа')}</div>`:''}${actions?`<div class="doc-actions visit-analysis-actions" style="margin-top:8px">${actions}</div>`:''}</div></div>`;
   }
   return __noticeHtmlBaseV8(n);
 };
@@ -74,6 +74,47 @@ window.uploadVisitAnalysis=async function(notificationId){
 };
 
 /* ---------- Analytics module ---------- */
+function attendanceClassesForReport(){
+  const all=state.classRoster||[];
+  const assigned=new Set([...(state.currentUser?.attendanceClasses||[]),...(state.currentUser?.classes||[])].map(String));
+  return isManager()?all.slice():all.filter(r=>assigned.has(String(r.name)));
+}
+function attendanceShiftForClass(cls){
+  const r=(state.classRoster||[]).find(x=>String(x.name)===String(cls));
+  if(r?.shift)return Number(r.shift);
+  const u=(state.users||[]).find(x=>(x.classes||[]).map(String).includes(String(cls))||(x.attendanceClasses||[]).map(String).includes(String(cls)));
+  return Number(u?.shift?.[cls]||0)||0;
+}
+function attendanceTeacherForClass(cls){
+  const exact=(state.users||[]).filter(u=>(u.classes||[]).map(String).includes(String(cls))).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  if(exact[0])return exact[0].name;
+  return (state.users||[]).filter(u=>(u.attendanceClasses||[]).map(String).includes(String(cls))).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'))[0]?.name||'';
+}
+function attendanceReportRange(){
+  let from=document.getElementById('attDate')?.value||'';
+  if(!from)from=dateInfo().iso;
+  const input=document.getElementById('attDate');if(input)input.value=from;
+  return {from,to:from};
+}
+function dateList(from,to){
+  const out=[];let d=new Date(from+'T00:00:00');const end=new Date(to+'T00:00:00');
+  while(d<=end){out.push(dateIsoLocal(d));d.setDate(d.getDate()+1);}return out;
+}
+function attendanceRecordMap(from,to){
+  const m=new Map();(state.attendance||[]).filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).forEach(x=>m.set(`${x.date}::${x.className}`,x));return m;
+}
+const ATT_HEADERS_V9=['Дата','Класс','Учитель','По списку','Присутствуют','Надомники','Дистант','Грипп, ОРВИ, ОРЗ','Острокишечные заболевания','Энтеровирусная инфекция','Ветряная оспа','Семейные обстоятельства','Пневмония','Травмы','Зубная боль','ЖКТ','Аллергия','Другое','Выезды на конкурсы, соревнования, лагерь','Без уважительной причины','Погодные условия'];
+function attendanceValue(x,key){if(!x)return '';if(key==='respiratory')return x.respiratory??x.flu??0;return x[key]??'';}
+function attendanceReportRows(from,to){
+  const map=attendanceRecordMap(from,to),rows=[];
+  for(const date of dateList(from,to)){
+    for(const r of attendanceClassesForReport().slice().sort((a,b)=>classSort(a.name,b.name))){
+      const x=map.get(`${date}::${r.name}`),teacher=x?.teacher||attendanceTeacherForClass(r.name),base=[date,r.name,teacher,r.studentCount||x?.total||0];
+      rows.push({date,className:r.name,shift:Number(r.shift)||attendanceShiftForClass(r.name),teacher,record:x,base});
+    }
+  }
+  return rows;
+}
 function attendanceNum(x,key){
   if(!x)return 0;
   const v=key==='respiratory'?(x.respiratory??x.flu??0):x[key];
@@ -120,17 +161,29 @@ function exportAttendance(){
   if(window.XLSX){const XLSXLib=window.XLSX;const ws=XLSXLib.utils.aoa_to_sheet([ATT_HEADERS_V9,...allRows]);ws['!cols']=ATT_HEADERS_V9.map((h,i)=>({wch:i<4?18:16}));const wb=XLSXLib.utils.book_new();XLSXLib.utils.book_append_sheet(wb,ws,'Посещаемость');XLSXLib.writeFile(wb,'посещаемость.xlsx');}
   else downloadCSV(ATT_HEADERS_V9,allRows,'посещаемость.csv');
 }
+function exportJournalAnalytics(){
+  const from=document.getElementById('jFrom')?.value||'',to=document.getElementById('jTo')?.value||'';
+  const arr=(state.journalOverdue||[]).filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
+  const grouped={};arr.forEach(x=>{const k=x.login||x.name;grouped[k]??={name:x.name||x.login,count:0,dates:[]};grouped[k].count+=Number(x.count||0);grouped[k].dates.push(x);});
+  const rows=[['Учитель','Количество незаполненных страниц','Даты']];
+  Object.values(grouped).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru')).forEach(x=>rows.push([x.name,x.count,x.dates.map(d=>`${d.date}: ${d.count}`).join('; ')]));
+  rows.push(['ИТОГО',arr.reduce((sum,x)=>sum+Number(x.count||0),0),'']);
+  if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:35},{wch:32},{wch:55}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Контроль журнала');XLSX.writeFile(wb,'контроль_электронного_журнала.xlsx');}
+  else downloadCSV(rows[0],rows.slice(1),'контроль_электронного_журнала.csv');
+}
+window.exportJournalAnalytics=exportJournalAnalytics;
+
 function renderAnalytics(){
   if(!isManager()){shell('Аналитика','Доступна директору и заместителям.',`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
   const visits=(state.notifications||[]).filter(n=>n.type==='visit').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ru'));
   const visitCards=visits.map(n=>{
     const vd=n.visit||{}, a=n.analysis;
-    return `<div class="visit-analytics-item"><div class="visit-analytics-main"><strong>${escapeHtml(vd.teacher||state.users.find(u=>Number(u.id)===Number(n.teacherId))?.name||'Учитель')}</strong><div class="muted">${escapeHtml(n.date||'')} · ${escapeHtml(vd.cls||'')} · ${escapeHtml(normalizeScheduleSubject(vd.subject)||'')}</div><div style="margin-top:6px">Посетил: ${escapeHtml(vd.deputy||n.senderName||'—')}</div><div class="muted" style="margin-top:4px">Цель: ${escapeHtml(vd.purpose||'')}</div></div><div class="visit-analytics-actions">${a?.storageUrl?`<a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener">Просмотреть</a><a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener" download>Скачать</a>`:'<span class="muted">Анализ пока не загружен</span>'}</div></div>`;
+    return `<div class="visit-analytics-item"><div class="visit-analytics-main"><strong>${escapeHtml(vd.teacher||state.users.find(u=>Number(u.id)===Number(n.teacherId))?.name||'Учитель')}</strong><div class="muted">${escapeHtml(vd.date||n.date||'')} · ${escapeHtml(vd.cls||'')} · ${escapeHtml(normalizeScheduleSubject(vd.subject)||'')}</div><div style="margin-top:6px">Посетил: ${escapeHtml(vd.deputy||n.senderName||'—')}</div><div class="muted" style="margin-top:4px">Цель: ${escapeHtml(vd.purpose||'')}</div></div><div class="visit-analytics-actions">${a?.storageUrl?`<a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener">Просмотреть</a><a class="small-btn" href="${escapeHtml(a.storageUrl)}" target="_blank" rel="noopener" download>Скачать</a>`:'<span class="muted">Анализ пока не загружен</span>'}</div></div>`;
   }).join('')||'<div class="empty">Уведомлений о посещении уроков пока нет.</div>';
   shell('Аналитика','Контроль посещаемости, электронного журнала и сводных данных.',`
     <div class="analytics-workspace">
       <div class="card analytics-attendance-card"><h3>Посещаемость</h3><div class="toolbar analytics-date-row"><label style="margin:0">Дата <input id="attDate" type="date"></label><button class="btn green" onclick="filterAttendance()">Показать</button><button class="btn" onclick="exportAttendance()">Выгрузить Excel</button></div><div id="attAnalytics"></div></div>
-      <div class="card analytics-journal-card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="journal-period-row hidden">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button></div><div id="journalAnalytics"></div></div>
+      <div class="card analytics-journal-card"><h3>Контроль электронного журнала</h3><div class="toolbar"><button class="btn yellow-btn" onclick="document.getElementById('journalFile').click()">📎 Выбрать Excel-файл</button><input id="journalFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="handleJournalFile(event)"><button class="btn yellow-btn" onclick="processJournalUpload()">Загрузить и обработать</button></div><div id="journalUploadInfo" class="muted">Отчёт загружается заместителем утром. Каждое появление фамилии педагога = 1 просроченная страница.</div><hr style="border:0;border-top:1px solid var(--line);margin:15px 0"><div class="toolbar"><button class="btn" onclick="journalPeriod('yesterday')">Вчера</button><button class="btn" onclick="journalPeriod('custom')">Произвольный период</button><label id="jDates" class="journal-period-row hidden">с <input id="jFrom" type="date"> по <input id="jTo" type="date"></label><button class="btn green" onclick="showJournalAnalytics()">Показать</button><button class="btn" onclick="exportJournalAnalytics()">Выгрузить Excel</button></div><div id="journalAnalytics"></div></div>
       <div class="card analytics-mydata-card"><h3>Сводная таблица «Мои данные»</h3><button class="btn green" onclick="exportMyData()">Выгрузить Excel</button><div class="table-wrap analytics-mydata-wrap" style="margin-top:12px"><table class="data-table"><tr><th>ФИО</th><th>Образование</th><th>Телефон</th><th>Стаж</th><th>Нагрузка</th><th>Квалификация</th><th>Предметы</th></tr>${state.users.filter(u=>u.roleKeys.includes('teacher')||u.roleKeys.includes('deputy')||u.roleKeys.includes('director')).map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml((state.myData[u.login]||{}).education||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).phone||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).totalExperience||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).load||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).qualification||'—')}</td><td>${escapeHtml((state.myData[u.login]||{}).subject1||'—')}</td></tr>`).join('')}</table></div></div>
     </div>
     <div class="card analytics-visits"><h3>Посещение уроков</h3><p class="muted">Уведомления о посещении уроков и загруженные Word-файлы анализа.</p>${visitCards}</div>`);
@@ -143,6 +196,8 @@ function renderAnalytics(){
 loadVisitAnalysesServer();
 
 window.renderAnalytics=renderAnalytics;
+window.filterAttendance=filterAttendance;
+window.exportAttendance=exportAttendance;
 
 /* TARGETED V10 PATCHES: daily schedule date, compact schedule, class shifts, attendance totals. */
 (function(){
