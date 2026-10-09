@@ -1252,7 +1252,18 @@
 </div>
 <div id="parallelBox" class="checkbox-list hidden" style="margin-top:8px">${[...new Set(state.users.flatMap(u=>(u.classes||[]).map(c=>String(c).match(/^\d+/)?.[0]).filter(Boolean)))].sort((a,b)=>+a-+b).map(p=>`<label><input type="checkbox" value="${p}"> ${p} классы</label>`).join("")}</div>
 <div id="specificUsersBox" class="checkbox-list hidden" style="margin-top:8px">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<label><input type="checkbox" value="${escapeHtml(u.login)}"> ${escapeHtml(u.name)}</label>`).join("")}</div>
-</div>`:""}<button class="btn green" style="margin-top:12px" onclick="uploadDocument('${escapeHtml(page)}','${escapeHtml(title)}')">＋ Загрузить документ</button></div>`:""}${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).join("")}</div>`:'<div class="empty">Документов пока нет.</div>'}`);
+</div>`:""}<button class="btn green" style="margin-top:12px" onclick="uploadDocument('${escapeHtml(page)}','${escapeHtml(title)}')">＋ Загрузить документ</button></div>`:""}${page === "reports" && title === "Отчеты за 1 триместр" ? `
+  <div class="card report-diagnostic-entry">
+    <h3>Входная диагностика</h3>
+    <p class="muted">
+      Заполните форму и сохраните результаты диагностической работы.
+    </p>
+    <button class="btn green" onclick="openInputDiagnostics()">
+      Открыть форму
+    </button>
+  </div>
+` : ""}
+${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).join("")}</div>`:'<div class="empty">Документов пока нет.</div>'}`);
   }
   function renderDocItem(d,manager){
     const seen=d.readBy?.[state.currentUser.login];
