@@ -328,3 +328,76 @@
  .schedule-view .data-table th:nth-child(4),.schedule-view .data-table td:nth-child(4){width:36%;}
  .schedule-view .data-table th:nth-child(5),.schedule-view .data-table td:nth-child(5){width:17%;}
 }
+/* Форма входной диагностики */
+.diag-form {
+  display: grid;
+  gap: 14px;
+}
+
+.diag-row {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.diag-meta-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.diag-results-row {
+  grid-template-columns: minmax(150px, 0.6fr) minmax(0, 1.4fr);
+}
+
+.diag-summary-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.diag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.diag-field > label {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.diag-field input,
+.diag-field select,
+.diag-field textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.diag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.report-diagnostic-entry {
+  margin: 14px 0;
+}
+
+#diagResults {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .diag-meta-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .diag-meta-row,
+  .diag-results-row,
+  .diag-summary-row {
+    grid-template-columns: 1fr;
+  }
+}
