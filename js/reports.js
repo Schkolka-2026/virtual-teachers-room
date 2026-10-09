@@ -19,22 +19,36 @@ window.App.reports.inputDiagnostics = {
     submit:function(){return typeof window.submitInputDiagnostic==='function'?window.submitInputDiagnostic():null;},
     export:function(){return typeof window.exportInputDiagnostics==='function'?window.exportInputDiagnostics():null;}
   };
-  window.App.reports.render = function(){
-    // The existing Reports renderer remains the fallback; the form itself is exposed above.
-    if(typeof window.renderReports==='function') return window.renderReports();
-    if(typeof window.renderPlaceholder==='function') return window.renderPlaceholder('reports');
-  };
-})();
-
-// Replace the Reports page renderer with a clean entry point without touching other pages.
 window.App.reports.render = function(){
-  if(typeof window.shell !== 'function') return;
-  const responsibleBlock = typeof window.responsibleBlockFor === 'function' ? window.responsibleBlockFor('reports') : '';
+  if (typeof window.shell !== 'function') return;
+
+  const responsibleBlock =
+    typeof window.responsibleBlockFor === 'function'
+      ? window.responsibleBlockFor('reports')
+      : '';
+
+  const cards = [
+    ['Отчеты на начало года', 'Формы отчетов'],
+    ['Отчеты за 1 триместр', 'Формы отчетов'],
+    ['Отчеты за 2 триместр', 'Формы отчетов'],
+    ['Отчеты за год', 'Формы отчетов']
+  ];
+
   const body = `<div class="module-grid">
-    ${typeof window.moduleCard === 'function' ? window.moduleCard('Отчеты на начало года','Формы отчетов') : ''}
-    <div class="module-card"><div class="module-icon">📊</div><div><strong>Отчеты за 1 триместр</strong><div class="muted">Входная диагностика</div><button class="btn green" style="margin-top:10px" onclick="openInputDiagnostics()">Входная диагностика</button></div></div>
-    ${typeof window.moduleCard === 'function' ? window.moduleCard('Отчеты за 2 триместр','Формы отчетов') : ''}
-    ${typeof window.moduleCard === 'function' ? window.moduleCard('Отчеты за год','Формы отчетов') : ''}
+    ${cards.map(([title, subtitle]) => `
+      <div class="module-card"
+           onclick="openDocs('reports','${title}')">
+        <div class="module-icon">📊</div>
+        <div class="module-card-title">${title}</div>
+        <div class="muted">${subtitle}</div>
+        <div class="module-folder">📂 Открыть папку →</div>
+      </div>
+    `).join('')}
   </div>`;
-  window.shell('Отчеты', responsibleBlock + 'Периодические отчеты заполняются по формам.', body);
+
+  window.shell(
+    'Отчеты',
+    responsibleBlock + 'Периодические отчеты заполняются по установленным формам.',
+    body
+  );
 };
