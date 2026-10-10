@@ -2,22 +2,24 @@
 (function(){
 /* ---------- Reports → 1 trimester: Input diagnostics ---------- */
 function inputDiagnosticTeacherName(name){const parts=String(name||'').trim().split(/\s+/).filter(Boolean);if(!parts.length)return '';return parts[0]+(parts[1]?' '+parts[1][0]+'.':'')+(parts[2]?' '+parts[2][0]+'.':'');}
-function inputDiagnosticClasses(){const app=window.__appState||{};const names=new Set();(app.classRoster||[]).forEach(r=>{if(r?.name)names.add(String(r.name).trim());});(app.users||[]).forEach(u=>[...(u.classes||[]),...(u.attendanceClasses||[])].forEach(c=>{if(c)names.add(String(c).trim());}));const cmp=window.__appClassSort||((a,b)=>String(a).localeCompare(String(b),'ru'));return [...names].filter(Boolean).sort(cmp);}
+function inputDiagnosticClasses(){const app = window.__appState || window.App?.state || {};const names=new Set();(app.classRoster||[]).forEach(r=>{if(r?.name)names.add(String(r.name).trim());});(app.users||[]).forEach(u=>[...(u.classes||[]),...(u.attendanceClasses||[])].forEach(c=>{if(c)names.add(String(c).trim());}));const cmp=window.__appClassSort||((a,b)=>String(a).localeCompare(String(b),'ru'));return [...names].filter(Boolean).sort(cmp);}
 function renderInputDiagnostics(){
-  const app = window.__appState || {};
+  const app = window.__appState || window.App?.state || {};
   const classes = inputDiagnosticClasses();
   const teacher = inputDiagnosticTeacherName(app.currentUser?.name || '');
 
-  if (!window.__appShell) {
-    return alert('Интерфейс приложения ещё не готов. Обновите страницу.');
-  }
+ const appShell = window.__appShell || window.shell;
+
+if (typeof appShell !== 'function') {
+  return alert('Не найдена функция отображения формы. Обновите страницу.');
+}
 
   const esc = window.__appEscapeHtml || (s => String(s ?? ''));
   const today = window.__appDateInfo
     ? window.__appDateInfo().iso
     : new Date().toISOString().slice(0, 10);
 
-  window.__appShell(
+  appShell(
     'Отчеты за 1 триместр',
     'Входная диагностика',
     `<div class="card">
@@ -124,7 +126,16 @@ function renderInputDiagnostics(){
     </div>`
   );
 }
-window.openInputDiagnostics=function(){const app=window.__appState;if(!app)return alert('Приложение ещё не готово. Обновите страницу.');app.currentPage='reports';renderInputDiagnostics();};
+window.openInputDiagnostics = function() {
+  const app = window.__appState || window.App?.state;
+
+  if (!app) {
+    return alert('Приложение ещё не готово. Обновите страницу.');
+  }
+
+  app.currentPage = 'reports';
+  renderInputDiagnostics();
+};
 window.recalcInputDiagnostic=function(){const total=Number(document.getElementById('diagStudents')?.value)||0,g3=Number(document.getElementById('diagGrade3')?.value)||0,g4=Number(document.getElementById('diagGrade4')?.value)||0,g5=Number(document.getElementById('diagGrade5')?.value)||0,a=total?(g3+g4+g5)/total*100:0,q=total?(g4+g5)/total*100:0,ae=document.getElementById('diagAchievement'),qe=document.getElementById('diagQuality');if(ae)ae.value=a.toFixed(2).replace('.',',')+'%';if(qe)qe.value=q.toFixed(2).replace('.',',')+'%';};
 window.submitInputDiagnostic = async function(){
   const cls = document.getElementById('diagClass')?.value.trim();
