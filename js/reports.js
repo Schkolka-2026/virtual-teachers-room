@@ -365,3 +365,4 @@ window.App.reports.render = function(){
     body
   );
 };
+})();
