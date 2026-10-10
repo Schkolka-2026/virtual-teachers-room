@@ -517,7 +517,13 @@
     if(t.kind==="schedule") return `<div class="task"><span style="font-size:18px">🕒</span><span>${t.title}</span><a class="task-link" href="#" onclick="event.preventDefault();navigate('schedule')">Просмотреть →</a></div>`;
     return `<div class="task ${t.done?'done':''}"><input type="checkbox" class="auto-check" ${t.done?'checked':''} disabled><span>${t.title}</span><a class="task-link" href="#" onclick="event.preventDefault();navigate('attendance')">Заполнить →</a></div>`;
   }
-  function noticeHtml(n){return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${n.id})"><div class="dot"></div><div><strong>${n.title}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${n.text}</p><small class="muted">${n.date}</small></div></div>`;}
+function noticeHtml(n){
+  if(n?.type==='visit' && typeof window.visitAnalysisButtons==='function'){
+    const actions=window.visitAnalysisButtons(n);
+    return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${Number(n.id)})"><div class="dot"></div><div style="flex:1;min-width:0"><strong>${escapeHtml(n.title||'Уведомление о посещении урока')}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${escapeHtml(n.text||'')}</p><small class="muted">${escapeHtml(n.date||'')}</small>${n.analysis?.storageUrl?`<div class="ack-info" style="margin-top:7px">📎 ${escapeHtml(n.analysis.fileName||'Файл анализа')}</div>`:''}${actions?`<div class="doc-actions visit-analysis-actions" style="margin-top:8px">${actions}</div>`:''}</div></div>`;
+  }
+  return `<div class="notice ${n.read?'':'unread'}" onclick="readNotification(${n.id})"><div class="dot"></div><div><strong>${n.title}</strong>${n.read?'':' <span class="unread-marker">• новое</span>'}<p>${n.text}</p><small class="muted">${n.date}</small></div></div>`;
+}
   function givenNamePatronymic(name){
     const p=String(name||"").trim().split(/\s+/).filter(Boolean);
     return p.length>=3?p.slice(1,3).join(" "):p.length>=2?p.slice(1).join(" "):p[0]||"";
