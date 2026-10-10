@@ -29,6 +29,7 @@ function visitAnalysisButtons(n){
   if(visitCanSeeAnalysis(n)){
     parts.push(`<a class="small-btn" href="${escapeHtml(n.analysis.storageUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Анализ</a>`);
   }
+window.visitAnalysisButtons = visitAnalysisButtons;
   if(visitCanUploadAnalysis(n)){
     parts.push(`<button class="small-btn ${n.analysis?.storageUrl?'':'green'}" onclick="event.stopPropagation();uploadVisitAnalysis(${Number(n.id)})">${n.analysis?.storageUrl?'Заменить анализ':'Загрузить анализ'}</button>`);
   }
