@@ -117,13 +117,27 @@ parseScheduleWorkbook=function(wb,fileName,selectedShift){
   return {date:dateIso,shift:Number(selectedShift),entries:unique,classes:[...new Set(unique.map(x=>x.className))],fileName};
 };
 
-/* ---------- Server schedule loading: exact + teacher-row dedupe ---------- */
+/* ---------- Server schedule loading: dedupe without dropping a just-saved shift ---------- */
 const __loadScheduleServerV8=loadScheduleServer;
 loadScheduleServer=async function(){
+  // Snapshot local data before the request. A background refresh can return an
+  // older/empty result while a newly uploaded shift is already visible locally.
+  const localDaily=[...(state.schedule.entries||[])];
+  const localBase=[...(state.schedule.baseEntries||[])];
   await __loadScheduleServerV8();
+
+  const serverDaily=[...(state.schedule.entries||[])];
+  const serverBase=[...(state.schedule.baseEntries||[])];
+  const dailyGroups=new Set(serverDaily.map(x=>`${String(x.date||'').slice(0,10)}::${Number(x.shift)||0}`));
+  const baseShifts=new Set(serverBase.map(x=>Number(x.shift)||0));
+  // Use local rows only for a date/shift or base shift missing from the server
+  // response; never replace a complete server group with stale local data.
+  state.schedule.entries=serverDaily.concat(localDaily.filter(x=>!dailyGroups.has(`${String(x.date||'').slice(0,10)}::${Number(x.shift)||0}`)));
+  state.schedule.baseEntries=serverBase.concat(localBase.filter(x=>!baseShifts.has(Number(x.shift)||0)));
+
   const seen=new Set();
-  state.schedule.entries=(state.schedule.entries||[]).filter(x=>{
-    const key=[x.date,Number(x.shift),Number(x.lesson),normalizeClass(x.className),normalizeScheduleSubject(x.subject),normalizePersonName(x.teacher),String(x.room||'').trim()].join('|');
+  state.schedule.entries=state.schedule.entries.filter(x=>{
+    const key=[String(x.date||'').slice(0,10),Number(x.shift),Number(x.lesson),normalizeClass(x.className),normalizeScheduleSubject(x.subject),normalizePersonName(x.teacher),String(x.room||'').trim()].join('|');
     if(!x.subject && !x.teacher)return false;
     if(looksLikeTeacherName(x.subject) && !x.teacher)return false;
     if(seen.has(key))return false;
@@ -193,17 +207,20 @@ renderScheduleTable=function(entries,mode){
 };
 renderScheduleSelector=function(day){
   const dt=day==='tomorrow'?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  // The class roster can be temporarily incomplete during a background refresh.
+  // Include classes present in the loaded daily schedule as well.
+  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.entries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
   return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
 };
 window.showScheduleChoice=function(day){
   const sel=document.getElementById(`scheduleChoice_${day}`);if(!sel)return;
   const dt=day==='tomorrow'?nextSchoolDay():new Date();
+  const iso=dateIsoLocal(dt);
   const result=document.getElementById(`scheduleResult_${day}`);if(!result)return;
-  result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
+  result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(iso),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
 };
 renderScheduleHomeSelector=function(day='today'){
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.entries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
   const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
   return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
 };
@@ -213,7 +230,9 @@ window.showHomeScheduleChoice=function(day='today'){
   result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
 };
 renderBaseScheduleSelector=function(){
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  // Use both the roster and the uploaded base timetable so classes of shift 2
+  // remain selectable even if the roster refresh is incomplete.
+  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.baseEntries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
   return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
 };
 window.showBaseScheduleChoice=function(){
