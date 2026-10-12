@@ -194,13 +194,16 @@ renderScheduleTable=function(entries,mode){
 renderScheduleSelector=function(day){
   const dt=day==='tomorrow'?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
   const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
-  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
+  const dateControl=day==='custom'?`<label for="scheduleViewDate_custom">Дата расписания</label><input id="scheduleViewDate_custom" type="date" value="${iso}" onchange="showScheduleChoice('custom')" style="margin-bottom:10px;width:100%">`:'';
+  return `${dateControl}<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
 };
 window.showScheduleChoice=function(day){
   const sel=document.getElementById(`scheduleChoice_${day}`);if(!sel)return;
+  const dateInput=day==='custom'?document.getElementById('scheduleViewDate_custom')?.value:'';
   const dt=day==='tomorrow'?nextSchoolDay():new Date();
+  const iso=day==='custom'?(dateInput||dateIsoLocal(new Date())):dateIsoLocal(dt);
   const result=document.getElementById(`scheduleResult_${day}`);if(!result)return;
-  result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
+  result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(iso),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
 };
 renderScheduleHomeSelector=function(day='today'){
   const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
