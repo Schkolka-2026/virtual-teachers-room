@@ -207,10 +207,14 @@ renderScheduleTable=function(entries,mode){
 };
 renderScheduleSelector=function(day){
   const dt=day==='tomorrow'?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
-  // The class roster can be temporarily incomplete during a background refresh.
-  // Include classes present in the loaded daily schedule as well.
-  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.entries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
+  const roles=state.currentUser?.roleKeys||[];
+  const canChooseAnyClass=['admin','director','deputy'].some(r=>roles.includes(r))||isGuest();
+  const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.entries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const myClasses=[...new Set([...(state.currentUser?.classes||[]),...(state.currentUser?.attendanceClasses||[])].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const classOptions=canChooseAnyClass
+    ? allClasses.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+    : myClasses.map(c=>`<option value="class:${escapeHtml(c)}">${myClasses.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
+  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${canChooseAnyClass?' или класс':' или «Мой класс»'}.</div></div>`;
 };
 window.showScheduleChoice=function(day){
   const sel=document.getElementById(`scheduleChoice_${day}`);if(!sel)return;
@@ -220,9 +224,14 @@ window.showScheduleChoice=function(day){
   result.innerHTML=sel.value?renderScheduleTable(getScheduleForDate(iso),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
 };
 renderScheduleHomeSelector=function(day='today'){
-  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.entries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const roles=state.currentUser?.roleKeys||[];
+  const canChooseAnyClass=['admin','director','deputy'].some(r=>roles.includes(r))||isGuest();
+  const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.entries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const myClasses=[...new Set([...(state.currentUser?.classes||[]),...(state.currentUser?.attendanceClasses||[])].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const classes=canChooseAnyClass?allClasses:myClasses;
+  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
   const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select></div><div class="muted">Выберите «Мое расписание»${canChooseAnyClass?' или класс':' или «Мой класс»'}.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
 };
 window.showHomeScheduleChoice=function(day='today'){
   const sel=document.getElementById(`homeScheduleChoice_${day}`),result=document.getElementById(`homeScheduleResult_${day}`);if(!sel||!result)return;
