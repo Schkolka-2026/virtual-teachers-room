@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Администрирование</title></head><body>
+<script type="text/plain" data-module>
+/* ---------- Shared settings and notifications ---------- */
+
+/* ---------- Shared settings: always persist to Supabase before reporting success ---------- */
+window.saveResponsibles = async function(){
+  if(!isAdmin()) return;
+  const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
+  const next={...(state.responsibles||{})};
+  keys.forEach(k=>{ next[k]=document.getElementById(`resp_${k}`)?.value.trim()||""; });
+  if(!(await saveAppSetting("responsibles",next))) return alert("Не удалось сохранить ответственных в базе данных.");
+  state.responsibles=next;
+  save();
+  alert("Ответственные за направления сохранены.");
+  render();
+};
+
+window.saveDuty = async function(){
+  if(!(isAdmin()||state.currentUser?.roleKeys?.includes("deputy"))) return;
+  const next=(state.dutySchedule||[]).map((x,i)=>({
+    ...x,
+    name1:document.getElementById(`duty_name1_${i}`)?.value.trim()||"",
+    phone1:document.getElementById(`duty_phone1_${i}`)?.value.trim()||"",
+    name2:document.getElementById(`duty_name2_${i}`)?.value.trim()||"",
+    phone2:document.getElementById(`duty_phone2_${i}`)?.value.trim()||""
+  }));
+  if(!(await saveAppSetting("dutySchedule",next))) return alert("Не удалось сохранить график дежурства в базе данных.");
+  state.dutySchedule=next;
+  save();
+  alert("График дежурства сохранён.");
+  render();
+};
+
+
+</script>
+<script type="text/plain" data-module>
+  function renderAdminModule(){
+    if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
+    const respNames={transport:"Подвоз",vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
+    shell("Администрирование","Пользователи, роли, расписание, дежурство и ответственные за направления.",
+      `<div class="admin-grid">
+      <div class="card admin-span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th></th></tr>${state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.login)}</td><td>${escapeHtml(u.roles||rolesText(u.roleKeys))}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${escapeHtml(c)} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td><button class="small-btn" onclick="editUser(${u.id})">Изменить</button> <button class="small-btn danger" onclick="deleteUser(${u.id})">Удалить</button> <button class="small-btn" onclick="setUserCredentials(${u.id})">Логин / пароль</button></td></tr>`).join("")}</table></div><p class="role-hint">Секретарь — дополнительная роль существующего пользователя, как и Диспетчер. Отдельной учётной записи секретаря нет.</p></div>
+      <div class="card"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("dispatcher")||state.dispatcherIds.includes(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveDispatcher()">Сохранить</button></div>
+      <div class="card"><h3>Секретарь</h3><label>Назначить до 5 пользователей с ролью «Секретарь»</label><select id="secretarySelect" class="secretary-multi" multiple size="7">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("secretary")?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveSecretary()">Сохранить</button><p class="muted">Можно выбрать не более 5 человек. Каждый секретарь входит под своим обычным логином и получает права роли «Секретарь».</p></div>
+      <div class="card admin-span12"><h3>Расписание звонков</h3><p class="muted">Таблица соответствует утверждённому расписанию школы: три группы по сменам, отдельно понедельник и вторник-пятница.</p><div class="table-wrap">${renderBellMatrixTable(true)}</div><button class="btn green" style="margin-top:12px" onclick="saveBellMatrix()">Сохранить расписание звонков</button></div>
+      <div class="card admin-span12"><h3>Контингент классов</h3><p class="muted">Excel-файл с тремя столбцами: «Класс» / «Кол-во учеников» / «Смена». Классы сохраняются в Supabase; прежние классы только деактивируются после успешной проверки новой загрузки.</p><div class="roster-upload"><input id="rosterFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn green" style="margin-top:10px" onclick="uploadClassRoster()">Загрузить и заменить данные</button><div id="rosterInfo" class="roster-meta">В системе загружено классов: ${(state.classRoster||[]).length}.</div></div></div>
+      <div class="card"><h3>Ответственные за направления</h3><p class="muted">Администратор указывает ФИО заместителя, курирующего каждый модуль.</p><div class="responsible-admin-list">${Object.entries(respNames).map(([k,n])=>`<label>${n}<input id="resp_${k}" value="${escapeHtml(state.responsibles[k]||"")}" placeholder="ФИО заместителя"></label>`).join("")}</div><button class="btn green" style="margin-top:12px" onclick="saveResponsibles()">Сохранить ответственных</button></div>
+      <div class="card admin-span12"><h3>Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон 1</th><th>ФИО 2</th><th>Телефон 2</th></tr>${state.dutySchedule.map((x,i)=>`<tr><td>${escapeHtml(x.day)}</td><td><input id="duty_name1_${i}" value="${escapeHtml(x.name1||"")}"></td><td><input id="duty_phone1_${i}" value="${escapeHtml(x.phone1||"")}"></td><td><input id="duty_name2_${i}" value="${escapeHtml(x.name2||"")}"></td><td><input id="duty_phone2_${i}" value="${escapeHtml(x.phone2||"")}"></td></tr>`).join("")}</table></div><button class="btn green" style="margin-top:12px" onclick="saveDuty()">Сохранить график дежурства</button></div>
+      <div class="card admin-span12"><h3>Сроки каникул</h3><p class="muted">Сюда можно вставить полный график каникул на учебный год — несколько строк, таблицу или текстовый приказ.</p><label>Расписание каникул</label><textarea id="vacationsText" class="vacations-editor" rows="12" placeholder="Например:\nОсенние каникулы — ...\nЗимние каникулы — ...\nВесенние каникулы — ...\nЛетние каникулы — ...">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить расписание каникул</button></div>
+      </div>`);
+  }
+window.App.pageRenderers["admin"]=renderAdminModule;
+</script>
+</body></html>

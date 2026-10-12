@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Профориентация и социально-психологическая служба</title></head><body>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["career"] = function(){
+  const page="career";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Профориентация",responsibleBlock+"Материалы и документы по профориентационной работе.",`<div class="module-grid">${moduleCard("Расписание мероприятий","Календарь мероприятий по профориентации","left")}${moduleCard("Приказы","Новые приказы по профориентации. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Предпрофильные классы (5–9)","Информация о предпрофильных и профильных направлениях","left")}${moduleCard("Билет в будущее","Материалы и информация проекта «Билет в будущее»","right")}</div>`);
+};
+
+
+window.App.pageRenderers["psych"] = function(){
+  const page="psych";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell(names[page],responsibleBlock+"Материалы социально-психологической службы.",`<div class="module-grid">${moduleCard("Консультации","Документы и материалы консультационной работы")}${moduleCard("Профилактика","Документы и материалы профилактической работы")}${moduleCard("Родительские собрания","Материалы и документы для родительских собраний")}${moduleCard("Тестирования","Материалы и документы по тестированию")}</div>`);
+};
+
+</script>
+</body></html>

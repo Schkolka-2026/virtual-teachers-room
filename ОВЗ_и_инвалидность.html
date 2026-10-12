@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Обучающиеся с ОВЗ и инвалидностью</title></head><body>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["ovz"] = function(){
+  const page="ovz";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Обучающиеся с ОВЗ и инвалидностью",responsibleBlock+"Документы и материалы по сопровождению обучающихся.",`<div class="module-grid orderable">${moduleCard("Списки детей с ОВЗ и инвалидностью","Списки обучающихся и необходимые материалы")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Рабочие программы по нозологиям","Рабочие программы и материалы")}${moduleCard("Домашнее обучение","Документы и материалы по организации домашнего обучения")}</div>`);
+};
+
+</script>
+</body></html>

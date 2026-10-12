@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Методическая работа</title></head><body>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["attestation"] = function(){
+  const page="attestation";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Методическая работа",responsibleBlock+"Организация методической деятельности педагогов.",`<div class="module-grid orderable">${moduleCard("График предметных недель","График и материалы предметных недель")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Аттестация","Материалы по аттестации педагогических работников")}${moduleCard("Повышение квалификации","Курсы, программы и документы по повышению квалификации")}${moduleCard("Конкурсы профессионального мастерства","Конкурсы и материалы для участия")}${moduleCard("Методическая копилка","Общие методические материалы школы")}</div><div class="yellow-section-title">Работа методических объединений</div><div class="module-grid orderable">${["МО Начальной школы","МО Естественнонаучного цикла","МО Русского языка и литературы","МО Математики","МО Истории и обществознания","МО Иностранных языков","МО Физической культуры и ОБЗР","МО Технологии, ИЗО, Музыки"].map(x=>moduleCard(x,"Файлы методического объединения могут добавлять все пользователи, кроме гостя.")).join("")}</div>`);
+};
+
+</script>
+</body></html>

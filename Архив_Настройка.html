@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Архив и настройки</title></head><body>
+<script type="text/plain" data-module>
+  function renderSettingsModule(){shell("Настройки","Настройки пользователя.",`<div class="card" style="max-width:800px"><div class="settings-row"><b>Логин</b><div>${state.currentUser.login}</div></div><div class="settings-row"><b>Роль</b><div>${state.currentUser.roles||state.currentUser.role}</div></div><div class="settings-row"><b>Смена пароля</b><div><button class="btn" onclick="changePassword()">Изменить пароль</button></div></div></div>`);}
+window.App.pageRenderers["settings"]=renderSettingsModule;
+
+window.App.pageRenderers["archive"] = function(){
+  const page="archive";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
+};
+
+</script>
+</body></html>

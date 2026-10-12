@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>ЕГЭ и ОГЭ</title></head><body>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["gia"] = function(){
+  const page="gia";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("ЕГЭ / ОГЭ",responsibleBlock+"Материалы государственной итоговой аттестации.",`<div class="gia-grid"><div class="gia-half grade9"><h3>ОГЭ — 9 класс</h3>${giaHalf("9 класс")}</div><div class="gia-half grade11"><h3>ЕГЭ — 11 класс</h3>${giaHalf("11 класс")}</div></div>`);
+};
+
+</script>
+</body></html>

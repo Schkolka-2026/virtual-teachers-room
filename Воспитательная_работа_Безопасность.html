@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Воспитательная работа и безопасность</title></head><body>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["upbringing"] = function(){
+  const page="upbringing";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Воспитательная работа",responsibleBlock+"Материалы воспитательной деятельности.",`<div class="module-grid orderable">${moduleCard("План воспитательной работы","Планирование воспитательной работы","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Движение первых","Материалы и документы")}${moduleCard("Классное руководство","Материалы и документы по классному руководству")}${moduleCard("Орлята России","Материалы и документы программы «Орлята России»")}${moduleCard("Положения о школьных мероприятиях","Положения и регламенты школьных мероприятий")}${moduleCard("Разговоры о важном","Материалы цикла «Разговоры о важном»")}${moduleCard("Россия мои горизонты","Материалы цикла «Россия — мои горизонты»")}${moduleCard("Пушкинская карта","Материалы и документы по Пушкинской карте")}</div>`);
+};
+
+
+window.App.pageRenderers["security"] = function(){
+  const page="security";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell(names[page],responsibleBlock+"Документы и материалы по безопасности.",`<div class="module-grid">${moduleCard("Инструкции ТБ","Инструкции по технике безопасности","left")}${moduleCard("Приказы","Новые приказы по безопасности. Непрочитанные документы подсвечиваются.","right",true)}${securityNormativeCard()}${moduleCard("Шаблоны и образцы","Шаблоны и образцы документов")}</div>`);
+};
+
+</script>
+</body></html>

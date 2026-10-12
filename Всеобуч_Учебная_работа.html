@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Всеобуч и учебная работа</title></head><body>
+<script type="text/plain" data-module>
+/* ---------- Documents / orders: recipients, acknowledgement and "Кто ознакомился" ---------- */
+function canViewDocAck(d){
+  return !!d && (canViewAckReport() || d.uploadedBy===state.currentUser?.login);
+}
+
+function userCanSeeDoc(doc){
+  if(!doc||!state.currentUser)return false;
+  const u=state.currentUser;
+  if(canViewDocAck(doc)) return true;
+  if(doc.targetAll || doc.targetType==="all") return true;
+  if((doc.targetEmployeeIds||[]).map(Number).includes(Number(u.id))) return true;
+  const isClassLeader=(u.classes||[]).length>0;
+  if(doc.targetClassLeaderAll || doc.targetType==="classleaders") if(isClassLeader) return true;
+  const parallels=(doc.targetClassLeaderParallels||[]).map(String);
+  if(parallels.length && isClassLeader && (u.classes||[]).some(c=>parallels.includes(String(c).match(/^\d+/)?.[0]))) return true;
+  if((doc.targetUsers||[]).includes(u.login)) return true;
+  return false;
+}
+
+window.renderDocSection = function(page,title){
+  const docs=sectionDocs(page,title),canUpload=docUploadAllowed(page,title),manager=canViewAckReport();
+  shell(title,"Документы раздела. У каждого документа можно задать адресатов.",
+    `${canUpload?`<div class="doc-upload">
+      <div class="doc-upload-grid"><div><label>Документ</label><input id="docFile" type="file"></div><div><label>Название документа</label><input id="docTitle" placeholder="Например: Приказ №..."></div></div>
+      <div style="margin-top:12px"><label>Для кого предназначен документ</label>
+        <div class="target-grid target-grid-four">
+          <label class="target-choice"><input type="checkbox" id="targetAll" checked onchange="toggleDocTarget()"> Все</label>
+          <label class="target-choice"><input type="checkbox" id="targetClassLeaderAll" onchange="toggleDocTarget()"> Все классные руководители</label>
+          <label class="target-choice"><input type="checkbox" id="targetClassLeaderParallel" onchange="toggleDocTarget()"> Классные руководители по параллелям</label>
+          <label class="target-choice"><input type="checkbox" id="targetSpecific" onchange="toggleDocTarget()"> Конкретные пользователи</label>
+        </div>
+        <div id="parallelBox" class="checkbox-list hidden" style="margin-top:8px">${[...new Set(state.users.flatMap(u=>(u.classes||[]).map(c=>String(c).match(/^\d+/)?.[0]).filter(Boolean)))].sort((a,b)=>+a-+b).map(p=>`<label><input type="checkbox" value="${p}"> ${p} классы</label>`).join("")}</div>
+        <div id="specificUsersBox" class="checkbox-list hidden" style="margin-top:8px">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<label><input type="checkbox" value="${escapeHtml(u.login)}"> ${escapeHtml(u.name)}</label>`).join("")}</div>
+      </div>
+      <button class="btn green" style="margin-top:12px" onclick="uploadDocument('${escapeHtml(page)}','${escapeHtml(title)}')">＋ Загрузить документ</button>
+    </div>`:""}
+    ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).join("")}</div>`:'<div class="empty">Документов пока нет.</div>'}`);
+};
+
+function renderDocItem(d,manager){
+  const seen=d.readBy?.[state.currentUser.login];
+  const visible=userCanSeeDoc(d);
+  const unread=visible&&!seen;
+  const ackAt=typeof seen==="object"?seen.at:null;
+  const canReport=canViewDocAck(d);
+  const isOrder=d.sectionKey.split("::")[1]?.includes("Приказы");
+  return `<div class="doc-item ${unread?'unread':''}">
+    <div class="doc-item-title">📄 ${escapeHtml(d.title||d.fileName)} ${unread?'<span class="unread-marker">• новое</span>':''}</div>
+    <div class="doc-meta">Загружен: ${escapeHtml(d.uploadedByName||"")} · ${new Date(d.uploadedAt).toLocaleString('ru-RU')}</div>
+    <div class="doc-targets">Предназначен: ${escapeHtml(docTargetLabel(d))}</div>
+    ${ackAt?`<div class="ack-info">✓ Ознакомлен: ${new Date(ackAt).toLocaleString('ru-RU')}</div>`:""}
+    <div class="doc-actions">
+      ${(d.url||d.data)?`<a class="btn" href="${escapeHtml(d.url||d.data)}" target="_blank" rel="noopener">Открыть</a>`:""}
+      ${visible&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}
+      ${canReport?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}
+      ${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}
+    </div>
+  </div>`;
+}
+window.toggleDocTarget=function(){
+  const parallel=document.getElementById("targetClassLeaderParallel")?.checked;
+  const specific=document.getElementById("targetSpecific")?.checked;
+  document.getElementById("parallelBox")?.classList.toggle("hidden",!parallel);
+  document.getElementById("specificUsersBox")?.classList.toggle("hidden",!specific);
+  if(parallel||specific){
+    const all=document.getElementById("targetAll");
+    if(all)all.checked=false;
+  }
+};
+window.uploadDocument = async function(page,title){
+  const f=document.getElementById("docFile")?.files[0];if(!f)return alert("Выберите документ.");
+  const folderUrl=yandexFolderForPage(page);if(!folderUrl)return alert("Для этого раздела ещё не настроена папка Яндекс Диска.");
+  const name=document.getElementById("docTitle")?.value.trim()||f.name;
+  let targetType="all",targetUsers=[],targetAll=true,targetClassLeaderAll=false,targetClassLeaderParallels=[];
+  if(title.includes("Приказы")){
+    if(!canManageOrders())return alert("Приказы могут загружать только директор, заместитель директора, администратор и секретарь.");
+    targetAll=!!document.getElementById("targetAll")?.checked;targetClassLeaderAll=!!document.getElementById("targetClassLeaderAll")?.checked;
+    targetClassLeaderParallels=[...document.querySelectorAll("#parallelBox input:checked")].map(x=>x.value);targetUsers=[...document.querySelectorAll("#specificUsersBox input:checked")].map(x=>x.value);
+    const any=targetAll||targetClassLeaderAll||targetClassLeaderParallels.length||targetUsers.length;if(!any)return alert("Выберите хотя бы одного адресата.");
+    targetType=targetAll?"all":targetUsers.length?"specific":"classleaders";
+  }
+  try{
+    const targetEmployeeIds=(state.users||[]).filter(u=>{if(targetAll)return !u.roleKeys?.includes("guest");if(targetUsers.includes(u.login))return true;if(targetClassLeaderAll&&u.classes?.length)return true;if(targetClassLeaderParallels.length&&(u.classes||[]).some(c=>targetClassLeaderParallels.includes(String(c).match(/^\d+/)?.[0])))return true;return false;}).map(u=>Number(u.id)).filter(Number.isFinite);
+    const uploaded=await uploadToYandexFolder(f,folderUrl,page,title);
+    const record={section_key:docKey(page,title),title:name,file_name:f.name,storage_url:uploaded.public_url||uploaded.url||"",storage_path:uploaded.path||"",uploaded_by:state.currentUser.login,uploaded_by_name:state.currentUser.name,target_type:targetType,target_users:targetUsers,target_all:targetAll,target_class_leader_all:targetClassLeaderAll,target_class_leader_parallels:targetClassLeaderParallels,target_employee_ids:targetEmployeeIds};
+    const saved=await saveDocumentRecord(record),d=Array.isArray(saved)?saved[0]:saved;state.documents.unshift({id:Number(d?.id||Date.now()),sectionKey:record.section_key,title:name,fileName:f.name,data:"",url:record.storage_url,storagePath:record.storage_path,uploadedBy:record.uploaded_by,uploadedByName:record.uploaded_by_name,uploadedAt:new Date().toISOString(),targetType,targetUsers,targetAll,targetClassLeaderAll,targetClassLeaderParallels,targetEmployeeIds,readBy:{}});
+    save();alert("Документ загружен и сохранён на Яндекс Диске.");renderDocSection(page,title);
+  }catch(e){console.error(e);alert("Не удалось загрузить документ: "+(e.message||"проверьте настройку Яндекс Диска."));}
+};
+window.ackDocument=async function(id){
+  const d=state.documents.find(x=>Number(x.id)===Number(id));if(!d||!userCanSeeDoc(d))return;
+  try{const saved=await acknowledgeDocumentRecord(id);const at=new Date().toISOString();d.readBy=d.readBy||{};d.readBy[state.currentUser.login]={at};save();renderDocSection(state.currentPage,d.sectionKey.split("::")[1]);}catch(e){alert("Не удалось сохранить ознакомление: "+(e.message||"ошибка Supabase"));}
+};
+window.whoRead=async function(id){
+  const d=state.documents.find(x=>Number(x.id)===Number(id));if(!d||!canViewDocAck(d))return;
+  const targetIds=(d.targetEmployeeIds||[]).map(Number).filter(Number.isFinite);
+  let recipients;
+  if(targetIds.length) recipients=state.users.filter(u=>targetIds.includes(Number(u.id))&&!u.roleKeys?.includes("guest"));
+  else recipients=state.users.filter(u=>{
+    if(u.roleKeys?.includes("guest"))return false;
+    if(d.targetAll||d.targetType==="all")return true;
+    if(d.targetClassLeaderAll||d.targetType==="classleaders")if((u.classes||[]).length)return true;
+    const ps=(d.targetClassLeaderParallels||[]).map(String);
+    if(ps.length&&(u.classes||[]).some(c=>ps.includes(String(c).match(/^\d+/)?.[0])))return true;
+    return (d.targetUsers||[]).includes(u.login);
+  });
+  const rows=recipients.map(u=>{const seen=d.readBy?.[u.login];return [d.title||d.fileName,u.name,seen?(typeof seen==="object"?new Date(seen.at).toLocaleString("ru-RU"):""):"Не ознакомлен"];});
+  const csv=[["Документ","ФИО","Дата и время"],...rows];downloadCSV(csv[0],csv.slice(1),`ознакомление_${d.id}.csv`);
+  const lines=rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td></tr>`).join("");
+  const w=window.open("","_blank","width=900,height=600");if(w){w.document.write(`<title>Кто ознакомился</title><body style="font-family:Arial;padding:20px"><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Документ</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table></body>`);w.document.close();}
+};
+
+
+
+</script>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["vseobuch"] = function(){
+  const page="vseobuch";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Всеобуч",responsibleBlock+"Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы","left")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся","right")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию","left")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами","right")}</div>`);
+};
+
+
+window.App.pageRenderers["education"] = function(){
+  const page="education";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Учебная работа",responsibleBlock+"Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("ВПР","Всероссийские проверочные работы")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}${moduleCard("Сроки каникул","Сроки и график каникул")}</div>`);
+};
+
+</script>
+</body></html>

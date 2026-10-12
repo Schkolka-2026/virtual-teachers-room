@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Электронный журнал и олимпиады</title></head><body>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["journal"] = function(){
+  const page="journal";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Электронный журнал",responsibleBlock+"Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Приказы","Новые приказы по электронному журналу. Непрочитанные документы подсвечиваются.","left",true)}${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);
+};
+
+</script>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["olymp"] = function(){
+  const page="olymp";
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell(window.App.sectionNames[page],responsibleBlock+"Готовый модуль олимпиадного и конкурсного движения.",
+    `<div class="module-grid" style="margin-bottom:18px">${moduleCard("Приказы","Приказы по олимпиадному и конкурсному движению. Непрочитанные документы подсвечиваются.","left",true)}</div>
+     <div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);
+};
+
+</script>
+</body></html>

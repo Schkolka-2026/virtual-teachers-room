@@ -1,4 +1,3 @@
-<!doctype html>
 <!DOCTYPE html>
 <html lang="ru">
  <head>
@@ -8,7 +7,7 @@
   <title>
    Школа решений — Виртуальная учительская
   </title>
-  <link href="style.css" rel="stylesheet"/>
+  <style id="appStyles"></style>
  </head>
  <body>
   <section id="authScreen">
@@ -349,13 +348,67 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
   </script>
-  <script src="js/data.js">
-  </script>
-  <script src="js/core.js">
-  </script>
-  <script src="js/analytics.js">
-  </script>
-  <script src="js/reports.js">
+  <script>
+    (async function loadSchoolModules(){
+      const moduleOrder = [
+        "style.html",
+        "Главная.html",
+        "Администрирование.html",
+        "Уведомления.html",
+        "Всеобуч_Учебная_работа.html",
+        "Воспитательная_работа_Безопасность.html",
+        "ОВЗ_и_инвалидность.html",
+        "Электронный_журнал_Олимпиады.html",
+        "ЕГЭ_ОГЭ.html",
+        "Методическая_работа.html",
+        "Профориентация_Соцпсихологическая_служба.html",
+        "Отчеты.html",
+        "Аналитика.html",
+        "Мои_данные.html",
+        "Архив_Настройка.html",
+        "Расписание.html"
+      ];
+
+      async function loadHtmlModule(path){
+        const response = await fetch(path, {cache:"no-store"});
+        if(!response.ok) throw new Error("Не удалось загрузить модуль " + path + ": HTTP " + response.status);
+        const source = await response.text();
+        const doc = new DOMParser().parseFromString(source, "text/html");
+        const styleNode = doc.querySelector("style[data-app-style]");
+        if(styleNode){
+          const target = document.getElementById("appStyles");
+          target.textContent += "\n" + styleNode.textContent;
+        }
+        const scripts = [...doc.querySelectorAll('script[type="text/plain"][data-module]')];
+        for(const moduleScript of scripts){
+          const executable = document.createElement("script");
+          executable.textContent = moduleScript.textContent;
+          executable.dataset.moduleSource = path;
+          document.body.appendChild(executable);
+        }
+      }
+
+      try{
+        for(const path of moduleOrder) await loadHtmlModule(path);
+        const publicLogoUrl = "https://disk.yandex.ru/i/sf-X_DtdpxQy8A";
+        try{
+          const api = "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=" + encodeURIComponent(publicLogoUrl);
+          const response = await fetch(api);
+          if(!response.ok) throw new Error("Yandex Disk API returned HTTP " + response.status);
+          const payload = await response.json();
+          if(!payload.href) throw new Error("Yandex Disk did not return a direct image URL");
+          document.querySelectorAll("img").forEach(img=>{
+            if(img.getAttribute("src")===publicLogoUrl) img.src=payload.href;
+          });
+        }catch(logoError){
+          console.warn("Не удалось получить прямую ссылку на логотип с Яндекс Диска:", logoError);
+        }
+      }catch(error){
+        console.error("Ошибка загрузки модулей приложения:", error);
+        const box = document.getElementById("loginError");
+        if(box) box.textContent = "Не удалось загрузить приложение: " + (error.message || error);
+      }
+    })();
   </script>
  </body>
 </html>

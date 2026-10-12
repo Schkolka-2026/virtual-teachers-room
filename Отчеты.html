@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Отчеты</title></head><body>
+<script type="text/plain" data-module>
+/* REPORTS.JS — Reports module */
+(function(){
+/* ---------- Reports → 1 trimester: Input diagnostics ---------- */
+function inputDiagnosticTeacherName(name){const parts=String(name||'').trim().split(/\s+/).filter(Boolean);if(!parts.length)return '';return parts[0]+(parts[1]?' '+parts[1][0]+'.':'')+(parts[2]?' '+parts[2][0]+'.':'');}
+function inputDiagnosticClasses(){const app = window.App?.state || {};const names=new Set();(app.classRoster||[]).forEach(r=>{if(r?.name)names.add(String(r.name).trim());});(app.users||[]).forEach(u=>[...(u.classes||[]),...(u.attendanceClasses||[])].forEach(c=>{if(c)names.add(String(c).trim());}));const cmp=window.classSort||((a,b)=>String(a).localeCompare(String(b),'ru'));return [...names].filter(Boolean).sort(cmp);}
+function renderInputDiagnostics(){
+  const app = window.App?.state || {};
+  const classes = inputDiagnosticClasses();
+  const teacher = inputDiagnosticTeacherName(app.currentUser?.name || '');
+
+ const appShell = window.shell;
+
+if (typeof appShell !== 'function') {
+  return alert('Не найдена функция отображения формы. Обновите страницу.');
+}
+
+  const esc = window.escapeHtml || (s => String(s ?? ''));
+  const today = window.dateInfo
+    ? window.dateInfo().iso
+    : new Date().toISOString().slice(0, 10);
+
+  appShell(
+    'Отчеты за 1 триместр',
+    'Входная диагностика',
+    `<div class="card">
+      <h3>Входная диагностика</h3>
+
+      <div class="diag-form">
+
+        <div class="diag-row diag-meta-row">
+          <div class="diag-field">
+            <label for="diagClass">Класс</label>
+            <select id="diagClass">
+              <option value="">Выберите класс</option>
+              ${classes.map(c =>
+                `<option value="${esc(c)}">${esc(c)}</option>`
+              ).join('')}
+            </select>
+          </div>
+
+          <div class="diag-field">
+            <label for="diagSubject">Предмет</label>
+            <input id="diagSubject" type="text" placeholder="Введите предмет">
+          </div>
+
+          <div class="diag-field">
+            <label for="diagTeacher">Учитель</label>
+            <input id="diagTeacher" type="text"
+                   value="${esc(teacher)}" readonly>
+          </div>
+
+          <div class="diag-field">
+            <label for="diagDate">Дата</label>
+            <input id="diagDate" type="date" value="${today}">
+          </div>
+        </div>
+
+        <div class="diag-row diag-results-row">
+          <div class="diag-field">
+            <label for="diagStudents">Кол-во писавших</label>
+            <input id="diagStudents" type="number" min="0" step="1"
+                   inputmode="numeric" oninput="recalcInputDiagnostic()">
+          </div>
+
+          <div class="diag-field">
+            <label>Результаты</label>
+            <div class="target-grid target-grid-four">
+              <label>2
+                <input id="diagGrade2" type="number" min="0" step="1"
+                       oninput="recalcInputDiagnostic()">
+              </label>
+              <label>3
+                <input id="diagGrade3" type="number" min="0" step="1"
+                       oninput="recalcInputDiagnostic()">
+              </label>
+              <label>4
+                <input id="diagGrade4" type="number" min="0" step="1"
+                       oninput="recalcInputDiagnostic()">
+              </label>
+              <label>5
+                <input id="diagGrade5" type="number" min="0" step="1"
+                       oninput="recalcInputDiagnostic()">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="diag-row diag-summary-row">
+          <div class="diag-field">
+            <label for="diagAchievement">Успеваемость</label>
+            <input id="diagAchievement" type="text" readonly value="0,00%">
+          </div>
+
+          <div class="diag-field">
+            <label for="diagQuality">Качество</label>
+            <input id="diagQuality" type="text" readonly value="0,00%">
+          </div>
+        </div>
+
+        <div class="diag-field">
+          <label for="diagCorrection">Планируемая коррекционная работа</label>
+          <textarea id="diagCorrection" maxlength="1000" rows="4"
+                    placeholder="До 1000 символов"></textarea>
+        </div>
+
+        <div class="diag-actions">
+          <button class="btn"
+                  onclick="openDocs('reports','Отчеты за 1 триместр')">
+            Назад
+          </button>
+          <button class="btn green" onclick="submitInputDiagnostic()">
+            Отправить
+          </button>
+          <button class="btn" onclick="viewInputDiagnostics()">
+            Посмотреть результаты
+          </button>
+          <button class="btn" onclick="exportInputDiagnostics()">
+            Выгрузить Excel
+          </button>
+        </div>
+
+        <div id="diagMessage" class="muted"></div>
+        <div id="diagResults"></div>
+
+      </div>
+    </div>`
+  );
+}
+window.openInputDiagnostics = function() {
+  const app = window.App?.state;
+
+  if (!app) {
+    return alert('Приложение ещё не готово. Обновите страницу.');
+  }
+
+  app.currentPage = 'reports';
+  renderInputDiagnostics();
+};
+window.recalcInputDiagnostic=function(){const total=Number(document.getElementById('diagStudents')?.value)||0,g3=Number(document.getElementById('diagGrade3')?.value)||0,g4=Number(document.getElementById('diagGrade4')?.value)||0,g5=Number(document.getElementById('diagGrade5')?.value)||0,a=total?(g3+g4+g5)/total*100:0,q=total?(g4+g5)/total*100:0,ae=document.getElementById('diagAchievement'),qe=document.getElementById('diagQuality');if(ae)ae.value=a.toFixed(2).replace('.',',')+'%';if(qe)qe.value=q.toFixed(2).replace('.',',')+'%';};
+window.submitInputDiagnostic = async function(){
+  const cls = document.getElementById('diagClass')?.value.trim();
+  const subject = document.getElementById('diagSubject')?.value.trim();
+  const assessmentDate = document.getElementById('diagDate')?.value;
+  const total = Number(document.getElementById('diagStudents')?.value) || 0;
+  const g2 = Number(document.getElementById('diagGrade2')?.value) || 0;
+  const g3 = Number(document.getElementById('diagGrade3')?.value) || 0;
+  const g4 = Number(document.getElementById('diagGrade4')?.value) || 0;
+  const g5 = Number(document.getElementById('diagGrade5')?.value) || 0;
+
+  if (!cls || !subject || !assessmentDate) {
+    return alert('Заполните класс, предмет и дату проведения.');
+  }
+
+  if (g2 + g3 + g4 + g5 !== total) {
+    return alert('Сумма результатов по оценкам 2–5 должна совпадать с количеством писавших работу.');
+  }
+
+  const achievement = total ? (g3 + g4 + g5) / total * 100 : 0;
+  const quality = total ? (g4 + g5) / total * 100 : 0;
+
+  const payload = {
+    class_name: cls,
+    subject,
+    teacher_employee_id: Number(window.App?.state?.currentUser?.id) || null,
+    teacher_name: inputDiagnosticTeacherName(
+      window.App?.state?.currentUser?.name || ''
+    ),
+    assessment_date: assessmentDate,
+    students_count: total,
+    grade_2: g2,
+    grade_3: g3,
+    grade_4: g4,
+    grade_5: g5,
+    achievement_percent: Number(achievement.toFixed(2)),
+    quality_percent: Number(quality.toFixed(2)),
+    correction_work:
+      document.getElementById('diagCorrection')?.value.trim() || ''
+  };
+
+  try {
+    const academicYearId =
+      typeof window.getCurrentAcademicYearId === 'function'
+        ? await window.getCurrentAcademicYearId()
+        : null;
+
+    if (academicYearId != null) {
+      payload.academic_year_id = Number(academicYearId) || null;
+    }
+
+    if (typeof window.sbMutate !== 'function') {
+      throw new Error('Функция сохранения данных не загружена.');
+    }
+
+    await window.sbMutate('input_diagnostics', 'POST', '', payload);
+
+    const msg = document.getElementById('diagMessage');
+    if (msg) msg.textContent = 'Отчет сохранён.';
+
+    alert('Входная диагностика сохранена.');
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось сохранить отчет: ' + (e.message || e));
+  }
+};
+window.viewInputDiagnostics = async function(){
+  const target = document.getElementById('diagResults');
+  if (!target) return;
+
+  target.innerHTML = '<p class="muted">Загрузка результатов…</p>';
+
+  try {
+    const rows = await window.sbRest(
+      'input_diagnostics',
+      'select=*'
+    );
+
+    const esc = window.escapeHtml || (s => String(s ?? ''));
+    const sorted = (rows || []).sort(
+      (a, b) => String(b.assessment_date || '')
+        .localeCompare(String(a.assessment_date || ''))
+    );
+
+    if (!sorted.length) {
+      target.innerHTML = '<div class="empty">Сохранённых результатов пока нет.</div>';
+      return;
+    }
+
+    const headers = [
+      'Класс', 'Предмет', 'Учитель', 'Дата',
+      'Писали', '2', '3', '4', '5',
+      'Успеваемость', 'Качество',
+      'Планируемая коррекционная работа'
+    ];
+
+    const rowsHtml = sorted.map(r => `
+      <tr>
+        <td>${esc(r.class_name)}</td>
+        <td>${esc(r.subject)}</td>
+        <td>${esc(r.teacher_name)}</td>
+        <td>${esc(r.assessment_date)}</td>
+        <td>${esc(r.students_count)}</td>
+        <td>${esc(r.grade_2)}</td>
+        <td>${esc(r.grade_3)}</td>
+        <td>${esc(r.grade_4)}</td>
+        <td>${esc(r.grade_5)}</td>
+        <td>${Number(r.achievement_percent || 0).toFixed(2)}%</td>
+        <td>${Number(r.quality_percent || 0).toFixed(2)}%</td>
+        <td>${esc(r.correction_work)}</td>
+      </tr>
+    `).join('');
+
+    target.innerHTML = `
+      <h3>Сохранённые результаты</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    target.innerHTML = '<div class="empty">Не удалось загрузить результаты.</div>';
+    alert('Не удалось получить результаты: ' + (e.message || e));
+  }
+};
+
+window.exportInputDiagnostics = async function(){
+  try {
+    const rows = await window.sbRest(
+      'input_diagnostics',
+      'select=*'
+    );
+
+    const headers = [
+      'Класс', 'Предмет', 'Учитель', 'Дата проведения',
+      'Кол-во писавших', '2', '3', '4', '5',
+      'Успеваемость', 'Качество',
+      'Планируемая коррекционная работа'
+    ];
+
+    const data = (rows || [])
+      .sort((a, b) =>
+        String(b.assessment_date || '')
+          .localeCompare(String(a.assessment_date || ''))
+      )
+      .map(r => [
+        r.class_name,
+        r.subject,
+        r.teacher_name,
+        r.assessment_date,
+        r.students_count,
+        r.grade_2,
+        r.grade_3,
+        r.grade_4,
+        r.grade_5,
+        Number(r.achievement_percent || 0).toFixed(2) + '%',
+        Number(r.quality_percent || 0).toFixed(2) + '%',
+        r.correction_work
+      ]);
+
+    if (window.XLSX) {
+      const ws = window.XLSX.utils.aoa_to_sheet([headers, ...data]);
+      const wb = window.XLSX.utils.book_new();
+
+      ws['!cols'] = headers.map((h, i) => ({
+        wch: i === 11 ? 45 : (i < 4 ? 20 : 16)
+      }));
+
+      window.XLSX.utils.book_append_sheet(
+        wb, ws, 'Входная диагностика'
+      );
+      window.XLSX.writeFile(wb, 'входная_диагностика.xlsx');
+    } else {
+      downloadCSV(headers, data, 'входная_диагностика.csv');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось получить результаты: ' + (e.message || e));
+  }
+};
+  window.App = window.App || {};
+  window.App.reports = window.App.reports || {};
+  
+if(typeof state!=='undefined' && state?.currentPage==='reports'){ setTimeout(()=>window.App.reports.render(),0); }
+window.App.reports.inputDiagnostics = {
+    render:function(){return typeof window.renderInputDiagnostics==='function'?window.renderInputDiagnostics():null;},
+    open:function(){return typeof window.openInputDiagnostics==='function'?window.openInputDiagnostics():null;},
+    recalc:function(){return typeof window.recalcInputDiagnostic==='function'?window.recalcInputDiagnostic():null;},
+    submit:function(){return typeof window.submitInputDiagnostic==='function'?window.submitInputDiagnostic():null;},
+    export:function(){return typeof window.exportInputDiagnostics==='function'?window.exportInputDiagnostics():null;}
+  };
+window.App.reports.render = function(){
+  if (typeof window.shell !== 'function') return;
+
+  const responsibleBlock =
+    typeof window.responsibleBlockFor === 'function'
+      ? window.responsibleBlockFor('reports')
+      : '';
+
+  const cards = [
+    ['Отчеты на начало года', 'Формы отчетов'],
+    ['Отчеты за 1 триместр', 'Формы отчетов'],
+    ['Отчеты за 2 триместр', 'Формы отчетов'],
+    ['Отчеты за год', 'Формы отчетов']
+  ];
+
+  const body = `<div class="module-grid">
+    ${cards.map(([title, subtitle]) => `
+      <div class="module-card"
+           onclick="openDocs('reports','${title}')">
+        <div class="module-icon">📊</div>
+        <div class="module-card-title">${title}</div>
+        <div class="muted">${subtitle}</div>
+        <div class="module-folder">📂 Открыть папку →</div>
+      </div>
+    `).join('')}
+  </div>`;
+
+  window.shell(
+    'Отчеты',
+    responsibleBlock + 'Периодические отчеты заполняются по установленным формам.',
+    body
+  );
+};
+})();
+</script>
+<script type="text/plain" data-module>
+
+window.App.pageRenderers["reports"] = function(){
+  const page="reports";
+  const names=window.App.sectionNames;
+  const responsibleBlock=window.App.renderResponsibleBlock(page);
+  shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);
+};
+
+</script>
+</body></html>

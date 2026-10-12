@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Уведомления</title></head><body>
+<script type="text/plain" data-module>
+/* ---------- Notifications: real teacher dropdown ---------- */
+function teacherLikeUsers(){
+  const all=(state.users||[]).filter(u=>!u.roleKeys?.includes("guest"));
+  const excluded=["admin","director","deputy","secretary","dispatcher"];
+  let teachers=all.filter(u=>(u.roleKeys||[]).includes("teacher"));
+  if(!teachers.length) teachers=all.filter(u=>!(u.roleKeys||[]).some(r=>excluded.includes(r)));
+  return teachers.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ru"));
+}
+
+function teacherSelectHtml(id,users,placeholder="Выберите учителя"){
+  return `<select id="${id}" style="width:100%"><option value="">${escapeHtml(placeholder)}</option>${users.map(u=>`<option value="${Number(u.id)}">${escapeHtml(u.name)}</option>`).join("")}</select>`;
+}
+
+window.sendText = function(){
+  if(!isManager()) return;
+  const users=teacherLikeUsers();
+  if(!users.length) return alert("Список учителей пока не загружен.");
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal">
+    <h3>Сообщение учителю</h3>
+    <div class="notify-form">
+      <div class="notify-row"><label>Учитель</label>${teacherSelectHtml("notifyTeacherId",users)}</div>
+      <div class="notify-row"><label>Сообщение</label><textarea id="notifyMessage" rows="5" placeholder="Введите сообщение"></textarea></div>
+    </div>
+    <div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitTextNotification()">Отправить</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML("beforeend",html);
+};
+
+window.submitTextNotification = async function(){
+  const id=Number(document.getElementById("notifyTeacherId")?.value||0);
+  const msg=document.getElementById("notifyMessage")?.value.trim();
+  const u=teacherLikeUsers().find(x=>Number(x.id)===id);
+  if(!u)return alert("Выберите учителя из списка.");
+  if(!msg)return alert("Введите сообщение.");
+  try{
+    const row=await saveServerNotification({
+      notification_type:"text",title:"Новое сообщение",body:msg,
+      recipient_employee_id:Number(u.id),sender_employee_id:Number(state.currentUser.id),
+      sender_name:state.currentUser.name,visit_data:{}
+    });
+    state.notifications.unshift({
+      id:Number(row?.id||Date.now()),type:"text",title:"Новое сообщение",text:msg,date:"Сегодня",
+      read:false,teacher:u.login,teacherId:Number(u.id),senderName:state.currentUser.name
+    });
+    save();closeNotifyModal();alert("Уведомление отправлено.");render();
+  }catch(e){alert("Не удалось отправить уведомление: "+(e.message||e));}
+};
+
+window.sendVisit = function(){
+  if(!isManager()) return;
+  const teachers=teacherLikeUsers();
+  const deputies=state.users.filter(u=>(u.roleKeys||[]).some(r=>["deputy","director"].includes(r)))
+    .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ru"));
+  const classes=[...new Set((state.schedule?.entries||[]).map(x=>x.className).concat(state.classRoster?.map(x=>x.name)||[]).filter(Boolean))].sort(classSort);
+  const subjects=[...new Set((state.schedule?.entries||[]).map(x=>x.subject).filter(Boolean))].sort();
+  const html=`<div class="notify-modal-backdrop"><div class="notify-modal"><h3>Уведомление о посещении урока</h3>
+    <div class="notify-form">
+      <div class="notify-row"><label>1. Учитель</label>${teacherSelectHtml("visitTeacherId",teachers)}</div>
+      <div class="notify-row"><label>2. Дата посещения</label><input id="visitDate" type="date" value="${dateInfo().iso}"></div>
+      <div class="notify-row"><label>3. Заместитель / директор</label><select id="visitDeputyName" style="width:100%"><option value="">Выберите</option>${deputies.map(u=>`<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join("")}</select></div>
+      <div class="notify-row"><label>4. Класс</label><select id="visitClass" style="width:100%"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select></div>
+      <div class="notify-row"><label>5. Предмет</label><select id="visitSubject" style="width:100%"><option value="">Выберите предмет</option>${subjects.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("")}</select></div>
+      <div class="notify-row"><label>6. Цель посещения</label><textarea id="visitPurpose" rows="3" placeholder="Цель посещения урока"></textarea></div>
+      
+    </div>
+    <div class="notify-modal-actions"><button class="btn" onclick="closeNotifyModal()">Отмена</button><button class="btn green" onclick="submitVisitNotification()">Отправить</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML("beforeend",html);
+};
+
+window.submitVisitNotification = async function(){
+  const teacherId=Number(document.getElementById("visitTeacherId")?.value||0);
+  const dn=document.getElementById("visitDeputyName")?.value.trim();
+  const cls=document.getElementById("visitClass")?.value.trim();
+  const subject=document.getElementById("visitSubject")?.value.trim();
+  const purpose=document.getElementById("visitPurpose")?.value.trim();
+  const visitDate=document.getElementById("visitDate")?.value||"";
+  const teacher=teacherLikeUsers().find(u=>Number(u.id)===teacherId);
+  const deputy=flexibleUserByName(dn,state.users.filter(u=>(u.roleKeys||[]).some(r=>["deputy","director"].includes(r))));
+  if(!teacher||!deputy||!cls||!subject||!purpose||!visitDate)return alert("Заполните все поля, включая дату посещения.");
+  try{
+    const visit={teacher:teacher.name,deputy:deputy.name,cls,subject,purpose,date:visitDate};
+    const row=await saveServerNotification({
+      notification_type:"visit",title:"Уведомление о посещении урока",
+      body:`Дата посещения: ${visitDate}. Класс: ${cls}. Предмет: ${subject}. Цель: ${purpose}. Посетитель: ${deputy.name}.`,
+      recipient_employee_id:Number(teacher.id),sender_employee_id:Number(state.currentUser.id),
+      sender_name:state.currentUser.name,visit_data:visit
+    });
+    state.notifications.unshift({
+      id:Number(row?.id||Date.now()),type:"visit",title:"Уведомление о посещении урока",
+      text:`Дата посещения: ${visitDate}. Класс: ${cls}. Предмет: ${subject}. Цель: ${purpose}. Посетитель: ${deputy.name}.`,
+      date:visitDate,read:false,teacher:teacher.login,teacherId:Number(teacher.id),senderEmployeeId:Number(state.currentUser.id),senderName:state.currentUser.name,visit
+    });
+    save();closeNotifyModal();alert("Уведомление отправлено.");render();
+  }catch(e){alert("Не удалось отправить уведомление: "+(e.message||e));}
+};
+
+
+</script>
+</body></html>
