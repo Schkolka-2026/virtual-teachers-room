@@ -336,9 +336,30 @@
   }
   async function loadUserAssignments(){
     try{
-      const rows=isAdmin()?await sbRest("user_assignments","select=*"):await sbRest("user_assignments","select=*&employee_id=eq."+encodeURIComponent(state.currentUser?.id));
+      const currentUserId=state.currentUser?.id;
+      const rows=isAdmin()?await sbRest("user_assignments","select=*"):await sbRest("user_assignments","select=*&employee_id=eq."+encodeURIComponent(currentUserId));
       const by={};(rows||[]).forEach(r=>by[String(r.employee_id)]=r);
-      (state.users||[]).forEach(u=>{const r=by[String(u.id)];if(!r)return;u.attendanceClasses=Array.isArray(r.attendance_classes)?r.attendance_classes:[];u.replacement=Array.isArray(r.replacement_classes)?r.replacement_classes:[];u.shift=r.shift||{};});
+      (state.users||[]).forEach(u=>{
+        const r=by[String(u.id)];
+        if(!r)return;
+        u.attendanceClasses=Array.isArray(r.attendance_classes)?r.attendance_classes:[];
+        u.replacement=Array.isArray(r.replacement_classes)?r.replacement_classes:[];
+        u.shift=r.shift&&typeof r.shift==="object"?r.shift:{};
+      });
+
+      // state.currentUser — отдельная копия сотрудника, не тот же объект,
+      // который обновляется в state.users. Кроме того, из-за RLS сотрудника
+      // может не быть в state.users, хотя его назначения доступны по employee_id.
+      // Поэтому синхронизируем текущего пользователя непосредственно из ответа БД.
+      const currentAssignment=by[String(currentUserId)];
+      if(state.currentUser && currentAssignment){
+        state.currentUser={
+          ...state.currentUser,
+          attendanceClasses:Array.isArray(currentAssignment.attendance_classes)?[...currentAssignment.attendance_classes]:[],
+          replacement:Array.isArray(currentAssignment.replacement_classes)?[...currentAssignment.replacement_classes]:[],
+          shift:currentAssignment.shift&&typeof currentAssignment.shift==="object"?{...currentAssignment.shift}:{}
+        };
+      }
     }catch(e){console.warn("Не удалось загрузить назначения пользователей:",e);}
   }
   async function saveUserAssignments(u){
@@ -635,6 +656,10 @@ function noticeHtml(n){
         <div class="card">
           <h3>Расписание на завтра <span class="muted">(${tomorrow.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>
           ${renderScheduleSelector("tomorrow")}
+        </div>
+        <div class="card">
+          <h3>Расписание на выбранную дату</h3>
+          ${renderScheduleSelector("custom")}
         </div>
         <div class="card">
           <h3>Базовое расписание</h3>
