@@ -743,14 +743,83 @@ function noticeHtml(n){
     if(document.getElementById("otherTotal"))document.getElementById("otherTotal").textContent=other;
     const v=document.getElementById("attValidation");if(v)v.innerHTML=absent>total?'<div class="warning-box">⚠ Количество указанных отсутствующих превышает количество детей в классе. Проверьте данные.</div>':'';
   };
-  window.submitAttendance=function(){
-    recalcAttendance();
-    const cls=document.getElementById("attClass").value,total=+document.getElementById("attTotal").value,present=+document.getElementById("attPresent").value;
-    const all={};document.querySelectorAll(".att-input").forEach(e=>all[e.dataset.key]=+e.value||0);
-    const rec={date:dateInfo().iso,className:cls,total,present,filtered:+document.getElementById("attFiltered").value||0,home:+document.getElementById("attHome").value||0,food:+document.getElementById("attFood").value||0,remote:+document.getElementById("attRemote").value||0,...all,teacher:state.currentUser.name};
-    state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&x.teacher===rec.teacher));state.attendance.push(rec);
-    const t=state.tasks.find(x=>x.id==="attendance");if(t)t.done=true;save();alert("Посещаемость отправлена и сохранена в аналитике.");navigate("home");
+ window.submitAttendance = async function () {
+  recalcAttendance();
+
+  const cls = document.getElementById("attClass")?.value || "";
+  if (!cls) {
+    alert("Сначала выберите класс.");
+    return;
+  }
+
+  const total = Number(document.getElementById("attTotal")?.value) || 0;
+  const present = Number(document.getElementById("attPresent")?.value) || 0;
+  const all = {};
+
+  document.querySelectorAll(".att-input").forEach(el => {
+    all[el.dataset.key] = Number(el.value) || 0;
+  });
+
+  const rec = {
+    date: dateInfo().iso,
+    className: cls,
+    total,
+    present,
+    filtered: Number(document.getElementById("attFiltered")?.value) || 0,
+    home: Number(document.getElementById("attHome")?.value) || 0,
+    food: Number(document.getElementById("attFood")?.value) || 0,
+    remote: Number(document.getElementById("attRemote")?.value) || 0,
+    ...all,
+    teacher: state.currentUser.name
   };
+
+  try {
+    const payload = {
+      attendance_date: rec.date,
+      class_name: rec.className,
+      teacher_employee_id: Number(state.currentUser.id),
+      teacher_name: rec.teacher,
+      total: rec.total,
+      present: rec.present,
+      data: rec,
+      updated_at: new Date().toISOString()
+    };
+
+    const saved = await sbMutate(
+      "attendance_records",
+      "POST",
+      "on_conflict=attendance_date,class_name,teacher_employee_id",
+      payload
+    );
+
+    // Обновляем локальные данные только после успешного ответа сервера.
+    const result = Array.isArray(saved) ? saved[0] : saved;
+
+    state.attendance = (state.attendance || []).filter(x =>
+      !(
+        x.date === rec.date &&
+        x.className === rec.className &&
+        Number(x.teacherEmployeeId) === Number(state.currentUser.id)
+      )
+    );
+
+    state.attendance.push({
+      ...rec,
+      id: result?.id ? Number(result.id) : undefined,
+      teacherEmployeeId: Number(state.currentUser.id)
+    });
+
+    const task = state.tasks.find(x => x.id === "attendance");
+    if (task) task.done = true;
+
+    save();
+    alert("Посещаемость сохранена в системе.");
+    navigate("home");
+  } catch (e) {
+    console.error("Ошибка сохранения посещаемости:", e);
+    alert("Не удалось сохранить посещаемость: " + (e.message || e));
+  }
+};
   function classSort(a,b){const pa=String(a).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[],pb=String(b).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[];return (+pa[1]||0)-(+pb[1]||0)||String(pa[2]||'').localeCompare(String(pb[2]||''),'ru');}
   window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
   window.showJournalAnalytics=function(){
