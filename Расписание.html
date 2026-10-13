@@ -208,14 +208,14 @@ scheduleForUser=function(entries,mode){
 scheduleShiftFor=function(entries){
   const shifts=[...new Set(entries.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
   if(!shifts.length)return '—';
-  return `<div class="schedule-shift-badges">${shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('')}</div>`;
+  return `<div class="schedule-shift-badges">${shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s}</span>`).join('')}</div>`;
 };
 renderScheduleTable=function(entries,mode){
   const arr=scheduleForUser(entries,mode);
   if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
   const roomOf=x=>x.room??x.roomName??x.room_name??x.room_number??x.roomNumber??x.cabinet??x.classroom??'';
   const cellStyle='padding:4px 5px;white-space:normal;overflow-wrap:anywhere;word-break:normal;vertical-align:top;';
-  return `<div class="schedule-view" style="width:100%;max-width:100%;"><div class="schedule-shift-badges">${scheduleShiftFor(arr).replace(/^<div class="schedule-shift-badges">|<\/div>$/g,'')}</div><div class="table-wrap schedule-table-wrap" style="width:100%;max-width:100%;overflow-x:visible;overflow-y:visible;"><table class="data-table schedule-table" style="width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;"><colgroup><col style="width:11%"><col style="width:7%"><col style="width:8%"><col style="width:23%"><col style="width:36%"><col style="width:15%"></colgroup><thead><tr><th style="${cellStyle}">Смена</th><th style="${cellStyle}">Урок</th><th style="${cellStyle}">Класс</th><th style="${cellStyle}">Предмет</th><th style="${cellStyle}">Учитель</th><th style="${cellStyle}">Кабинет</th></tr></thead><tbody>${arr.map(x=>`<tr class="shift-row-${Number(x.shift)===2?2:1}"><td style="${cellStyle}"><span class="schedule-shift-badge shift${Number(x.shift)===2?2:1}">${Number(x.shift)} смена</span></td><td style="${cellStyle}">${Number(x.lesson)}</td><td style="${cellStyle}">${escapeHtml(x.className)}</td><td style="${cellStyle}">${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}</td><td style="${cellStyle}">${escapeHtml(x.teacher||'—')}</td><td style="${cellStyle}">${escapeHtml(roomOf(x)||'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
+  return `<div class="schedule-view" style="width:100%;max-width:100%;"><div class="schedule-shift-badges">${scheduleShiftFor(arr).replace(/^<div class="schedule-shift-badges">|<\/div>$/g,'')}</div><div class="table-wrap schedule-table-wrap" style="width:100%;max-width:100%;overflow-x:visible;overflow-y:visible;"><table class="data-table schedule-table" style="width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;"><colgroup><col style="width:11%"><col style="width:7%"><col style="width:8%"><col style="width:23%"><col style="width:36%"><col style="width:15%"></colgroup><thead><tr><th style="${cellStyle}">Смена</th><th style="${cellStyle}">Урок</th><th style="${cellStyle}">Класс</th><th style="${cellStyle}">Предмет</th><th style="${cellStyle}">Учитель</th><th style="${cellStyle}">Кабинет</th></tr></thead><tbody>${arr.map(x=>`<tr class="shift-row-${Number(x.shift)===2?2:1}"><td style="${cellStyle}"><span class="schedule-shift-badge shift${Number(x.shift)===2?2:1}">${Number(x.shift)}</span></td><td style="${cellStyle}">${Number(x.lesson)}</td><td style="${cellStyle}">${escapeHtml(x.className)}</td><td style="${cellStyle}">${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}</td><td style="${cellStyle}">${escapeHtml(x.teacher||'—')}</td><td style="${cellStyle}">${escapeHtml(roomOf(x)||'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
 };
 renderScheduleSelector=function(day){
   const user=state.currentUser||{};
@@ -293,7 +293,7 @@ window.showBaseScheduleChoice=function(){
     for(let lesson=1;lesson<=20;lesson++){
       const rows=arr.filter(x=>Number(x.shift)===shift&&Number(x.lesson)===lesson);
       if(!rows.length)continue;
-      html+=`<tr class="shift-row-${shift}"><td><span class="schedule-shift-badge shift${shift}">${shift} смена</span></td><td>${lesson}</td>${days.map((_,i)=>{const cells=rows.filter(x=>Number(x.dayIndex)===i);return `<td>${cells.map(x=>`${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}<br><span class="muted">${escapeHtml(x.teacher||'')}</span>`).join('<hr style="border:0;border-top:1px solid var(--line);margin:5px 0">')||'—'}</td>`;}).join('')}</tr>`;
+      html+=`<tr class="shift-row-${shift}"><td><span class="schedule-shift-badge shift${shift}">${shift}</span></td><td>${lesson}</td>${days.map((_,i)=>{const cells=rows.filter(x=>Number(x.dayIndex)===i);return `<td>${cells.map(x=>`${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}<br><span class="muted">${escapeHtml(x.teacher||'')}</span>`).join('<hr style="border:0;border-top:1px solid var(--line);margin:5px 0">')||'—'}</td>`;}).join('')}</tr>`;
     }
   }
   html+='</table></div>';document.getElementById('baseScheduleResult').innerHTML=html;
