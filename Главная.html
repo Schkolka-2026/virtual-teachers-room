@@ -305,14 +305,7 @@
     if(!session)throw new Error("Нет активной сессии Supabase.");
     const r=await fetch(`${SUPABASE_URL}/rest/v1/${table}${query?`?${query}`:""}`,{
       method,
-      headers: {
-  apikey: SUPABASE_PUBLISHABLE_KEY,
-  Authorization: `Bearer ${session.access_token}`,
-  "Content-Type": "application/json",
-  Prefer: method === "POST" && query.includes("on_conflict=")
-    ? "resolution=merge-duplicates,return=representation"
-    : "return=representation"
-},
+      headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=representation"},
       body:body==null?undefined:JSON.stringify(body)
     });
     if(!r.ok)throw new Error(`${table}: HTTP ${r.status} ${await r.text()}`);
@@ -750,83 +743,14 @@ function noticeHtml(n){
     if(document.getElementById("otherTotal"))document.getElementById("otherTotal").textContent=other;
     const v=document.getElementById("attValidation");if(v)v.innerHTML=absent>total?'<div class="warning-box">⚠ Количество указанных отсутствующих превышает количество детей в классе. Проверьте данные.</div>':'';
   };
- window.submitAttendance = async function () {
-  recalcAttendance();
-
-  const cls = document.getElementById("attClass")?.value || "";
-  if (!cls) {
-    alert("Сначала выберите класс.");
-    return;
-  }
-
-  const total = Number(document.getElementById("attTotal")?.value) || 0;
-  const present = Number(document.getElementById("attPresent")?.value) || 0;
-  const all = {};
-
-  document.querySelectorAll(".att-input").forEach(el => {
-    all[el.dataset.key] = Number(el.value) || 0;
-  });
-
-  const rec = {
-    date: dateInfo().iso,
-    className: cls,
-    total,
-    present,
-    filtered: Number(document.getElementById("attFiltered")?.value) || 0,
-    home: Number(document.getElementById("attHome")?.value) || 0,
-    food: Number(document.getElementById("attFood")?.value) || 0,
-    remote: Number(document.getElementById("attRemote")?.value) || 0,
-    ...all,
-    teacher: state.currentUser.name
+  window.submitAttendance=function(){
+    recalcAttendance();
+    const cls=document.getElementById("attClass").value,total=+document.getElementById("attTotal").value,present=+document.getElementById("attPresent").value;
+    const all={};document.querySelectorAll(".att-input").forEach(e=>all[e.dataset.key]=+e.value||0);
+    const rec={date:dateInfo().iso,className:cls,total,present,filtered:+document.getElementById("attFiltered").value||0,home:+document.getElementById("attHome").value||0,food:+document.getElementById("attFood").value||0,remote:+document.getElementById("attRemote").value||0,...all,teacher:state.currentUser.name};
+    state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&x.teacher===rec.teacher));state.attendance.push(rec);
+    const t=state.tasks.find(x=>x.id==="attendance");if(t)t.done=true;save();alert("Посещаемость отправлена и сохранена в аналитике.");navigate("home");
   };
-
-  try {
-    const payload = {
-      attendance_date: rec.date,
-      class_name: rec.className,
-      teacher_employee_id: Number(state.currentUser.id),
-      teacher_name: rec.teacher,
-      total: rec.total,
-      present: rec.present,
-      data: rec,
-      updated_at: new Date().toISOString()
-    };
-
-    const saved = await sbMutate(
-      "attendance_records",
-      "POST",
-      "on_conflict=attendance_date,class_name,teacher_employee_id",
-      payload
-    );
-
-    // Обновляем локальные данные только после успешного ответа сервера.
-    const result = Array.isArray(saved) ? saved[0] : saved;
-
-    state.attendance = (state.attendance || []).filter(x =>
-      !(
-        x.date === rec.date &&
-        x.className === rec.className &&
-        Number(x.teacherEmployeeId) === Number(state.currentUser.id)
-      )
-    );
-
-    state.attendance.push({
-      ...rec,
-      id: result?.id ? Number(result.id) : undefined,
-      teacherEmployeeId: Number(state.currentUser.id)
-    });
-
-    const task = state.tasks.find(x => x.id === "attendance");
-    if (task) task.done = true;
-
-    save();
-    alert("Посещаемость сохранена в системе.");
-    navigate("home");
-  } catch (e) {
-    console.error("Ошибка сохранения посещаемости:", e);
-    alert("Не удалось сохранить посещаемость: " + (e.message || e));
-  }
-};
   function classSort(a,b){const pa=String(a).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[],pb=String(b).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[];return (+pa[1]||0)-(+pb[1]||0)||String(pa[2]||'').localeCompare(String(pb[2]||''),'ru');}
   window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
   window.showJournalAnalytics=function(){
@@ -1111,7 +1035,7 @@ function noticeHtml(n){
         // Основной предмет располагается в строке номера урока,
         // преподаватель — в следующей строке.
         const subject=cellVal(a[r]?.[c.subCol]);
-        const room=cellVal(a[r]?.[c.roomCol]);
+        const room=cellVal(a[r]?.[c.roomCol])||cellVal(a[r+1]?.[c.roomCol]);
         const teacher=cellVal(a[r+1]?.[c.subCol]);
         if(subject && !looksLikeTeacherName(subject)){
           entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_base`,date:dateIso,shift,lesson,className:c.className,subject,room,teacher,group:0});
@@ -1259,14 +1183,22 @@ function noticeHtml(n){
   function renderScheduleTable(entries,mode){
     const arr=scheduleForUser(entries,mode);
     if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
-    return `<div class="schedule-view"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr><td>${x.lesson}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(x.subject||"—")}</td><td>${escapeHtml(x.teacher||"—")}</td><td>${escapeHtml(x.room||"—")}</td></tr>`).join("")}</table></div></div>`;
+    const roomOf=x=>x.room??x.roomName??x.room_name??x.room_number??x.roomNumber??x.cabinet??x.classroom??"";
+    const cellStyle="padding:4px 5px;white-space:normal;overflow-wrap:anywhere;vertical-align:top;";
+    return `<div class="schedule-view" style="width:100%;max-width:100%;"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap schedule-table-wrap" style="width:100%;max-width:100%;overflow-x:visible;overflow-y:visible;"><table class="data-table schedule-table" style="width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;"><colgroup><col style="width:8%"><col style="width:8%"><col style="width:23%"><col style="width:41%"><col style="width:20%"></colgroup><thead><tr><th style="${cellStyle}">Урок</th><th style="${cellStyle}">Класс</th><th style="${cellStyle}">Предмет</th><th style="${cellStyle}">Учитель</th><th style="${cellStyle}">Кабинет</th></tr></thead><tbody>${arr.map(x=>`<tr><td style="${cellStyle}">${Number(x.lesson)||"—"}</td><td style="${cellStyle}">${escapeHtml(x.className||"—")}</td><td style="${cellStyle}">${escapeHtml(x.subject||"—")}</td><td style="${cellStyle}">${escapeHtml(x.teacher||"—")}</td><td style="${cellStyle}">${escapeHtml(roomOf(x)||"—")}</td></tr>`).join("")}</tbody></table></div></div>`;
   }
   function renderScheduleSelector(day){
-    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
-    const entries=getScheduleForDate(iso);
-    const classes=(state.currentUser.classes||[]).filter(Boolean);
-    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("");
-    return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div></div>`;
+    const user=state.currentUser||{};
+    const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
+    const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
+    const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
+    const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+    const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
+    const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+    const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
+    const classes=canChooseAnyClass?allClasses:myClasses;
+    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
+    return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div></div>`;
   }
   window.showScheduleChoice=function(day){
     const sel=document.getElementById("scheduleChoice_"+day);if(!sel)return;
@@ -1274,11 +1206,18 @@ function noticeHtml(n){
     document.getElementById("scheduleResult_"+day).innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
   };
   function renderScheduleHomeSelector(day="today"){
-    const classes=(state.currentUser.classes||[]).filter(Boolean);
+    const user=state.currentUser||{};
+    const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
+    const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
+    const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
+    const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+    const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
+    const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+    const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
+    const classes=canChooseAnyClass?allClasses:myClasses;
+    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
     const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-    return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("")}</select></div>
-      <div class="muted">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div>
-      <div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+    return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div class="muted">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
   }
   window.showHomeScheduleChoice=function(day="today"){
     const sel=document.getElementById(`homeScheduleChoice_${day}`);if(!sel)return;
@@ -2117,15 +2056,31 @@ window.uploadBaseSchedule=async function(){
 
 // Teachers may inspect any class in the base schedule; "Мое расписание" stays teacher-specific.
 renderScheduleSelector = function(day){
-  const dt=day==='tomorrow'?nextSchoolDay():new Date(), iso=dateIsoLocal(dt);
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
-  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
+  const user=state.currentUser||{};
+  const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
+  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
+  const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
+  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+  const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
+  const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
+  const classes=canChooseAnyClass?allClasses:myClasses;
+  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
+  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div></div>`;
 };
 renderScheduleHomeSelector = function(day='today'){
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  const user=state.currentUser||{};
+  const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
+  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
+  const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
+  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+  const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
+  const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
+  const classes=canChooseAnyClass?allClasses:myClasses;
+  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
   const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div class="muted">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
 };
 renderBaseScheduleSelector = function(){
   const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
