@@ -336,72 +336,15 @@
   }
   async function loadUserAssignments(){
     try{
-      const currentUserId=state.currentUser?.id;
-      const rows=isAdmin()?await sbRest("user_assignments","select=*"):await sbRest("user_assignments","select=*&employee_id=eq."+encodeURIComponent(currentUserId));
+      const rows=isAdmin()?await sbRest("user_assignments","select=*"):await sbRest("user_assignments","select=*&employee_id=eq."+encodeURIComponent(state.currentUser?.id));
       const by={};(rows||[]).forEach(r=>by[String(r.employee_id)]=r);
-      (state.users||[]).forEach(u=>{
-        const r=by[String(u.id)];
-        if(!r)return;
-        u.attendanceClasses=Array.isArray(r.attendance_classes)?r.attendance_classes:[];
-        u.replacement=Array.isArray(r.replacement_classes)?r.replacement_classes:[];
-        u.shift=r.shift&&typeof r.shift==="object"?r.shift:{};
-      });
-
-      // state.currentUser — отдельная копия сотрудника, не тот же объект,
-      // который обновляется в state.users. Кроме того, из-за RLS сотрудника
-      // может не быть в state.users, хотя его назначения доступны по employee_id.
-      // Поэтому синхронизируем текущего пользователя непосредственно из ответа БД.
-      const currentAssignment=by[String(currentUserId)];
-      if(state.currentUser && currentAssignment){
-        state.currentUser={
-          ...state.currentUser,
-          attendanceClasses:Array.isArray(currentAssignment.attendance_classes)?[...currentAssignment.attendance_classes]:[],
-          replacement:Array.isArray(currentAssignment.replacement_classes)?[...currentAssignment.replacement_classes]:[],
-          shift:currentAssignment.shift&&typeof currentAssignment.shift==="object"?{...currentAssignment.shift}:{}
-        };
-      }
+      (state.users||[]).forEach(u=>{const r=by[String(u.id)];if(!r)return;u.attendanceClasses=Array.isArray(r.attendance_classes)?r.attendance_classes:[];u.replacement=Array.isArray(r.replacement_classes)?r.replacement_classes:[];u.shift=r.shift||{};});
     }catch(e){console.warn("Не удалось загрузить назначения пользователей:",e);}
   }
   async function saveUserAssignments(u){
     const payload={employee_id:Number(u.id),attendance_classes:u.attendanceClasses||[],replacement_classes:u.replacement||[],shift:u.shift||{},updated_at:new Date().toISOString()};
     try{const updated=await sbMutate("user_assignments","PATCH",`employee_id=eq.${encodeURIComponent(Number(u.id))}`,{attendance_classes:payload.attendance_classes,replacement_classes:payload.replacement_classes,shift:payload.shift,updated_at:payload.updated_at});if(Array.isArray(updated)&&updated.length)return true;await sbMutate("user_assignments","POST","",payload);return true;}catch(e){console.warn("Не удалось сохранить назначения",u.id,e);return false;}
   }
-  async function syncUserRolesForUser(u){
-    const authUserId=u.authUserId||u.auth_user_id;
-    if(!authUserId)throw new Error("Не найдена привязка учётной записи Supabase для пользователя «"+(u.name||u.login||u.id)+"». Роли не сохранены.");
-
-    // user_roles.user_id имеет внешний ключ на user_profiles.id.
-    // Поэтому сначала убеждаемся, что профиль с UUID этой учётной записи существует.
-    const profiles=await sbRest("user_profiles","select=id&id=eq."+encodeURIComponent(authUserId));
-    if(!Array.isArray(profiles)||!profiles.some(p=>String(p.id)===String(authUserId))){
-      await sbMutate("user_profiles","POST","",{
-        id:authUserId,
-        full_name:String(u.name||u.full_name||u.login||"Пользователь"),
-        login:String(u.login||""),
-        phone:String(u.phone||""),
-        position:String(u.position||""),
-        is_active:true,
-        updated_at:new Date().toISOString()
-      });
-    }
-
-    const roleRows=await sbRest("roles","select=id,code");
-    const roleIdByCode={};
-    (roleRows||[]).forEach(r=>{if(r.code!=null&&r.id!=null)roleIdByCode[String(r.code).trim().toLowerCase()]=Number(r.id);});
-    const aliases={"администратор":"admin","директор":"director","заместитель":"deputy","учитель":"teacher","диспетчер":"dispatcher","секретарь":"secretary","классный руководитель":"class_teacher","психолог":"psychologist","социальный педагог":"social_teacher","гость":"guest"};
-    const roleCodes=[...new Set((u.roleKeys||[]).map(x=>{
-      const raw=String(x||"").trim().toLowerCase();
-      return aliases[raw]||raw;
-    }).filter(Boolean))];
-    if(!roleCodes.length)roleCodes.push("teacher");
-    const unknown=roleCodes.filter(code=>roleIdByCode[code]==null);
-    if(unknown.length)throw new Error("Неизвестные роли: "+unknown.join(", ")+". Роли не сохранены.");
-    await sbMutate("user_roles","DELETE","user_id=eq."+encodeURIComponent(authUserId));
-    const payload=roleCodes.map(code=>({user_id:authUserId,role_id:roleIdByCode[code]}));
-    if(payload.length)await sbMutate("user_roles","POST","",payload);
-    return true;
-  }
-
   async function syncClassLeadersForUser(u){
     try{
       const yearId=await getCurrentAcademicYearId();
@@ -676,7 +619,11 @@ function noticeHtml(n){
   function renderPlan(){
     const moduleRenderer=window.App?.pageRenderers?.plan;
     if(typeof moduleRenderer==="function")return moduleRenderer();
-    shell("План работы","План работы пока недоступен.",`<div class="card"><div class="empty">Модуль плана работы не загружен.</div></div>`);
+    const canEdit=isManager(), teacherAdd=!isGuest();
+    shell("План работы","Общий план формируют заместители. Учитель может предложить мероприятие для своего класса.",
+      `<div class="card"><div class="toolbar">${teacherAdd?`<button class="btn green" onclick="addPlan()">＋ Добавить мероприятие</button>`:""}${canEdit?`<span class="chip">Режим редактирования заместителя/директора</span>`:""}</div>
+      <div class="table-wrap"><table class="data-table"><tr><th>Дата</th><th>Время</th><th>Мероприятие</th><th>Место</th><th>Участники</th><th>Ответственный</th><th>Статус</th><th>Действия</th></tr>
+      ${state.plan.map(x=>`<tr><td>${x.date}</td><td>${x.time}</td><td>${x.title}</td><td>${x.place}</td><td>${x.participants}</td><td>${x.responsible||"—"}</td><td><span class="chip">${x.status}</span></td><td>${canEdit?`<div class="icon-actions">${x.status==="На согласовании"?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:""}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:"—"}</td></tr>`).join("")}</table></div></div>`);
   }
   function renderSchedule(){
     const canDispatch=isDispatcher();
@@ -716,14 +663,31 @@ function noticeHtml(n){
       `<div class="card"><div class="toolbar">${can?`<button class="btn green" onclick="sendVisit()">＋ Уведомление о посещении урока</button><button class="btn" onclick="sendText()">＋ Сообщение учителю</button>`:""}<button class="btn" onclick="markNotificationsRead()">Отметить все прочитанными</button></div>${state.notifications.map(noticeHtml).join("")}</div>`);
   }
   function renderPlaceholder(){
-    const page=state.currentPage;
     const names={vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
+    const page=state.currentPage;
     const responsible=state.responsibles?.[page]||"";
     const responsibleBlock=`<div class="responsible-line"><b>Ответственный за направление:</b><span>${escapeHtml(responsible||"не назначен")}</span>${(isAdmin()||state.currentUser?.roleKeys?.includes("director"))?`<button class="small-btn" onclick="setResponsible('${page}')">Изменить</button>`:""}</div>`;
     if(isGuest()&&!guestPageAllowed(page)){shell("Доступ ограничен",responsibleBlock+"Режим гостя — только просмотр доступных разделов.",`<div class="card"><div class="empty">Раздел недоступен пользователю Гость.</div></div>`);return;}
     const pageRenderer=window.App?.pageRenderers?.[page];
     if(typeof pageRenderer==="function")return pageRenderer();
-    shell(names[page]||page,"Рабочий раздел «Школы решений».",`<div class="card"><h3>${escapeHtml(names[page]||page)}</h3><p class="muted">Модуль раздела не загружен.</p></div>`);
+    if(page==="olymp"){
+      shell(names[page],responsibleBlock+"Готовый модуль олимпиадного и конкурсного движения.",
+        `<div class="module-grid" style="margin-bottom:18px">${moduleCard("Приказы","Приказы по олимпиадному и конкурсному движению. Непрочитанные документы подсвечиваются.","left",true)}</div>
+         <div class="olymp-embed"><iframe src="olympiad_module.html" title="Олимпиадное и конкурсное движение" loading="lazy"></iframe></div>`);
+      return;
+    }
+    if(page==="vseobuch"){shell("Всеобуч",responsibleBlock+"Документы и материалы по работе с контингентом.",`<div class="module-grid">${moduleCard("Контингент","Приказы по контингенту, численность детей в классах, микрорайон, списки иностранцев, ОВЗ","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Личные дела","Нормативные документы, образцы документов, приказы","left")}${moduleCard("Прием и перевод","Документы по приему и переводу обучающихся","right")}${moduleCard("Семейное образование","Документы и материалы по семейному образованию","left")}${moduleCard("Работа с иностранными гражданами","Документы и материалы по работе с иностранными гражданами","right")}</div>`);return;}
+    if(page==="education"){shell("Учебная работа",responsibleBlock+"Документы, графики и материалы учебного процесса.",`<div class="module-grid">${moduleCard("Календарные учебные графики","Материалы календарных учебных графиков","right")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","left",true)}${normativeCard()}${moduleCard("Диагностические работы","Диагностические материалы и результаты")}${moduleCard("ВПР","Всероссийские проверочные работы")}${moduleCard("Промежуточная аттестация","Документы и материалы промежуточной аттестации")}${moduleCard("Сроки каникул","Сроки и график каникул")}</div>`);return;}
+    if(page==="journal"){shell("Электронный журнал",responsibleBlock+"Инструкции и ответы на часто задаваемые вопросы.",`<div class="module-grid">${moduleCard("Приказы","Новые приказы по электронному журналу. Непрочитанные документы подсвечиваются.","left",true)}${moduleCard("Для учителя","Инструкции по работе с электронным журналом и ответы на частые вопросы")}${moduleCard("Для родителей","Инструкции по доступу и работе с электронным журналом, ответы на частые вопросы")}</div>`);return;}
+    if(page==="upbringing"){shell("Воспитательная работа",responsibleBlock+"Материалы воспитательной деятельности.",`<div class="module-grid orderable">${moduleCard("План воспитательной работы","Планирование воспитательной работы","left")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Движение первых","Материалы и документы")}${moduleCard("Классное руководство","Материалы и документы по классному руководству")}${moduleCard("Орлята России","Материалы и документы программы «Орлята России»")}${moduleCard("Положения о школьных мероприятиях","Положения и регламенты школьных мероприятий")}${moduleCard("Разговоры о важном","Материалы цикла «Разговоры о важном»")}${moduleCard("Россия мои горизонты","Материалы цикла «Россия — мои горизонты»")}${moduleCard("Пушкинская карта","Материалы и документы по Пушкинской карте")}</div>`);return;}
+    if(page==="ovz"){shell("Обучающиеся с ОВЗ и инвалидностью",responsibleBlock+"Документы и материалы по сопровождению обучающихся.",`<div class="module-grid orderable">${moduleCard("Списки детей с ОВЗ и инвалидностью","Списки обучающихся и необходимые материалы")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Рабочие программы по нозологиям","Рабочие программы и материалы")}${moduleCard("Домашнее обучение","Документы и материалы по организации домашнего обучения")}</div>`);return;}
+    if(page==="gia"){shell("ЕГЭ / ОГЭ",responsibleBlock+"Материалы государственной итоговой аттестации.",`<div class="gia-grid"><div class="gia-half grade9"><h3>ОГЭ — 9 класс</h3>${giaHalf("9 класс")}</div><div class="gia-half grade11"><h3>ЕГЭ — 11 класс</h3>${giaHalf("11 класс")}</div></div>`);return;}
+    if(page==="attestation"){shell("Методическая работа",responsibleBlock+"Организация методической деятельности педагогов.",`<div class="module-grid orderable">${moduleCard("График предметных недель","График и материалы предметных недель")}${moduleCard("Приказы","Новые приказы по школе. Непрочитанные документы подсвечиваются.","right",true)}${moduleCard("Аттестация","Материалы по аттестации педагогических работников")}${moduleCard("Повышение квалификации","Курсы, программы и документы по повышению квалификации")}${moduleCard("Конкурсы профессионального мастерства","Конкурсы и материалы для участия")}${moduleCard("Методическая копилка","Общие методические материалы школы")}</div><div class="yellow-section-title">Работа методических объединений</div><div class="module-grid orderable">${["МО Начальной школы","МО Естественнонаучного цикла","МО Русского языка и литературы","МО Математики","МО Истории и обществознания","МО Иностранных языков","МО Физической культуры и ОБЗР","МО Технологии, ИЗО, Музыки"].map(x=>moduleCard(x,"Файлы методического объединения могут добавлять все пользователи, кроме гостя.")).join("")}</div>`);return;}
+    if(page==="career"){shell("Профориентация",responsibleBlock+"Материалы и документы по профориентационной работе.",`<div class="module-grid">${moduleCard("Расписание мероприятий","Календарь мероприятий по профориентации","left")}${moduleCard("Приказы","Новые приказы по профориентации. Непрочитанные документы подсвечиваются.","right",true)}${normativeCard()}${moduleCard("Предпрофильные классы (5–9)","Информация о предпрофильных и профильных направлениях","left")}${moduleCard("Билет в будущее","Материалы и информация проекта «Билет в будущее»","right")}</div>`);return;}
+    if(page==="psych"){shell(names[page],responsibleBlock+"Материалы социально-психологической службы.",`<div class="module-grid">${moduleCard("Консультации","Документы и материалы консультационной работы")}${moduleCard("Профилактика","Документы и материалы профилактической работы")}${moduleCard("Родительские собрания","Материалы и документы для родительских собраний")}${moduleCard("Тестирования","Материалы и документы по тестированию")}</div>`);return;}
+    if(page==="security"){shell(names[page],responsibleBlock+"Документы и материалы по безопасности.",`<div class="module-grid">${moduleCard("Инструкции ТБ","Инструкции по технике безопасности","left")}${moduleCard("Приказы","Новые приказы по безопасности. Непрочитанные документы подсвечиваются.","right",true)}${securityNormativeCard()}${moduleCard("Шаблоны и образцы","Шаблоны и образцы документов")}</div>`);return;}
+   if(page==="reports"){shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
+    shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
   }
   function guestPageAllowed(page){return ["home","transport","schedule","vseobuch","education","journal","ovz","olymp","gia"].includes(page);}
   function guestAllowed(page,title){if(!isGuest())return true;const allow={vseobuch:["Прием и перевод","Семейное образование"],education:["Сроки каникул"],journal:["Для родителей"],ovz:[],olymp:["__ALL__"],gia:["Расписание","Нормативные документы"]};if(page==="olymp")return true;if(title==="Нормативные документы")return true;return (allow[page]||[]).includes(title);}
@@ -750,21 +714,39 @@ function noticeHtml(n){
   function securityNormativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div onclick="openDocs('security','Нормативные документы — Федеральные')"><b>Федеральные документы</b><p>📂 Открыть</p></div><div onclick="openDocs('security','Нормативные документы — Региональные/муниципальные')"><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div onclick="openDocs('security','Нормативные документы — Локальные')"><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
   function giaHalf(label){const exam=label==="9 класс"?"ОГЭ":"ЕГЭ";return `${moduleCard(`Расписание ${exam}`,`Расписание консультаций, тренировочных мероприятий, экзаменов ${exam}`)}${moduleCard(`Выбор предметов ${exam}`,`Выбор предметов для ${label}`)}${moduleCard(`Приказы ${exam}`,`Приказы по ${exam}. Новые документы подсвечиваются.`,"left",true)}${normativeCardNoLocal(exam)}${moduleCard(`Тренировочные/Пробные ${exam}`,`Тренировочные и пробные мероприятия для ${label}`)}${moduleCard(`Создание особых условий ${exam}`,`Материалы и документы для ${label}`)}${moduleCard(`Работники ППЭ ${exam}`,`Сведения и документы для ${label}`)}`;}
   function renderMyData(){
-    const moduleRenderer=window.App?.pageRenderers?.mydata;
+    const moduleRenderer=window.App?.pageRenderers?.["mydata"];
     if(typeof moduleRenderer==="function")return moduleRenderer();
-    shell("Мои данные","Личные сведения и портфолио.",`<div class="card"><div class="empty">Модуль «Мои данные» не загружен.</div></div>`);
+    const d=state.myData[state.currentUser.login]||{};
+    const fields=[
+      ["Фамилия, имя, отчество","fullName"],["Организация","orgShort"],["Образование / диплом","education"],["Переподготовка","retraining"],["Телефон","phone"],["Эл. почта","email"],["Возраст","age"],["Общий стаж","totalExperience"],["Педагогический стаж","pedExperience"],["Ветеран труда, год","veteran"],["Научная степень","degree"],["Жилье","housing"],["Нуждаетесь в улучшении жилья","housingNeed"],["Количество учеников","students"],["Нагрузка (часов в неделю)","load"],["Квалификация","qualification"],["Предмет 1","subject1"],["Классы по предмету 1","classes1"],["Учащиеся по предмету 1","students1"],["Предмет 2","subject2"],["Классы по предмету 2","classes2"],["Учащиеся по предмету 2","students2"],["Повышение квалификации","cpd"],["Результативность ВОШ 2025/2026","olymp"],["Результативность ЕГЭ 2022/2023","ege"],["Награды муниципального уровня","awardsMunicipal"],["Награды регионального/всероссийского уровня","awardsRegional"],["Методические мероприятия","methodical"],["Эксперт ОГЭ/ЕГЭ/аттестации","expert"],["Конкурсы профессионального мастерства","proContests"]
+    ];
+    const portfolio=state.portfolio[state.currentUser.login]||[];
+    shell("Мои данные","Личные сведения и портфолио.",`<div class="grid">
+      <div class="card span6 mydata-half"><h3 style="cursor:pointer" onclick="toggleTeacherQuestionnaire()">📝 Анкета педагога <span class="muted">— нажмите, чтобы раскрыть</span></h3><div id="teacherQuestionnaire" class="hidden"><div class="form-grid compact-mydata" style="margin-top:12px">${fields.map(([label,key])=>`<div class="field"><label>${label}</label><input id="md_${key}" value="${escapeHtml(d[key]||"")}"></div>`).join("")}</div><div class="toolbar" style="justify-content:flex-end;margin-top:14px"><button class="btn green" onclick="saveMyData()">Сохранить анкету</button></div></div></div>
+      <div class="card span6 mydata-half"><h3>📁 Портфолио</h3><p class="muted">Каждый пользователь может добавлять свои документы.</p><div class="doc-upload"><input id="portfolioFile" type="file"><button class="btn green" style="margin-top:10px" onclick="uploadPortfolio()">＋ Добавить документ</button></div><div class="portfolio-list">${portfolio.map((f,i)=>`<div class="portfolio-item"><span>📄 ${escapeHtml(f.name)}</span><span><a href="${escapeHtml(f.url||f.data||"")}" target="_blank" rel="noopener">Открыть</a> <button class="small-btn danger" onclick="deletePortfolio(${i})">Удалить</button></span></div>`).join("")||'<div class="empty">Портфолио пока пусто.</div>'}</div></div>
+    </div>`);
   }
   window.toggleTeacherQuestionnaire=function(){document.getElementById("teacherQuestionnaire")?.classList.toggle("hidden");};
   function renderAdmin(){
-    const moduleRenderer=window.App?.pageRenderers?.admin;
+    const moduleRenderer=window.App?.pageRenderers?.["admin"];
     if(typeof moduleRenderer==="function")return moduleRenderer();
-    shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Модуль администрирования не загружен.</div></div>`);
+    if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
+    const respNames={transport:"Подвоз",vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
+    shell("Администрирование","Пользователи, роли, расписание, дежурство и ответственные за направления.",
+      `<div class="admin-grid">
+      <div class="card admin-span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th></th></tr>${state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.login)}</td><td>${escapeHtml(u.roles||rolesText(u.roleKeys))}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${escapeHtml(c)} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td><button class="small-btn" onclick="editUser(${u.id})">Изменить</button> <button class="small-btn danger" onclick="deleteUser(${u.id})">Удалить</button> <button class="small-btn" onclick="setUserCredentials(${u.id})">Логин / пароль</button></td></tr>`).join("")}</table></div><p class="role-hint">Секретарь — дополнительная роль существующего пользователя, как и Диспетчер. Отдельной учётной записи секретаря нет.</p></div>
+      <div class="card"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("dispatcher")||state.dispatcherIds.includes(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveDispatcher()">Сохранить</button></div>
+      <div class="card"><h3>Секретарь</h3><label>Назначить до 5 пользователей с ролью «Секретарь»</label><select id="secretarySelect" class="secretary-multi" multiple size="7">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("secretary")?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveSecretary()">Сохранить</button><p class="muted">Можно выбрать не более 5 человек. Каждый секретарь входит под своим обычным логином и получает права роли «Секретарь».</p></div>
+      <div class="card admin-span12"><h3>Расписание звонков</h3><p class="muted">Таблица соответствует утверждённому расписанию школы: три группы по сменам, отдельно понедельник и вторник-пятница.</p><div class="table-wrap">${renderBellMatrixTable(true)}</div><button class="btn green" style="margin-top:12px" onclick="saveBellMatrix()">Сохранить расписание звонков</button></div>
+      <div class="card admin-span12"><h3>Контингент классов</h3><p class="muted">Excel-файл с тремя столбцами: «Класс» / «Кол-во учеников» / «Смена». Классы сохраняются в Supabase; прежние классы только деактивируются после успешной проверки новой загрузки.</p><div class="roster-upload"><input id="rosterFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn green" style="margin-top:10px" onclick="uploadClassRoster()">Загрузить и заменить данные</button><div id="rosterInfo" class="roster-meta">В системе загружено классов: ${(state.classRoster||[]).length}.</div></div></div>
+      <div class="card"><h3>Ответственные за направления</h3><p class="muted">Администратор указывает ФИО заместителя, курирующего каждый модуль.</p><div class="responsible-admin-list">${Object.entries(respNames).map(([k,n])=>`<label>${n}<input id="resp_${k}" value="${escapeHtml(state.responsibles[k]||"")}" placeholder="ФИО заместителя"></label>`).join("")}</div><button class="btn green" style="margin-top:12px" onclick="saveResponsibles()">Сохранить ответственных</button></div>
+      <div class="card admin-span12"><h3>Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон 1</th><th>ФИО 2</th><th>Телефон 2</th></tr>${state.dutySchedule.map((x,i)=>`<tr><td>${escapeHtml(x.day)}</td><td><input id="duty_name1_${i}" value="${escapeHtml(x.name1||"")}"></td><td><input id="duty_phone1_${i}" value="${escapeHtml(x.phone1||"")}"></td><td><input id="duty_name2_${i}" value="${escapeHtml(x.name2||"")}"></td><td><input id="duty_phone2_${i}" value="${escapeHtml(x.phone2||"")}"></td></tr>`).join("")}</table></div><button class="btn green" style="margin-top:12px" onclick="saveDuty()">Сохранить график дежурства</button></div>
+      <div class="card admin-span12"><h3>Сроки каникул</h3><p class="muted">Сюда можно вставить полный график каникул на учебный год — несколько строк, таблицу или текстовый приказ.</p><label>Расписание каникул</label><textarea id="vacationsText" class="vacations-editor" rows="12" placeholder="Например:\nОсенние каникулы — ...\nЗимние каникулы — ...\nВесенние каникулы — ...\nЛетние каникулы — ...">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить расписание каникул</button></div>
+      </div>`);
   }
   function renderSettings(){
-    const moduleRenderer=window.App?.pageRenderers?.settings;
-    if(typeof moduleRenderer==="function")return moduleRenderer();
-    shell("Настройки","Настройки пользователя.",`<div class="card"><div class="empty">Модуль настроек не загружен.</div></div>`);
-  }
+    const moduleRenderer=window.App?.pageRenderers?.["settings"];
+    if(typeof moduleRenderer==="function")return moduleRenderer();shell("Настройки","Настройки пользователя.",`<div class="card" style="max-width:800px"><div class="settings-row"><b>Логин</b><div>${state.currentUser.login}</div></div><div class="settings-row"><b>Роль</b><div>${state.currentUser.roles||state.currentUser.role}</div></div><div class="settings-row"><b>Смена пароля</b><div><button class="btn" onclick="changePassword()">Изменить пароль</button></div></div></div>`);}
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
   window.recalcAttendance=function(){
     const total=+(document.getElementById("attTotal")?.value||0), inputs=[...document.querySelectorAll(".att-input")], absent=inputs.reduce((s,e)=>s+(+e.value||0),0)+(+(document.getElementById("attFiltered")?.value||0))+(+(document.getElementById("attHome")?.value||0))+(+(document.getElementById("attRemote")?.value||0));
@@ -775,13 +757,58 @@ function noticeHtml(n){
     if(document.getElementById("otherTotal"))document.getElementById("otherTotal").textContent=other;
     const v=document.getElementById("attValidation");if(v)v.innerHTML=absent>total?'<div class="warning-box">⚠ Количество указанных отсутствующих превышает количество детей в классе. Проверьте данные.</div>':'';
   };
-  window.submitAttendance=function(){
+  window.submitAttendance=async function(){
     recalcAttendance();
-    const cls=document.getElementById("attClass").value,total=+document.getElementById("attTotal").value,present=+document.getElementById("attPresent").value;
-    const all={};document.querySelectorAll(".att-input").forEach(e=>all[e.dataset.key]=+e.value||0);
-    const rec={date:dateInfo().iso,className:cls,total,present,filtered:+document.getElementById("attFiltered").value||0,home:+document.getElementById("attHome").value||0,food:+document.getElementById("attFood").value||0,remote:+document.getElementById("attRemote").value||0,...all,teacher:state.currentUser.name};
-    state.attendance=state.attendance.filter(x=>!(x.date===rec.date&&x.className===cls&&x.teacher===rec.teacher));state.attendance.push(rec);
-    const t=state.tasks.find(x=>x.id==="attendance");if(t)t.done=true;save();alert("Посещаемость отправлена и сохранена в аналитике.");navigate("home");
+    const cls=String(document.getElementById("attClass")?.value||"").trim();
+    const total=Number(document.getElementById("attTotal")?.value)||0;
+    const present=Number(document.getElementById("attPresent")?.value)||0;
+    const employeeId=Number(state.currentUser?.id);
+    if(!cls)return alert("Выберите класс.");
+    if(!Number.isFinite(employeeId)||employeeId<=0)return alert("Не удалось определить сотрудника для сохранения посещаемости. Войдите в систему повторно.");
+    const all={};document.querySelectorAll(".att-input").forEach(e=>all[e.dataset.key]=Number(e.value)||0);
+    const rec={
+      date:dateInfo().iso,className:cls,total,present,
+      filtered:Number(document.getElementById("attFiltered")?.value)||0,
+      home:Number(document.getElementById("attHome")?.value)||0,
+      food:Number(document.getElementById("attFood")?.value)||0,
+      remote:Number(document.getElementById("attRemote")?.value)||0,
+      ...all,teacher:state.currentUser.name
+    };
+    const payload={
+      attendance_date:rec.date,class_name:rec.className,
+      teacher_employee_id:employeeId,teacher_name:rec.teacher,
+      total:rec.total,present:rec.present,data:rec,updated_at:new Date().toISOString()
+    };
+    try{
+      // Обновляем запись за ту же дату, класс и сотрудника; иначе создаём новую.
+      const existing=await sbRest(
+        "attendance_records",
+        "select=id&attendance_date=eq."+encodeURIComponent(rec.date)+
+        "&class_name=eq."+encodeURIComponent(rec.className)+
+        "&teacher_employee_id=eq."+encodeURIComponent(employeeId)+
+        "&order=id.desc&limit=1"
+      );
+      let savedRows;
+      if(Array.isArray(existing)&&existing.length){
+        savedRows=await sbMutate("attendance_records","PATCH","id=eq."+encodeURIComponent(existing[0].id),payload);
+      }else{
+        savedRows=await sbMutate("attendance_records","POST","",payload);
+      }
+      const savedRow=Array.isArray(savedRows)?savedRows[0]:savedRows;
+      const savedId=Number(savedRow?.id||existing?.[0]?.id||Date.now());
+      state.attendance=(state.attendance||[]).filter(x=>!(
+        x.date===rec.date&&String(x.className)===rec.className&&
+        Number(x.teacherEmployeeId)===employeeId
+      ));
+      state.attendance.push({...rec,id:savedId,teacherEmployeeId:employeeId});
+      const t=state.tasks.find(x=>x.id==="attendance");if(t)t.done=true;
+      save();
+      alert("Посещаемость сохранена в Supabase.");
+      navigate("home");
+    }catch(e){
+      console.error("Не удалось сохранить посещаемость в Supabase:",e);
+      alert("Не удалось сохранить посещаемость в Supabase: "+(e.message||e));
+    }
   };
   function classSort(a,b){const pa=String(a).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[],pb=String(b).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[];return (+pa[1]||0)-(+pb[1]||0)||String(pa[2]||'').localeCompare(String(pb[2]||''),'ru');}
   window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
@@ -891,7 +918,7 @@ function noticeHtml(n){
     u.replacement=replacement.split(",").map(x=>x.trim()).filter(Boolean);
     if(!u.roleKeys.includes("dispatcher"))state.dispatcherIds=(state.dispatcherIds||[]).filter(x=>x!==u.id);
     save();
-    Promise.all([syncUserRolesForUser(u),syncClassLeadersForUser(u),saveUserAssignments(u)]).then(()=>{alert("Данные пользователя сохранены.");render();}).catch(e=>{console.error("Не удалось сохранить данные пользователя:",e);alert("Не удалось сохранить данные пользователя в Supabase. "+(e.message||"Проверьте доступ к таблицам user_profiles и user_roles."));});
+    Promise.all([syncClassLeadersForUser(u),saveUserAssignments(u)]).then(()=>{alert("Данные пользователя сохранены.");render();});
   };
   window.editUserRoles=function(id){return editUser(id);};
   window.deleteUser=function(id){
@@ -1067,7 +1094,7 @@ function noticeHtml(n){
         // Основной предмет располагается в строке номера урока,
         // преподаватель — в следующей строке.
         const subject=cellVal(a[r]?.[c.subCol]);
-        const room=cellVal(a[r]?.[c.roomCol])||cellVal(a[r+1]?.[c.roomCol]);
+        const room=cellVal(a[r]?.[c.roomCol]);
         const teacher=cellVal(a[r+1]?.[c.subCol]);
         if(subject && !looksLikeTeacherName(subject)){
           entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_base`,date:dateIso,shift,lesson,className:c.className,subject,room,teacher,group:0});
@@ -1215,22 +1242,14 @@ function noticeHtml(n){
   function renderScheduleTable(entries,mode){
     const arr=scheduleForUser(entries,mode);
     if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
-    const roomOf=x=>x.room??x.roomName??x.room_name??x.room_number??x.roomNumber??x.cabinet??x.classroom??"";
-    const cellStyle="padding:4px 5px;white-space:normal;overflow-wrap:anywhere;vertical-align:top;";
-    return `<div class="schedule-view" style="width:100%;max-width:100%;"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap schedule-table-wrap" style="width:100%;max-width:100%;overflow-x:visible;overflow-y:visible;"><table class="data-table schedule-table" style="width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;"><colgroup><col style="width:8%"><col style="width:8%"><col style="width:23%"><col style="width:41%"><col style="width:20%"></colgroup><thead><tr><th style="${cellStyle}">Урок</th><th style="${cellStyle}">Класс</th><th style="${cellStyle}">Предмет</th><th style="${cellStyle}">Учитель</th><th style="${cellStyle}">Кабинет</th></tr></thead><tbody>${arr.map(x=>`<tr><td style="${cellStyle}">${Number(x.lesson)||"—"}</td><td style="${cellStyle}">${escapeHtml(x.className||"—")}</td><td style="${cellStyle}">${escapeHtml(x.subject||"—")}</td><td style="${cellStyle}">${escapeHtml(x.teacher||"—")}</td><td style="${cellStyle}">${escapeHtml(roomOf(x)||"—")}</td></tr>`).join("")}</tbody></table></div></div>`;
+    return `<div class="schedule-view"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr><td>${x.lesson}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(x.subject||"—")}</td><td>${escapeHtml(x.teacher||"—")}</td><td>${escapeHtml(x.room||"—")}</td></tr>`).join("")}</table></div></div>`;
   }
   function renderScheduleSelector(day){
-    const user=state.currentUser||{};
-    const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
-    const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
-    const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
-    const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-    const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
-    const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-    const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
-    const classes=canChooseAnyClass?allClasses:myClasses;
-    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
-    return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div></div>`;
+    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
+    const entries=getScheduleForDate(iso);
+    const classes=(state.currentUser.classes||[]).filter(Boolean);
+    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("");
+    return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div></div>`;
   }
   window.showScheduleChoice=function(day){
     const sel=document.getElementById("scheduleChoice_"+day);if(!sel)return;
@@ -1238,18 +1257,11 @@ function noticeHtml(n){
     document.getElementById("scheduleResult_"+day).innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
   };
   function renderScheduleHomeSelector(day="today"){
-    const user=state.currentUser||{};
-    const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
-    const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
-    const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
-    const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-    const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
-    const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-    const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
-    const classes=canChooseAnyClass?allClasses:myClasses;
-    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
+    const classes=(state.currentUser.classes||[]).filter(Boolean);
     const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-    return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div class="muted">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+    return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("")}</select></div>
+      <div class="muted">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div>
+      <div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
   }
   window.showHomeScheduleChoice=function(day="today"){
     const sel=document.getElementById(`homeScheduleChoice_${day}`);if(!sel)return;
@@ -1599,7 +1611,6 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
       await loadAppSettingsFromSupabase();
       await loadUserAssignments();
       await loadDocumentsFromSupabase();
-      if(typeof window.refreshRuntimeData==="function") await window.refreshRuntimeData();
       state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession","supabase");
       document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
       if(errorBox)errorBox.textContent="";
@@ -1747,7 +1758,7 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
 <script type="text/plain" data-module>
 /* CORE.JS — application integration and smaller modules */
 const __base = window.__schoolBase;
-Object.keys(__base).forEach(k => { if (k === 'supabase' || !(k in window)) window[k] = __base[k]; });
+Object.keys(__base).forEach(k => { if (!(k in window)) window[k] = __base[k]; });
 let state = __base.state;
 window.App = window.App || {};
 window.App.state = state;
@@ -2088,31 +2099,15 @@ window.uploadBaseSchedule=async function(){
 
 // Teachers may inspect any class in the base schedule; "Мое расписание" stays teacher-specific.
 renderScheduleSelector = function(day){
-  const user=state.currentUser||{};
-  const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
-  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
-  const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
-  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
-  const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-  const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
-  const classes=canChooseAnyClass?allClasses:myClasses;
-  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
-  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div></div>`;
+  const dt=day==='tomorrow'?nextSchoolDay():new Date(), iso=dateIsoLocal(dt);
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
 };
 renderScheduleHomeSelector = function(day='today'){
-  const user=state.currentUser||{};
-  const roleKeys=Array.isArray(user.roleKeys)?user.roleKeys:[];
-  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(" ").toLowerCase();
-  const canChooseAnyClass=["admin","director","deputy"].some(r=>roleKeys.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText);
-  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const rosterForUser=typeof classRosterForUser==="function"?(classRosterForUser(user)||[]):[];
-  const allClasses=[...new Set([...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-  const myClasses=[...new Set([...rosterForUser.map(x=>typeof x==="string"?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])].filter(Boolean).map(x=>String(typeof x==="object"?(x.name||x.className||""):x).trim()).filter(Boolean))].sort(classSort);
-  const classes=canChooseAnyClass?allClasses:myClasses;
-  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?"Мой класс":`Мой класс — ${escapeHtml(c)}`)}</option>`).join("");
+  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
   const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div class="muted">Выберите «Мое расписание»${canChooseAnyClass?" или класс":" или «Мой класс»"}.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
 };
 renderBaseScheduleSelector = function(){
   const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);

@@ -128,15 +128,21 @@ function buildAttendanceAnalyticsReport(){
   const {from}=attendanceReportRange(), rows=attendanceReportRows(from,from), headers=ATT_HEADERS_V9;
   const sums=attendanceTotalRows(rows);
   const summary=(label,s)=>`<tr class="attendance-summary-row"><td colspan="3"><b>${escapeHtml(label)}</b></td>${attendanceSummaryCells(s)}</tr>`;
-  const missingByShift={1:[],2:[]};
-  rows.filter(r=>!r.record).forEach(r=>missingByShift[Number(r.shift)===2?2:1].push(r.className));
-  const missing=[1,2].filter(shift=>missingByShift[shift].length).map(shift=>
-    `<tr class="attendance-missing-row"><td colspan="${headers.length}"><b>${shift} смена:</b> ${missingByShift[shift].sort(classSort).map(escapeHtml).join(', ')}</td></tr>`
+  const missing=rows.filter(r=>!r.record).map(r=>
+    `<tr class="attendance-missing-row"><td colspan="${headers.length}"><b>Не заполнена форма:</b> ${escapeHtml(r.className)} · ${Number(r.shift)===2?'2-я':'1-я'} смена</td></tr>`
   ).join('');
   const el=document.getElementById('attAnalytics');if(!el)return;
   el.innerHTML=`<div class="table-wrap attendance-analytics-wrap"><table class="data-table attendance-analytics-table"><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${summary('1 смена',sums[1])}${summary('2 смена',sums[2])}${summary('Итого',sums.all)}${missing||`<tr><td colspan="${headers.length}">Все классы заполнили форму за выбранную дату.</td></tr>`}</tbody></table></div>`;
 }
-function filterAttendance(){buildAttendanceAnalyticsReport();}
+async function filterAttendance(){
+  // Перечитываем серверные данные при нажатии «Показать» и открытии аналитики.
+  try{
+    if(typeof loadAttendanceServer==="function")await loadAttendanceServer();
+  }catch(e){
+    console.warn("Не удалось обновить посещаемость из Supabase:",e);
+  }
+  buildAttendanceAnalyticsReport();
+}
 function exportAttendance(){
   const {from}=attendanceReportRange(), rows=attendanceReportRows(from,from), data=rows.map(r=>{
     const x=r.record;
