@@ -339,6 +339,15 @@
       const rows=isAdmin()?await sbRest("user_assignments","select=*"):await sbRest("user_assignments","select=*&employee_id=eq."+encodeURIComponent(state.currentUser?.id));
       const by={};(rows||[]).forEach(r=>by[String(r.employee_id)]=r);
       (state.users||[]).forEach(u=>{const r=by[String(u.id)];if(!r)return;u.attendanceClasses=Array.isArray(r.attendance_classes)?r.attendance_classes:[];u.replacement=Array.isArray(r.replacement_classes)?r.replacement_classes:[];u.shift=r.shift||{};});
+      // currentUser — отдельная копия записи пользователя; синхронизируем с ней назначения,
+      // чтобы списки классов в посещаемости и расписании видели актуальные данные.
+      const current=(state.users||[]).find(u=>String(u.id)===String(state.currentUser?.id));
+      if(current){
+        state.currentUser.classes=[...(current.classes||[])];
+        state.currentUser.attendanceClasses=[...(current.attendanceClasses||[])];
+        state.currentUser.replacement=[...(current.replacement||[])];
+        state.currentUser.shift={...(current.shift||{})};
+      }
     }catch(e){console.warn("Не удалось загрузить назначения пользователей:",e);}
   }
   async function saveUserAssignments(u){
