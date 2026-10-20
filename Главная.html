@@ -1242,9 +1242,11 @@ function noticeHtml(n){
     return as[0]===bs[0] && initials && fullInitials && initials===fullInitials;
   }
   function scheduleForUser(entries,mode){
-    if(isGuest())return entries;
-    if(mode==="mine")return entries.filter(x=>teacherMatches(x.teacher,state.currentUser.name));
-    if(mode&&mode.startsWith("class:")){const wanted=mode.slice(6);return entries.filter(x=>normalizeClass(x.className)===normalizeClass(wanted));}
+    const rows=entries||[];
+    if(isGuest())return rows;
+    if(mode==="mine")return rows.filter(x=>teacherMatches(x.teacher,state.currentUser?.name));
+    if(mode&&mode.startsWith("teacher:")){const wanted=mode.slice(8);return rows.filter(x=>teacherMatches(x.teacher,wanted));}
+    if(mode&&mode.startsWith("class:")){const wanted=mode.slice(6);return rows.filter(x=>normalizeClass(x.className)===normalizeClass(wanted));}
     return [];
   }
   function scheduleShiftFor(entries){const shifts=[...new Set(entries.map(x=>x.shift))];return shifts.length?shifts.join(", "):"—";}
@@ -1620,6 +1622,9 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
       await loadAppSettingsFromSupabase();
       await loadUserAssignments();
       await loadDocumentsFromSupabase();
+      // Load the server timetable before the first home render; otherwise the
+      // today/tomorrow selectors are built from an empty local state.
+      try{await loadScheduleServer();}catch(scheduleError){console.warn("Не удалось загрузить расписание при входе:",scheduleError);}
       state.currentPage="home";save();localStorage.setItem("schoolSolutionsSession","supabase");
       document.getElementById("authScreen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
       if(errorBox)errorBox.textContent="";
@@ -2106,20 +2111,58 @@ window.uploadBaseSchedule=async function(){
   reader.readAsArrayBuffer(f);
 };
 
-// Teachers may inspect any class in the base schedule; "Мое расписание" stays teacher-specific.
-renderScheduleSelector = function(day){
-  const dt=day==='tomorrow'?nextSchoolDay():new Date(), iso=dateIsoLocal(dt);
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
-  const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание» или класс.</div></div>`;
-};
-renderScheduleHomeSelector = function(day='today'){
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
-  const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-  return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите «Мое расписание» или класс.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
-};
-renderBaseScheduleSelector = function(){
-  const classes=[...new Set((state.classRoster||[]).map(x=>x.name).filter(Boolean))].sort(classSort);
+// Daily schedule selectors: class and teacher filters share the same loaded server rows.
+function scheduleViewerCanChooseAnyClass(){
+  const user=state.currentUser||{};
+  const roles=Array.isArray(user.roleKeys)?user.roleKeys:[];
+  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(' ').toLowerCase();
+  return ['admin','director','deputy'].some(r=>roles.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText)||isGuest();
+}
+function scheduleViewerClasses(){
+  const user=state.currentUser||{};
+  const all=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
+  const allUnique=[...new Set(all)].sort(classSort);
+  if(scheduleViewerCanChooseAnyClass())return allUnique;
+  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+  const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
+  const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])];
+  const taught=(state.schedule.entries||[]).filter(x=>teacherMatches(x.teacher,user.name)).map(x=>x.className);
+  return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
+}
+function scheduleViewerTeachers(){
+  const fromUsers=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')).map(u=>u?.name);
+  const fromRows=(state.schedule.entries||[]).map(x=>x?.teacher);
+  return [...new Set([...fromUsers,...fromRows].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+}
+function scheduleViewerControls(day,home=false){
+  const classes=scheduleViewerClasses();
+  const teachers=scheduleViewerTeachers();
+  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
+  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
+  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${scheduleViewerCanChooseAnyClass()?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
+  const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const handler=home?'showHomeScheduleChoice':'showScheduleChoice';
+  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classId}" onchange="${handler}('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="${teacherId}" aria-label="Выберите учителя" onchange="${handler}('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите вариант или конкретного учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
+}
+renderScheduleSelector=function(day){return scheduleViewerControls(day,false);};
+renderScheduleHomeSelector=function(day='today'){return scheduleViewerControls(day,true);};
+function renderScheduleSelection(day,home=false){
+  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
+  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
+  const classSel=document.getElementById(classId),teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
+  if(!classSel||!teacherSel||!result)return;
+  const dt=day==='tomorrow'?nextSchoolDay():new Date();
+  const mode=teacherSel.value||classSel.value;
+  if(teacherSel.value)classSel.value='';
+  if(classSel.value)teacherSel.value='';
+  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
+}
+window.showScheduleChoice=function(day){renderScheduleSelection(day,false);};
+window.showHomeScheduleChoice=function(day='today'){renderScheduleSelection(day,true);};
+renderBaseScheduleSelector=function(){
+  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.baseEntries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
   return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
 };
 
