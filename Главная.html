@@ -634,6 +634,38 @@ function noticeHtml(n){
       <div class="table-wrap"><table class="data-table"><tr><th>Дата</th><th>Время</th><th>Мероприятие</th><th>Место</th><th>Участники</th><th>Ответственный</th><th>Статус</th><th>Действия</th></tr>
       ${state.plan.map(x=>`<tr><td>${x.date}</td><td>${x.time}</td><td>${x.title}</td><td>${x.place}</td><td>${x.participants}</td><td>${x.responsible||"—"}</td><td><span class="chip">${x.status}</span></td><td>${canEdit?`<div class="icon-actions">${x.status==="На согласовании"?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:""}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:"—"}</td></tr>`).join("")}</table></div></div>`);
   }
+  function renderSchedule(){
+    const canDispatch=isDispatcher();
+    if(isGuest()){renderGuestSchedulePage();return;}
+    const d=dateInfo(), tomorrow=nextSchoolDay();
+    const newSched=hasUnreadSchedule();
+    shell("Расписание",`Расписание уроков. ${newSched?'<span class="schedule-new-badge">● есть непрочитанные изменения</span>':''}`,
+      `<div class="schedule-page-grid">
+        <div class="card ${newSched?'schedule-new':''}">
+          <h3>Расписание на сегодня <span class="muted">(${d.full})</span></h3>
+          ${renderScheduleSelector("today")}
+        </div>
+        <div class="card">
+          <h3>Расписание на завтра <span class="muted">(${tomorrow.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>
+          ${renderScheduleSelector("tomorrow")}
+        </div>
+        <div class="card">
+          <h3>Базовое расписание</h3>
+          ${renderBaseScheduleSelector()}
+        </div>
+      </div>
+      ${canDispatch?`<div class="card" style="margin-top:16px"><h3>Загрузка расписания на конкретную дату</h3>
+        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Дата расписания</label><input id="scheduleDate" type="date" value="${dateIsoLocal(nextSchoolDay())}"></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+        <p class="muted">Загрузить расписание может только диспетчер или администратор. При повторной загрузке той же даты и смены предыдущая версия полностью заменяется.</p>
+        <button class="btn green" style="margin-top:12px" onclick="uploadSchedule()">Загрузить и опубликовать</button><div id="scheduleImportInfo" class="muted" style="margin-top:10px"></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h3>Загрузка базового расписания</h3>
+        <div class="schedule-import-grid"><div><label>Файл базового расписания</label><input id="baseScheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Смена</label><select id="baseScheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+        <p class="muted">Базовых расписаний два — для 1-й и 2-й смены. Новая загрузка выбранной смены полностью заменяет старое базовое расписание этой смены.</p>
+        <button class="btn green" style="margin-top:12px" onclick="uploadBaseSchedule()">Загрузить базовое расписание</button><div id="baseScheduleImportInfo" class="muted" style="margin-top:10px"></div>
+      </div>`:""}`);
+    if(newSched) markScheduleRead();
+  }
   function renderNotifications(){
     const can=isManager();
     shell("Уведомления","Оповещения о посещении уроков и короткие сообщения.",
