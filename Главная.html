@@ -1255,31 +1255,53 @@ function noticeHtml(n){
     if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
     return `<div class="schedule-view"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr><td>${x.lesson}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(x.subject||"—")}</td><td>${escapeHtml(x.teacher||"—")}</td><td>${escapeHtml(x.room||"—")}</td></tr>`).join("")}</table></div></div>`;
   }
+  // Выбор класса/учителя находится в том же замыкании, что и renderSchedule.
+  // Поэтому обновление глобальной копии функции из отдельного модуля не может его перекрыть.
+  function scheduleSelectorClasses(){
+    const user=state.currentUser||{};
+    const fromData=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
+    const all=[...new Set(fromData)].sort(classSort);
+    if(isManager()||isDispatcher()||isGuest())return all;
+    const same=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+    const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
+    const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(same.classes||[]),...(same.attendanceClasses||[]),...(same.replacement||[])];
+    const taught=(state.schedule.entries||[]).filter(x=>teacherMatches(x.teacher,user.name)).map(x=>x.className);
+    return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
+  }
+  function scheduleSelectorTeachers(){
+    const fromUsers=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')&&u.name).map(u=>u.name);
+    const fromRows=(state.schedule.entries||[]).map(x=>x?.teacher);
+    return [...new Set([...fromUsers,...fromRows].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  }
   function renderScheduleSelector(day){
-    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date(),iso=dateIsoLocal(dt);
-    const entries=getScheduleForDate(iso);
-    const classes=(state.currentUser.classes||[]).filter(Boolean);
-    const options=classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("");
-    return `<div class="schedule-choice"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${options}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div></div>`;
+    const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
+    const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${(isManager()||isDispatcher()||isGuest())?escapeHtml(c):`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
+    const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="scheduleTeacherChoice_${day}" aria-label="Выберите учителя" onchange="showScheduleChoice('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div><div id="scheduleResult_${day}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
   }
   window.showScheduleChoice=function(day){
-    const sel=document.getElementById("scheduleChoice_"+day);if(!sel)return;
-    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date();
-    document.getElementById("scheduleResult_"+day).innerHTML=sel.value?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value):'<div class="schedule-empty">Выберите вариант.</div>';
+    const classSel=document.getElementById(`scheduleChoice_${day}`),teacherSel=document.getElementById(`scheduleTeacherChoice_${day}`),result=document.getElementById(`scheduleResult_${day}`);
+    if(!classSel||!teacherSel||!result)return;
+    const mode=teacherSel.value||classSel.value;
+    if(teacherSel.value)classSel.value='';
+    if(classSel.value)teacherSel.value='';
+    const dt=day==='tomorrow'?nextSchoolDay():new Date();
+    result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
   };
   function renderScheduleHomeSelector(day="today"){
-    const classes=(state.currentUser.classes||[]).filter(Boolean);
-    const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-    return `<div class="schedule-choice"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classes.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)} — классное руководство</option>`).join("")}</select></div>
-      <div class="muted">Выберите «Мое расписание»${classes.length?" или свой класс":"."}.</div>
-      <div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
+    const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
+    const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${(isManager()||isDispatcher()||isGuest())?escapeHtml(c):`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
+    const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="homeScheduleChoice_${day}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="homeScheduleTeacherChoice_${day}" aria-label="Выберите учителя" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div><div class="muted">Выберите вариант или конкретного учителя.</div><div id="homeScheduleResult_${day}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
   }
   window.showHomeScheduleChoice=function(day="today"){
-    const sel=document.getElementById(`homeScheduleChoice_${day}`);if(!sel)return;
-    const result=document.getElementById(`homeScheduleResult_${day}`);if(!result)return;
-    const d=dateInfo(),dt=day==="tomorrow"?nextSchoolDay():new Date();
-    if(!sel.value){result.innerHTML='<div class="schedule-empty">Выберите вариант.</div>';return;}
-    result.innerHTML=renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),sel.value);
+    const classSel=document.getElementById(`homeScheduleChoice_${day}`),teacherSel=document.getElementById(`homeScheduleTeacherChoice_${day}`),result=document.getElementById(`homeScheduleResult_${day}`);
+    if(!classSel||!teacherSel||!result)return;
+    const mode=teacherSel.value||classSel.value;
+    if(teacherSel.value)classSel.value='';
+    if(classSel.value)teacherSel.value='';
+    const dt=day==='tomorrow'?nextSchoolDay():new Date();
+    result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
   };
   function hasUnreadSchedule(){return (state.schedule.versions||[]).some(v=>!(v.readBy||{})[state.currentUser.login]);}
   function markScheduleRead(){(state.schedule.versions||[]).forEach(v=>{v.readBy=v.readBy||{};v.readBy[state.currentUser.login]={at:new Date().toISOString()};});save();}
