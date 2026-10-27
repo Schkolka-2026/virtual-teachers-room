@@ -544,21 +544,8 @@ function noticeHtml(n){
     const d=dateInfo();
     const bell=(d.day==="понедельник"?state.schedule.bellSchedules?.monday:state.schedule.bellSchedules?.weekdays)||state.schedule.bells||[];
     const dutyRows=state.dutySchedule.map(x=>`<tr><td>${escapeHtml(x.day)}</td><td>${escapeHtml(x.name1||"—")}</td><td>${escapeHtml(x.phone1||"—")}</td><td>${escapeHtml(x.name2||"—")}</td><td>${escapeHtml(x.phone2||"—")}</td></tr>`).join("");
-    // На главной показываем только опубликованные мероприятия от сегодня
-    // до конца следующих 14 календарных дней. Полный список остаётся в renderPlan().
-    const todayPlanDate=new Date();
-    todayPlanDate.setHours(0,0,0,0);
-    const planDateLimit=new Date(todayPlanDate);
-    planDateLimit.setDate(planDateLimit.getDate()+14);
-    const publishedPlan=(state.plan||[]).filter(x=>{
-      if(isGuest() || x.status!=="Опубликовано" || !x.date)return false;
-      const raw=String(x.date).slice(0,10);
-      const parts=raw.split("-").map(Number);
-      if(parts.length!==3 || parts.some(n=>!Number.isFinite(n)))return false;
-      const eventDate=new Date(parts[0],parts[1]-1,parts[2]);
-      eventDate.setHours(0,0,0,0);
-      return eventDate>=todayPlanDate && eventDate<=planDateLimit;
-    }).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time).localeCompare(String(b.time)));
+    const publishedPlan=(state.plan||[]).filter(x=>!isGuest()&&x.status==="Опубликовано")
+      .slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time).localeCompare(String(b.time))).slice(0,5);
     const ownOverdue=(state.journalOverdue||[]).filter(x=>Number(x.employeeId)===Number(state.currentUser?.id)||x.login===state.currentUser?.login);
     const overdueCount=ownOverdue.reduce((sum,x)=>sum+Number(x.count||0),0);
     const journalAlert=`<div class="home-inline-alert ${overdueCount?'has-alert':''}"><div class="home-inline-alert-title">📘 Контроль электронного журнала</div>${overdueCount?`<div class="home-inline-alert-text">⚠ Не заполнено страниц: <b>${overdueCount}</b>.</div><div class="home-inline-alert-dates">${ownOverdue.slice(0,5).map(x=>`${escapeHtml(formatRuDate(new Date(x.date+'T12:00:00')))} — ${Number(x.count)||0} стр.`).join('<br>')}</div>`:`<div class="home-inline-alert-text success">✓ Просроченных страниц не обнаружено.</div>`}<button class="small-btn" onclick="navigate('analytics')">Открыть контроль журнала →</button></div>`;
@@ -1069,7 +1056,7 @@ function noticeHtml(n){
   function normalizeClass(s){return String(s||"").trim().toUpperCase().replace(/\s+/g,"");}
   function parseDateFromText(v){const s=String(v??"").trim();if(!s)return null;let m=s.match(/\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})\b/);if(m)return `${m[3]}-${String(+m[2]).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;m=s.match(/\b(\d{1,2})[.\/-](\d{1,2})\b/);if(m)return `${new Date().getFullYear()}-${String(+m[2]).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;m=s.match(/\b(\d{1,2})\s+([А-Яа-яЁё]+)(?:\s+(\d{4}))?\b/);if(!m)return null;const months={января:0,февраля:1,марта:2,апреля:3,мая:4,июня:5,июля:6,августа:7,сентября:8,октября:9,ноября:10,декабря:11};const mon=months[m[2].toLowerCase()];if(mon===undefined)return null;const y=m[3]?+m[3]:new Date().getFullYear();return `${y}-${String(mon+1).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;}
   function cellVal(v){return v==null?"":String(v).trim();}
-  function looksLikeTeacherName(v){const s=String(v||"").trim();if(!s)return false;try{if(flexibleUserByName(s,teacherLikeUsers()))return true;}catch(e){}return /^[А-ЯЁ][а-яё-]{2,}\s+[А-ЯЁ]\.?\s*[А-ЯЁ]\.?$/i.test(s);}
+  function looksLikeTeacherName(v){const s=String(v||"").trim();if(!s)return false;try{if(flexibleUserByName(s,teacherLikeUsers()))return true;}catch(e){}return /^[А-ЯЁ][а-яё-]{2,}\s+[А-ЯЁ]\.(?:\s*[А-ЯЁ]\.)?$/.test(s);}
   function parseScheduleWorkbook(wb,fileName,selectedShift){
     const ws=wb.Sheets[wb.SheetNames[0]];
     const a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
