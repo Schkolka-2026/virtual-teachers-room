@@ -1288,16 +1288,26 @@ function noticeHtml(n){
     const fromData=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
     const all=[...new Set(fromData)].sort(classSort);
     if(isManager()||isDispatcher()||isGuest())return all;
+    // Для варианта «Мой класс» используем только назначение классного руководства,
+    // загруженное из class_leaders в поле user.classes. Нагрузка и замещения сюда не входят.
     const same=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-    const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
-    const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(same.classes||[]),...(same.attendanceClasses||[]),...(same.replacement||[])];
-    const taught=(state.schedule.entries||[]).filter(x=>teacherMatches(x.teacher,user.name)).map(x=>x.className);
-    return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
+    const assigned=Array.isArray(user.classes)&&user.classes.length?user.classes:(same.classes||[]);
+    return [...new Set(assigned.filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
   }
   function scheduleSelectorTeachers(){
-    const fromUsers=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')&&u.name).map(u=>u.name);
-    const fromRows=(state.schedule.entries||[]).map(x=>x?.teacher);
-    return [...new Set([...fromUsers,...fromRows].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+    // Справочник employees → state.users является источником списка сотрудников.
+    // Не добавляем значения из расписания: в поле teacher могут встречаться предметы
+    // или альтернативные записи ФИО с инициалами.
+    const candidates=(state.users||[])
+      .filter(u=>!u.roleKeys?.includes('guest')&&u.name)
+      .map(u=>String(u.name).trim())
+      .filter(Boolean)
+      .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
+    const unique=[];
+    for(const name of candidates){
+      if(!unique.some(existing=>teacherMatches(name,existing)||teacherMatches(existing,name)))unique.push(name);
+    }
+    return unique.sort((a,b)=>a.localeCompare(b,'ru'));
   }
   function renderScheduleSelector(day){
     const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
