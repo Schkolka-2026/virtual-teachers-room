@@ -569,7 +569,7 @@ function noticeHtml(n){
         <div class="home-main">
           <div class="home-top-row">
             <section class="card home-equal-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.filter(t=>t.kind!=="schedule").map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>
-            <section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,5).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}${journalAlert}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
+            <section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,1).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}${journalAlert}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
           </div>
           ${planCard}
         </div>
