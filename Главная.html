@@ -1195,23 +1195,29 @@ function noticeHtml(n){
     if(!f)return alert("Выберите Excel-файл расписания.");
     if(!selectedShift)return alert("Укажите, это 1-я или 2-я смена.");
     const reader=new FileReader();
-    reader.onload=e=>{
+    reader.onload=async e=>{
       try{
         const wb=XLSX.read(e.target.result,{type:"array"});
         const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+        const {today,tomorrow}=getScheduleWindowDates();
+        if(parsed.date!==today&&parsed.date!==tomorrow)throw new Error("Можно загружать расписание только на сегодня или завтра.");
+        // Сначала сохраняем данные на сервере. Если запись не удалась, локально
+        // не показываем загрузку как успешную и не очищаем старые строки.
+        await saveScheduleRows(parsed);
+        await cleanupOldScheduleRows(today);
         const old=state.schedule.entries.filter(x=>x.date===parsed.date&&x.shift===parsed.shift);
-        state.schedule.entries=state.schedule.entries.filter(x=>!(x.date===parsed.date&&x.shift===parsed.shift));
+        state.schedule.entries=state.schedule.entries.filter(x=>x.date>=today&&x.date<=tomorrow&&!(x.date===parsed.date&&x.shift===parsed.shift));
         state.schedule.entries.push(...parsed.entries);
         const now=new Date().toISOString();
         const version={id:Date.now(),date:parsed.date,shift:parsed.shift,fileName:f.name,uploadedAt:now,count:parsed.entries.length,readBy:{[state.currentUser.login]:{at:now}}};
-        state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(v.date===parsed.date&&v.shift===parsed.shift));
+        state.schedule.versions=(state.schedule.versions||[]).filter(v=>v.date>=today&&v.date<=tomorrow&&!(v.date===parsed.date&&v.shift===parsed.shift));
         state.schedule.versions.push(version);state.schedule.uploadedFile=f.name;
         save();
         const info=document.getElementById("scheduleImportInfo");
         if(info)info.innerHTML=`Распознано: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>. ${old.length?"Предыдущее расписание этой даты и смены заменено.":"Расписание добавлено."}`;
-        alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);
+        alert(`Расписание сохранено на сервере: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);
         render();
-      }catch(err){console.error(err);alert("Не удалось обработать файл расписания: "+(err.message||"проверьте формат Excel."));}
+      }catch(err){console.error(err);alert("Не удалось загрузить расписание: "+(err.message||"проверьте формат Excel."));}
     };
     reader.readAsArrayBuffer(f);
   };
@@ -1854,19 +1860,40 @@ async function refreshRuntimeData(){
   try{save();}catch(e){}
 }
 
+function getScheduleWindowDates(){
+  const today=dateIsoLocal(new Date());
+  const next=new Date();next.setDate(next.getDate()+1);
+  return {today,tomorrow:dateIsoLocal(next)};
+}
+
+async function cleanupOldScheduleRows(today=getScheduleWindowDates().today){
+  if(!isDispatcher())return false;
+  try{
+    await sbMutate('school_schedule_lessons','DELETE',`schedule_date=lt.${encodeURIComponent(today)}`);
+    return true;
+  }catch(e){
+    console.warn('Не удалось удалить устаревшие записи расписания:',e);
+    return false;
+  }
+}
+
 async function loadScheduleServer(){
-  let daily=await sbRest('school_schedule_lessons','select=*&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc');
+  const {today,tomorrow}=getScheduleWindowDates();
+  // Удаляем прошлые даты только под учётной записью диспетчера/администратора.
+  // Загрузка расписания ограничена сегодняшним и завтрашним днём, чтобы не упираться в лимит REST API.
+  await cleanupOldScheduleRows(today);
+  const dailyQuery=`select=*&schedule_date=gte.${today}&schedule_date=lte.${tomorrow}&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc`;
+  let daily=await sbRest('school_schedule_lessons',dailyQuery);
   let base=await sbRest('school_base_schedule','select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc');
 
-  // Одноразовая миграция старого localStorage-расписания, которое уже было
-  // загружено администратором до перехода на серверное хранение.
+  // Одноразовая миграция только актуальных записей из старого localStorage.
   if(!(daily||[]).length && isDispatcher() && (state.schedule.entries||[]).length){
     const groups={};
-    (state.schedule.entries||[]).forEach(x=>{const k=`${x.date}::${x.shift}`;(groups[k]??=[]).push(x);});
+    (state.schedule.entries||[]).filter(x=>x.date>=today&&x.date<=tomorrow).forEach(x=>{const k=`${x.date}::${x.shift}`;(groups[k]??=[]).push(x);});
     for(const arr of Object.values(groups)){
       if(arr.length)await saveScheduleRows({date:arr[0].date,shift:arr[0].shift,entries:arr});
     }
-    daily=await sbRest('school_schedule_lessons','select=*&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc');
+    daily=await sbRest('school_schedule_lessons',dailyQuery);
   }
   if(!(base||[]).length && isDispatcher() && (state.schedule.baseEntries||[]).length){
     const groups={};
