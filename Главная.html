@@ -509,9 +509,10 @@
     document.getElementById("avatar").textContent=initials(state.currentUser.name);
     updateBadges();
     document.querySelectorAll(".nav-item").forEach(b=>{
-      const guestAllowedNav=["home","transport","schedule","vseobuch","education","journal","ovz","olymp","gia"];
+      const guestVisible=isGuest()&&guestPageAllowed(b.dataset.page);
       b.classList.toggle("active",b.dataset.page===state.currentPage);
-      b.classList.toggle("guest-hidden",isGuest()&&!guestAllowedNav.includes(b.dataset.page));
+      b.style.display=isGuest()&&!guestVisible?"none":"";
+      b.classList.toggle("guest-hidden",isGuest()&&!guestVisible);
     });
     const pages={home:renderHome,tasks:renderTasks,attendance:renderAttendance,transport:renderTransport,plan:renderPlan,notifications:renderNotifications,
       vseobuch:renderPlaceholder,education:renderPlaceholder,journal:renderPlaceholder,upbringing:renderPlaceholder,ovz:renderPlaceholder,olymp:renderPlaceholder,
@@ -551,7 +552,7 @@ function noticeHtml(n){
     const planDateLimit=new Date(todayPlanDate);
     planDateLimit.setDate(planDateLimit.getDate()+14);
     const publishedPlan=(state.plan||[]).filter(x=>{
-      if(isGuest() || x.status!=="Опубликовано" || !x.date)return false;
+      if(x.status!=="Опубликовано" || !x.date)return false;
       const raw=String(x.date).slice(0,10);
       const parts=raw.split("-").map(Number);
       if(parts.length!==3 || parts.some(n=>!Number.isFinite(n)))return false;
@@ -562,8 +563,13 @@ function noticeHtml(n){
     const ownOverdue=(state.journalOverdue||[]).filter(x=>Number(x.employeeId)===Number(state.currentUser?.id)||x.login===state.currentUser?.login);
     const overdueCount=ownOverdue.reduce((sum,x)=>sum+Number(x.count||0),0);
     const journalAlert=`<div class="home-inline-alert ${overdueCount?'has-alert':''}"><div class="home-inline-alert-title">📘 Контроль электронного журнала</div>${overdueCount?`<div class="home-inline-alert-text">⚠ Не заполнено страниц: <b>${overdueCount}</b>.</div><div class="home-inline-alert-dates">${ownOverdue.slice(0,5).map(x=>`${escapeHtml(formatRuDate(new Date(x.date+'T12:00:00')))} — ${Number(x.count)||0} стр.`).join('<br>')}</div>`:`<div class="home-inline-alert-text success">✓ Просроченных страниц не обнаружено.</div>`}<button class="small-btn" onclick="navigate('analytics')">Открыть контроль журнала →</button></div>`;
-    const planCard=`<section class="card home-plan"><div class="home-plan-head"><div><h3>📅 Ближайшее в плане работы</h3><div class="muted">Опубликованные мероприятия школы</div></div><button class="btn" onclick="navigate('plan')">Весь план →</button></div>${publishedPlan.length?publishedPlan.map(x=>`<div class="plan-near-item"><div class="plan-near-date">${escapeHtml(typeof formatPlanDate==='function'?formatPlanDate(x.date):x.date||'')}<br><span>${escapeHtml(x.time||'')}</span></div><div><b>${escapeHtml(x.title||'')}</b><div class="muted">${escapeHtml(x.place||'')}${x.participants?' · '+escapeHtml(x.participants):''}${x.responsible?' · Ответственный: '+escapeHtml(x.responsible):''}</div></div></div>`).join(''):'<div class="empty">Опубликованных мероприятий пока нет.</div>'}</section>`;
+    const planCard=`<section class="card home-plan"><div class="home-plan-head"><div><h3>📅 Ближайшее в плане работы</h3><div class="muted">Опубликованные мероприятия школы</div></div>${!isGuest()?`<button class="btn" onclick="navigate('plan')">Весь план →</button>`:""}</div>${publishedPlan.length?publishedPlan.map(x=>`<div class="plan-near-item"><div class="plan-near-date">${escapeHtml(typeof formatPlanDate==='function'?formatPlanDate(x.date):x.date||'')}<br><span>${escapeHtml(x.time||'')}</span></div><div><b>${escapeHtml(x.title||'')}</b><div class="muted">${escapeHtml(x.place||'')}${x.participants?' · '+escapeHtml(x.participants):''}${x.responsible?' · Ответственный: '+escapeHtml(x.responsible):''}</div></div></div>`).join(''):'<div class="empty">Опубликованных мероприятий пока нет.</div>'}</section>`;
     const vacationCard=String(state.vacationsText||"").trim()?`<section class="card vacation-home-card"><h3>🏖️ Сроки каникул</h3><div class="vacation-text">${escapeHtml(state.vacationsText)}</div></section>`:"";
+    if(isGuest()){
+      const journalCard=`<section class="card"><h3>📘 Электронный журнал</h3><p class="muted">Переход к электронному журналу для родителей.</p><a class="btn" href="${escapeHtml(state.journalUrl||'https://de.edu.orb.ru/#journals')}" target="_blank" rel="noopener">Открыть электронный журнал ↗</a></section>`;
+      document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${escapeHtml(givenNamePatronymic(state.currentUser.name))}!</h1><p>Информационная страница школы.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div><div class="home-layout"><div class="home-main">${journalCard}${planCard}</div><aside class="home-right">${vacationCard}<section class="card"><h3>🕘 Расписание звонков</h3><div class="table-wrap">${renderBellMatrixTable(false)}</div></section></aside></div>`;
+      return;
+    }
     document.getElementById("content").innerHTML=`<div class="hero"><div><h1>Добро пожаловать, ${escapeHtml(givenNamePatronymic(state.currentUser.name))}!</h1><p>Ваш рабочий кабинет в виртуальной учительской.</p></div><div class="hero-date">${d.day}<span>${d.full}</span></div></div>
       <div class="home-layout">
         <div class="home-main">
@@ -711,8 +717,21 @@ function noticeHtml(n){
    if(page==="reports"){shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);return;}
     shell(names[page],"Рабочий раздел «Школы решений».",`<div class="card"><h3>${names[page]}</h3><p class="muted">Содержимое раздела подключается поэтапно.</p></div>`);
   }
-  function guestPageAllowed(page){return ["home","transport","schedule","vseobuch","education","journal","ovz","olymp","gia"].includes(page);}
-  function guestAllowed(page,title){if(!isGuest())return true;const allow={vseobuch:["Прием и перевод","Семейное образование"],education:["Сроки каникул"],journal:["Для родителей"],ovz:[],olymp:["__ALL__"],gia:["Расписание","Нормативные документы"]};if(page==="olymp")return true;if(title==="Нормативные документы")return true;return (allow[page]||[]).includes(title);}
+  function guestPageAllowed(page){return ["home","transport","schedule","vseobuch","education","journal","upbringing","ovz","olymp","gia","security","career","psych"].includes(page);}
+  function guestAllowed(page,title){
+    if(!isGuest())return true;
+    if(page==="transport")return true;
+    const t=String(title||"");
+    if(["education","upbringing","ovz","security","career"].includes(page)&&t.startsWith("Нормативные документы"))return true;
+    if(page==="vseobuch")return ["Прием и перевод","Семейное образование","Работа с иностранными гражданами"].includes(t);
+    if(page==="journal")return t==="Для родителей";
+    if(page==="upbringing")return ["Движение первых","Орлята России","Положения о школьных мероприятиях","Разговоры о важном","Россия мои горизонты","Пушкинская карта"].includes(t);
+    if(page==="ovz")return t==="Рабочие программы по нозологиям";
+    if(page==="gia")return /^(Расписание (ОГЭ|ЕГЭ)|Создание особых условий (ОГЭ|ЕГЭ)|Нормативные документы)/.test(t);
+    if(page==="career")return ["Расписание мероприятий","Предпрофильные классы (5–9)","Билет в будущее"].includes(t)||t.startsWith("Нормативные документы");
+    if(page==="psych")return t==="Консультации";
+    return false;
+  }
   function docKey(page,title){return `${page}::${title}`;}
   function userCanSeeDoc(doc){
     if(!doc||!state.currentUser)return false;
@@ -1269,7 +1288,7 @@ function noticeHtml(n){
   }
   function scheduleForUser(entries,mode){
     const rows=entries||[];
-    if(isGuest())return rows;
+    if(isGuest())return mode&&mode.startsWith("class:")?rows.filter(x=>normalizeClass(x.className)===normalizeClass(mode.slice(6))):[];
     if(mode==="mine")return rows.filter(x=>teacherMatches(x.teacher,state.currentUser?.name));
     if(mode&&mode.startsWith("teacher:")){const wanted=mode.slice(8);return rows.filter(x=>teacherMatches(x.teacher,wanted));}
     if(mode&&mode.startsWith("class:")){const wanted=mode.slice(6);return rows.filter(x=>normalizeClass(x.className)===normalizeClass(wanted));}
@@ -1309,36 +1328,10 @@ function noticeHtml(n){
     }
     return unique.sort((a,b)=>a.localeCompare(b,'ru'));
   }
-  function renderScheduleSelector(day){
-    const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
-    const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${(isManager()||isDispatcher()||isGuest())?escapeHtml(c):`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
-    const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Мой класс / Моё расписание</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="scheduleTeacherChoice_${day}" aria-label="Выберите учителя" onchange="showScheduleChoice('${day}')"><option value="">Расписание учителей</option>${teacherOptions}</select></div><div id="scheduleResult_${day}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
-  }
-  window.showScheduleChoice=function(day){
-    const classSel=document.getElementById(`scheduleChoice_${day}`),teacherSel=document.getElementById(`scheduleTeacherChoice_${day}`),result=document.getElementById(`scheduleResult_${day}`);
-    if(!classSel||!teacherSel||!result)return;
-    const mode=teacherSel.value||classSel.value;
-    if(teacherSel.value)classSel.value='';
-    if(classSel.value)teacherSel.value='';
-    const dt=day==='tomorrow'?nextSchoolDay():new Date();
-    result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-  };
-  function renderScheduleHomeSelector(day="today"){
-    const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
-    const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${(isManager()||isDispatcher()||isGuest())?escapeHtml(c):`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
-    const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="homeScheduleChoice_${day}" onchange="showHomeScheduleChoice('${day}')"><option value="">Мой класс / Моё расписание</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="homeScheduleTeacherChoice_${day}" aria-label="Выберите учителя" onchange="showHomeScheduleChoice('${day}')"><option value="">Расписание учителей</option>${teacherOptions}</select></div><div class="muted">Выберите вариант или конкретного учителя.</div><div id="homeScheduleResult_${day}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
-  }
-  window.showHomeScheduleChoice=function(day="today"){
-    const classSel=document.getElementById(`homeScheduleChoice_${day}`),teacherSel=document.getElementById(`homeScheduleTeacherChoice_${day}`),result=document.getElementById(`homeScheduleResult_${day}`);
-    if(!classSel||!teacherSel||!result)return;
-    const mode=teacherSel.value||classSel.value;
-    if(teacherSel.value)classSel.value='';
-    if(classSel.value)teacherSel.value='';
-    const dt=day==='tomorrow'?nextSchoolDay():new Date();
-    result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-  };
+  function renderScheduleSelector(day){return scheduleViewerControls(day,false);}
+  window.showScheduleChoice=function(day){renderScheduleSelection(day,false);};
+  function renderScheduleHomeSelector(day="today"){return scheduleViewerControls(day,true);}
+  window.showHomeScheduleChoice=function(day="today"){renderScheduleSelection(day,true);};
   function hasUnreadSchedule(){return (state.schedule.versions||[]).some(v=>!(v.readBy||{})[state.currentUser.login]);}
   function markScheduleRead(){(state.schedule.versions||[]).forEach(v=>{v.readBy=v.readBy||{};v.readBy[state.currentUser.login]={at:new Date().toISOString()};});save();}
   function renderBaseScheduleSelector(){
@@ -1363,8 +1356,14 @@ function noticeHtml(n){
   };
   function renderGuestHomeSchedule(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();return `<section class="card"><h3>📅 Расписание уроков</h3><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClass" class="schedule-class-select" onchange="renderGuestSelectedSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></section>`;}
   window.renderGuestSelectedSchedule=function(){const c=document.getElementById("guestClass")?.value;if(!c)return;const d=dateInfo(),tom=nextSchoolDay();const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestScheduleResult").innerHTML=`<div class="schedule-columns"><div><h4>Сегодня <span class="muted">(${d.full})</span></h4>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h4>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h4>${renderScheduleTable(filter(getScheduleForDate(dateIsoLocal(tom))),"class:"+c)}</div></div>`;};
-  function renderGuestSchedulePage(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();shell("Расписание","Режим просмотра для гостя.",`<div class="card"><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClassPage" class="schedule-class-select" onchange="renderGuestPageSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestPageScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></div>`);}
-  window.renderGuestPageSchedule=function(){const c=document.getElementById("guestClassPage")?.value;if(!c)return;const d=dateInfo(),tom=nextSchoolDay();const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestPageScheduleResult").innerHTML=`<div class="schedule-columns"><div><h3>Сегодня <span class="muted">(${d.full})</span></h3>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h3>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>${renderScheduleTable(filter(getScheduleForDate(dateIsoLocal(tom))),"class:"+c)}</div></div>`;};
+  function renderGuestSchedulePage(){
+    const classes=scheduleViewerAllClasses();
+    const options=classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+    const dayCard=(day,label,dateLabel)=>`<div class="card"><h3>${label} <span class="muted">(${dateLabel})</span></h3><p class="muted">Выберите класс для просмотра расписания.</p><select id="guestScheduleClass_${day}" class="schedule-class-select" onchange="renderGuestPageSchedule('${day}')"><option value="">Выберите класс</option>${options}</select><div id="guestScheduleResult_${day}" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></div>`;
+    const d=dateInfo(),tom=nextSchoolDay();
+    shell("Расписание","Просмотр расписания по классам.",`<div class="schedule-page-grid">${dayCard("today","Расписание на сегодня",d.full)}${dayCard("tomorrow","Расписание на завтра",tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}))}<div class="card"><h3>Базовое расписание</h3>${renderBaseScheduleSelector()}</div></div>`);
+  }
+  window.renderGuestPageSchedule=function(day){const c=document.getElementById(`guestScheduleClass_${day}`)?.value;const result=document.getElementById(`guestScheduleResult_${day}`);if(!c||!result)return;const dt=day==='tomorrow'?nextSchoolDay():new Date();result.innerHTML=renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),"class:"+c);};
 
   function docUploadAllowed(page,title){if(isGuest())return false;if(title.includes("Приказы"))return canManageOrders();return true;}
   function docTargetLabel(d){
@@ -1380,7 +1379,7 @@ function noticeHtml(n){
   }
   function markDocsReadForCurrent(key){/* ознакомление фиксируется только кнопкой «Ознакомился» */}
   function sectionDocs(page,title){const key=docKey(page,title);const rows=state.documents.filter(d=>d.sectionKey===key);if(page==="gia"&&/ ОГЭ$/.test(title)){const legacyTitles=[title.replace(/ ОГЭ$/,""),title.replace(/ ОГЭ$/," — Федеральные"),title.replace(/ ОГЭ$/," — Региональные/муниципальные")];rows.push(...state.documents.filter(d=>d.sectionKey.startsWith("gia::")&&legacyTitles.includes(d.sectionKey.slice(5))));}return rows.filter((d,i,a)=>a.findIndex(x=>String(x.id)===String(d.id))===i);}
-  window.openDocs=function(page,title){state.currentPage=page;renderDocSection(page,title);};
+  window.openDocs=function(page,title){if(isGuest()&&(!guestPageAllowed(page)||!guestAllowed(page,title))){shell("Доступ ограничен","В режиме гостя этот раздел недоступен.",`<div class="card"><div class="empty">Нет доступа к выбранному разделу.</div></div>`);return;}state.currentPage=page;renderDocSection(page,title);};
   function renderDocSection(page,title){
     const docs=sectionDocs(page,title),canUpload=docUploadAllowed(page,title),manager=canViewAckReport();
     const order=title.includes("Приказы");
@@ -2197,6 +2196,16 @@ function scheduleViewerCanChooseAnyClass(){
   const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(' ').toLowerCase();
   return ['admin','director','deputy'].some(r=>roles.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText)||isGuest();
 }
+function scheduleViewerAllClasses(){
+  const values=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)];
+  return [...new Set(values.filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+}
+function scheduleViewerMyClasses(){
+  const user=state.currentUser||{};
+  const same=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
+  const assigned=Array.isArray(user.classes)&&user.classes.length?user.classes:(same.classes||[]);
+  return [...new Set(assigned.filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
+}
 function scheduleViewerClasses(){
   const user=state.currentUser||{};
   const all=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
@@ -2209,39 +2218,48 @@ function scheduleViewerClasses(){
   return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
 }
 function scheduleViewerTeachers(){
-  const fromUsers=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')).map(u=>u?.name);
-  const fromRows=(state.schedule.entries||[]).map(x=>x?.teacher);
-  return [...new Set([...fromUsers,...fromRows].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const candidates=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')&&u.name)
+    .map(u=>String(u.name).trim()).filter(Boolean)
+    .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
+  const unique=[];
+  for(const name of candidates){
+    if(!unique.some(existing=>teacherMatches(name,existing)||teacherMatches(existing,name)))unique.push(name);
+  }
+  return unique.sort((a,b)=>a.localeCompare(b,'ru'));
 }
 function scheduleViewerControls(day,home=false){
-  const classes=scheduleViewerClasses();
-  const teachers=scheduleViewerTeachers();
-  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const myClasses=scheduleViewerMyClasses(),allClasses=scheduleViewerAllClasses(),teachers=scheduleViewerTeachers();
+  const mineId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const classesId=home?`homeScheduleClassChoice_${day}`:`scheduleClassChoice_${day}`;
   const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
   const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
-  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${scheduleViewerCanChooseAnyClass()?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
-  const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   const handler=home?'showHomeScheduleChoice':'showScheduleChoice';
-  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classId}" onchange="${handler}('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="${teacherId}" aria-label="Выберите учителя" onchange="${handler}('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите вариант или конкретного учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
+  const myOptions=myClasses.map(c=>`<option value="class:${escapeHtml(c)}">Мой класс — ${escapeHtml(c)}</option>`).join('');
+  const classOptions=allClasses.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  if(isGuest())return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classesId}" aria-label="Классы" onchange="${handler}('${day}')"><option value="">Классы — выберите класс</option>${classOptions}</select></div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите класс.</div></div>`;
+  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${mineId}" aria-label="Мой класс или моё расписание" onchange="${handler}('${day}')"><option value="">Мой класс / Моё расписание</option><option value="mine">Моё расписание</option>${myOptions}</select><select id="${classesId}" aria-label="Классы" onchange="${handler}('${day}')"><option value="">Классы — выберите класс</option>${classOptions}</select><select id="${teacherId}" aria-label="Учителя" onchange="${handler}('${day}')"><option value="">Учителя — выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите своё расписание, класс или другого учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант просмотра расписания.</div></div>`;
 }
 renderScheduleSelector=function(day){return scheduleViewerControls(day,false);};
 renderScheduleHomeSelector=function(day='today'){return scheduleViewerControls(day,true);};
 function renderScheduleSelection(day,home=false){
-  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const mineId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const classesId=home?`homeScheduleClassChoice_${day}`:`scheduleClassChoice_${day}`;
   const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
   const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
-  const classSel=document.getElementById(classId),teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
-  if(!classSel||!teacherSel||!result)return;
+  const mineSel=document.getElementById(mineId),classesSel=document.getElementById(classesId),teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
+  if(!result)return;
+  const selectors=[mineSel,classesSel,teacherSel].filter(Boolean);
+  const active=selectors.find(el=>el.value);
+  const mode=active?.value||'';
+  selectors.forEach(el=>{if(el!==active)el.value='';});
   const dt=day==='tomorrow'?nextSchoolDay():new Date();
-  const mode=teacherSel.value||classSel.value;
-  if(teacherSel.value)classSel.value='';
-  if(classSel.value)teacherSel.value='';
-  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
+  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):`<div class="schedule-empty">${isGuest()?'Выберите класс.':'Выберите вариант просмотра расписания.'}</div>`;
 }
 window.showScheduleChoice=function(day){renderScheduleSelection(day,false);};
 window.showHomeScheduleChoice=function(day='today'){renderScheduleSelection(day,true);};
 renderBaseScheduleSelector=function(){
-  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.baseEntries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
+  const classes=scheduleViewerAllClasses();
   return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
 };
 
