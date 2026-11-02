@@ -354,6 +354,42 @@
     const payload={employee_id:Number(u.id),attendance_classes:u.attendanceClasses||[],replacement_classes:u.replacement||[],shift:u.shift||{},updated_at:new Date().toISOString()};
     try{const updated=await sbMutate("user_assignments","PATCH",`employee_id=eq.${encodeURIComponent(Number(u.id))}`,{attendance_classes:payload.attendance_classes,replacement_classes:payload.replacement_classes,shift:payload.shift,updated_at:payload.updated_at});if(Array.isArray(updated)&&updated.length)return true;await sbMutate("user_assignments","POST","",payload);return true;}catch(e){console.warn("Не удалось сохранить назначения",u.id,e);return false;}
   }
+  async function syncUserRolesForUser(u){
+    const authUserId=u.authUserId||u.auth_user_id;
+    if(!authUserId)throw new Error("Не найдена привязка учётной записи Supabase для пользователя «"+(u.name||u.login||u.id)+"». Роли не сохранены.");
+
+    // user_roles.user_id имеет внешний ключ на user_profiles.id.
+    // Поэтому сначала убеждаемся, что профиль с UUID этой учётной записи существует.
+    const profiles=await sbRest("user_profiles","select=id&id=eq."+encodeURIComponent(authUserId));
+    if(!Array.isArray(profiles)||!profiles.some(p=>String(p.id)===String(authUserId))){
+      await sbMutate("user_profiles","POST","",{
+        id:authUserId,
+        full_name:String(u.name||u.full_name||u.login||"Пользователь"),
+        login:String(u.login||""),
+        phone:String(u.phone||""),
+        position:String(u.position||""),
+        is_active:true,
+        updated_at:new Date().toISOString()
+      });
+    }
+
+    const roleRows=await sbRest("roles","select=id,code");
+    const roleIdByCode={};
+    (roleRows||[]).forEach(r=>{if(r.code!=null&&r.id!=null)roleIdByCode[String(r.code).trim().toLowerCase()]=Number(r.id);});
+    const aliases={"администратор":"admin","директор":"director","заместитель":"deputy","учитель":"teacher","диспетчер":"dispatcher","секретарь":"secretary","классный руководитель":"class_teacher","психолог":"psychologist","социальный педагог":"social_teacher","гость":"guest"};
+    const roleCodes=[...new Set((u.roleKeys||[]).map(x=>{
+      const raw=String(x||"").trim().toLowerCase();
+      return aliases[raw]||raw;
+    }).filter(Boolean))];
+    if(!roleCodes.length)roleCodes.push("teacher");
+    const unknown=roleCodes.filter(code=>roleIdByCode[code]==null);
+    if(unknown.length)throw new Error("Неизвестные роли: "+unknown.join(", ")+". Роли не сохранены.");
+    await sbMutate("user_roles","DELETE","user_id=eq."+encodeURIComponent(authUserId));
+    const payload=roleCodes.map(code=>({user_id:authUserId,role_id:roleIdByCode[code]}));
+    if(payload.length)await sbMutate("user_roles","POST","",payload);
+    return true;
+  }
+
   async function syncClassLeadersForUser(u){
     try{
       const yearId=await getCurrentAcademicYearId();
@@ -959,7 +995,7 @@ function noticeHtml(n){
     u.replacement=replacement.split(",").map(x=>x.trim()).filter(Boolean);
     if(!u.roleKeys.includes("dispatcher"))state.dispatcherIds=(state.dispatcherIds||[]).filter(x=>x!==u.id);
     save();
-    Promise.all([syncClassLeadersForUser(u),saveUserAssignments(u)]).then(()=>{alert("Данные пользователя сохранены.");render();});
+    Promise.all([syncUserRolesForUser(u),syncClassLeadersForUser(u),saveUserAssignments(u)]).then(()=>{alert("Данные пользователя сохранены.");render();}).catch(e=>{console.error("Не удалось сохранить данные пользователя:",e);alert("Не удалось сохранить данные пользователя в Supabase. "+(e.message||"Проверьте доступ к таблицам user_profiles и user_roles."));});
   };
   window.editUserRoles=function(id){return editUser(id);};
   window.deleteUser=function(id){
@@ -2203,7 +2239,8 @@ function scheduleViewerAllClasses(){
 function scheduleViewerMyClasses(){
   const user=state.currentUser||{};
   const same=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const assigned=Array.isArray(user.classes)&&user.classes.length?user.classes:(same.classes||[]);
+  const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
+  const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(same.classes||[])];
   return [...new Set(assigned.filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
 }
 function scheduleViewerClasses(){
@@ -2218,8 +2255,9 @@ function scheduleViewerClasses(){
   return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
 }
 function scheduleViewerTeachers(){
-  const candidates=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')&&u.name)
-    .map(u=>String(u.name).trim()).filter(Boolean)
+  const fromUsers=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')).map(u=>u?.name);
+  const fromSchedule=(state.schedule.entries||[]).map(x=>x?.teacher);
+  const candidates=[...new Set([...fromUsers,...fromSchedule].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))]
     .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
   const unique=[];
   for(const name of candidates){
@@ -2237,8 +2275,8 @@ function scheduleViewerControls(day,home=false){
   const myOptions=myClasses.map(c=>`<option value="class:${escapeHtml(c)}">Мой класс — ${escapeHtml(c)}</option>`).join('');
   const classOptions=allClasses.map(c=>`<option value="class:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
   const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-  if(isGuest())return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classesId}" aria-label="Классы" onchange="${handler}('${day}')"><option value="">Классы</option>${classOptions}</select></div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите класс.</div></div>`;
-  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${mineId}" aria-label="Мой класс или моё расписание" onchange="${handler}('${day}')"><option value="">Мой класс / Моё расписание</option><option value="mine">Моё расписание</option>${myOptions}</select><select id="${classesId}" aria-label="Классы" onchange="${handler}('${day}')"><option value="">Классы</option>${classOptions}</select><select id="${teacherId}" aria-label="Учителя" onchange="${handler}('${day}')"><option value="">Учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите своё расписание, класс или другого учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант просмотра расписания.</div></div>`;
+  if(isGuest())return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classesId}" aria-label="Классы" onchange="${handler}('${day}')"><option value="">Классы — выберите класс</option>${classOptions}</select></div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите класс.</div></div>`;
+  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${mineId}" aria-label="Мой класс или моё расписание" onchange="${handler}('${day}')"><option value="">Мой класс / Моё расписание</option><option value="mine">Моё расписание</option>${myOptions}</select><select id="${classesId}" aria-label="Классы" onchange="${handler}('${day}')"><option value="">Классы — выберите класс</option>${classOptions}</select><select id="${teacherId}" aria-label="Учителя" onchange="${handler}('${day}')"><option value="">Учителя — выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите своё расписание, класс или другого учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант просмотра расписания.</div></div>`;
 }
 renderScheduleSelector=function(day){return scheduleViewerControls(day,false);};
 renderScheduleHomeSelector=function(day='today'){return scheduleViewerControls(day,true);};
