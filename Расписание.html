@@ -1,346 +1,401 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><title>Расписание</title></head><body>
+<html lang="ru"><head><meta charset="utf-8"><title>Расписание — модуль</title></head><body>
 <script type="text/plain" data-module>
-/* ===============================================================
-   Schedule parsing, normalization and upload
-   Everything is inside the main app IIFE so local helpers/state are in scope.
-   =============================================================== */
+/* Единственная реализация обработки и загрузки расписания.
+   Общие функции приложения (state, Supabase, права, XLSX, форматирование)
+   предоставляет Главная. Отображение страницы принадлежит этому модулю. */
+function getScheduleWindowDates(){
+  const today=dateIsoLocal(new Date());
+  // Для расписания «на завтра» используем следующий учебный день,
+  // как и в селекторах интерфейса (с пропуском субботы и воскресенья).
+  const tomorrow=dateIsoLocal(nextSchoolDay());
+  return {today,tomorrow};
+}
 
-/* ---------- Subject normalization / preservation ---------- */
-function normalizeScheduleSubject(v){
-  const s=String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
-  const n=s.toLocaleLowerCase('ru-RU');
-  if(n==='россия мг' || n.includes('россия мг')) return 'Россия МГ';
-  if(n==='ров') return 'РОВ';
-  return s;
-}
-function looksLikeLessonNumber(v){
-  const n=Number(String(v??'').trim());
-  return Number.isInteger(n) && n>=1 && n<=20 && /^\d{1,2}$/.test(String(v??'').trim());
-}
-function classHeaderCell(v){return /^\s*\d{1,2}\s*[А-ЯЁA-Z]\s*$/iu.test(String(v??''));}
-function detectSectionShift(rows, headerRow, selectedShift){
-  const from=Math.max(0,headerRow-7), to=Math.min(rows.length,headerRow+4);
-  for(let r=from;r<to;r++){
-    const t=(rows[r]||[]).map(cellVal).join(' ');
-    const m=t.match(/(^|\s)([12])\s*(?:-|–|—)?\s*(?:я|й)?\s*смена\b/i);
-    if(m)return Number(m[2]);
+async function cleanupOldScheduleRows(today=getScheduleWindowDates().today){
+  if(!isDispatcher())return false;
+  try{
+    await sbMutate('school_schedule_lessons','DELETE',`schedule_date=lt.${encodeURIComponent(today)}`);
+    return true;
+  }catch(e){
+    console.warn('Не удалось удалить устаревшие записи расписания:',e);
+    return false;
   }
-  return Number(selectedShift)||null;
 }
 
-/* ---------- Robust daily schedule parser ---------- */
-parseScheduleWorkbook=function(wb,fileName,selectedShift){
-  const manualDate=document.getElementById('scheduleDate')?.value||'';
-  let dateIso=manualDate;
-  const allEntries=[];
-
-  // Parse every sheet and every timetable section. This is deliberate: some
-  // school schedule workbooks place different shifts/tables on separate sheets.
-  for(const sheetName of (wb.SheetNames||[])){
-    const ws=wb.Sheets[sheetName];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
-    if(!dateIso){
-      for(const row of rows.slice(0,25)){
-        const t=(row||[]).map(cellVal).join(' ');
-        const d=parseDateFromText(t);
+function parseScheduleWorkbook(wb,fileName,selectedShift){
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
+    let dateIso=null,shift=selectedShift?+selectedShift:null;
+    for(const row of a.slice(0,15)){
+      for(const cell of (row||[])){
+        const d=parseDateFromText(cell);
         if(d){dateIso=d;break;}
       }
+      const text=(row||[]).map(cellVal).join(" ");
+      const sm=text.match(/([12])\s*(?:смена|см)/i);
+      if(sm&&!selectedShift)shift=+sm[1];
+      if(dateIso)break;
     }
+    const manualDate=document.getElementById("scheduleDate")?.value||"";
+    if(manualDate)dateIso=manualDate;
+    if(!dateIso)throw new Error("Не удалось определить дату расписания. Укажите дату вручную в поле «Дата расписания».");
+    if(!shift)throw new Error("Не выбрана смена.");
 
-    const headerRows=[];
-    for(let r=0;r<rows.length;r++){
-      const row=rows[r]||[];
-      const classCells=[];
-      for(let c=0;c<row.length;c++) if(classHeaderCell(row[c])) classCells.push(c);
-      if(classCells.length>=1)headerRows.push({row:r,cols:classCells});
+    // В файле расписания школы заголовок находится в строке с '#',
+    // затем для каждого класса идут две колонки: предмет/кабинет.
+    let headerRow=a.findIndex(row=>String(row?.[0]||"").trim()==="#");
+    if(headerRow<0){
+      headerRow=3;
     }
-    if(!headerRows.length)continue;
+    const header=a[headerRow]||[];
+    const classes=[];
+    for(let c=1;c<header.length;c+=2){
+      const className=normalizeClass(header[c]);
+      if(className)classes.push({className,subCol:c,roomCol:c+1});
+    }
+    if(!classes.length)throw new Error("Не удалось определить классы в файле.");
 
-    for(let h=0;h<headerRows.length;h++){
-      const headerRow=headerRows[h].row;
-      const endBoundary=headerRows[h+1]?.row ?? rows.length;
-      const sectionShift=detectSectionShift(rows,headerRow,selectedShift);
-      if(Number(sectionShift)!==Number(selectedShift))continue;
-      const classes=headerRows[h].cols.map(c=>({className:normalizeClass(rows[headerRow][c]),subCol:c,roomCol:c+1}));
-      const lessonRows=[];
-      for(let r=headerRow+1;r<endBoundary;r++){
-        const row=rows[r]||[];
-        let lesson=null;
-        for(let c=0;c<Math.min(8,row.length);c++){
-          if(looksLikeLessonNumber(row[c])){lesson=Number(String(row[c]).trim());break;}
+    const isLessonNumber=v=>/^\d{1,2}$/.test(cellVal(v));
+    const entries=[];
+    let r=headerRow+1;
+    while(r<a.length){
+      if(!isLessonNumber(a[r]?.[0])){r++;continue;}
+      const lesson=Number(cellVal(a[r][0]));
+      let rr=r+1;
+      while(rr<a.length && !isLessonNumber(a[rr]?.[0]))rr++;
+
+      for(const c of classes){
+        // Основной предмет располагается в строке номера урока,
+        // преподаватель — в следующей строке.
+        const subject=cellVal(a[r]?.[c.subCol]);
+        const room=cellVal(a[r]?.[c.roomCol]);
+        const teacher=cellVal(a[r+1]?.[c.subCol]);
+        if(subject && !looksLikeTeacherName(subject)){
+          entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_base`,date:dateIso,shift,lesson,className:c.className,subject,room,teacher,group:0});
         }
-        if(lesson!=null)lessonRows.push({row:r,lesson});
-      }
 
-      for(let i=0;i<lessonRows.length;i++){
-        const start=lessonRows[i].row;
-        const stop=lessonRows[i+1]?.row ?? endBoundary;
-        const lesson=lessonRows[i].lesson;
-        for(const cls of classes){
-          let group=0;
-          const cells=[];
-          for(let r=start;r<stop;r++){
-            const value=normalizeScheduleSubject(rows[r]?.[cls.subCol]);
-            if(!value)continue;
-            if(looksLikeLessonNumber(value) || /^(?:[12](?:-я|-й)?\s*смена|смена\s*[12])$/iu.test(value))continue;
-            const teacherLike=looksLikeTeacherName(value);
-            // В соседнем столбце иногда находится ФИО учителя, а кабинет
-            // записан в следующей строке (или объединённой ячейке). Не принимаем
-            // ФИО за кабинет; ищем первое непустое значение в столбце кабинета
-            // в пределах текущего блока урока.
-            let room='';
-            for(let rr=r;rr<Math.min(stop,r+4);rr++){
-              const candidate=cellVal(rows[rr]?.[cls.roomCol]);
-              if(!candidate || looksLikeTeacherName(candidate))continue;
-              room=candidate;
-              break;
-            }
-            if(teacherLike)continue;
-            // Skip obvious room-only cells accidentally placed in subject column.
-            if(/^\d{1,4}(?:[.,]\d+)?$/.test(value))continue;
-            let teacher='';
-            for(let t=r+1;t<stop;t++){
-              const candidate=cellVal(rows[t]?.[cls.subCol]);
-              if(!candidate)continue;
-              if(looksLikeTeacherName(candidate)){teacher=candidate;break;}
-              // A different non-teacher text means we reached another subject.
-              if(t>r+1 && !looksLikeTeacherName(candidate))break;
-            }
-            cells.push({date:dateIso||'',shift:Number(selectedShift),lesson,className:cls.className,subject:value,teacher,room,group:group++});
+        // Дополнительные группы/подгруппы внутри блока урока:
+        // каждая реальная дополнительная запись состоит из пары
+        // «предмет» + следующая строка «учитель».
+        let k=r+2, group=1;
+        while(k<rr){
+          const extraSubject=cellVal(a[k]?.[c.subCol]);
+          const extraTeacher=cellVal(a[k+1]?.[c.subCol]);
+          if(extraSubject && !looksLikeTeacherName(extraSubject) && extraTeacher && looksLikeTeacherName(extraTeacher)){
+            const extraRoom=cellVal(a[k]?.[c.roomCol])||cellVal(a[k+1]?.[c.roomCol]);
+            entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_g${group}`,date:dateIso,shift,lesson,className:c.className,subject:extraSubject,room:extraRoom,teacher:extraTeacher,group});
+            group++;
+            k+=2;
+          }else{
+            k++;
           }
-          allEntries.push(...cells);
         }
       }
+      r=rr;
     }
+
+    // Защита от повторной записи одного и того же урока.
+    const seen=new Set();
+    const unique=entries.filter(x=>{
+      const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join("|");
+      if(seen.has(key))return false;
+      seen.add(key);return true;
+    });
+    return {date:dateIso,shift,entries:unique,classes:[...new Set(unique.map(x=>x.className))],fileName};
   }
 
-  if(!dateIso)throw new Error('Не удалось определить дату расписания. Укажите дату в поле «Дата расписания».');
-  if(!Number(selectedShift))throw new Error('Не выбрана смена.');
-  const seen=new Set();
-  const unique=allEntries.filter(x=>{
-    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join('|');
-    if(seen.has(key))return false;
-    seen.add(key);return true;
-  });
-  if(!unique.length)throw new Error('Не удалось распознать ни одного урока для выбранной смены.');
-  return {date:dateIso,shift:Number(selectedShift),entries:unique,classes:[...new Set(unique.map(x=>x.className))],fileName};
-};
+function parseBaseScheduleWorkbook(wb,fileName,selectedShift){
+    const ws=wb.Sheets[wb.SheetNames[0]], a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
+    const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
+    const entries=[]; let currentClass="", shift=selectedShift?+selectedShift:null;
+    for(let r=0;r<a.length;r++){
+      const row=a[r]||[];
+      const first=cellVal(row[0]);
+      const cm=first.match(/Класс\s*-\s*(.+)/i);
+      if(cm){currentClass=normalizeClass(cm[1]);continue;}
+      const rowText=row.map(cellVal).join(" ");
+      const sm=rowText.match(/([12])\s*(?:смена|см)/i);if(sm&&!shift)shift=+sm[1];
+      const lesson=+first;
+      if(!currentClass||!lesson||lesson>20)continue;
+      for(let c=1;c<=5;c++){
+        const subject=cellVal(row[c]);
+        if(!subject)continue;
+        let teacher="";
+        if(r+1<a.length && !+cellVal(a[r+1]?.[0])) teacher=cellVal(a[r+1]?.[c]);
+        let group=0;
+        let rr=r+1;
+        while(rr<a.length && !+cellVal(a[rr]?.[0]) && !String(a[rr]?.[0]||"").toLowerCase().includes("класс -")) rr++;
+        for(let k=r+2;k<rr;k++){
+          const extra=cellVal(a[k]?.[c]);
+          if(extra && !/^[А-ЯЁA-Z][^]*\s[А-ЯЁA-Z]\./u.test(extra) && extra!==subject) {
+            // Дополнительный предмет/группа. Учитель обычно следует следующей строкой.
+            let extraTeacher=cellVal(a[k+1]?.[c]);
+            if(extraTeacher) entries.push({id:`base_${selectedShift}_${currentClass}_${lesson}_${c}_${k}`,shift:+selectedShift,day:days[c-1],dayIndex:c-1,lesson,className:currentClass,subject:extra,teacher:extraTeacher,group:++group});
+          }
+        }
+        entries.push({id:`base_${selectedShift}_${currentClass}_${lesson}_${c}`,shift:+selectedShift,day:days[c-1],dayIndex:c-1,lesson,className:currentClass,subject,teacher,group});
+      }
+    }
+    if(!shift)throw new Error("Не выбрана смена.");
+    const valid=entries.filter(x=>x.shift===shift);
+    return {shift,entries:valid,classes:[...new Set(valid.map(x=>x.className))],fileName};
+  }
 
-/* ---------- Server schedule loading: dedupe without dropping a just-saved shift ---------- */
-const __loadScheduleServerV8=loadScheduleServer;
-loadScheduleServer=async function(){
-  // Snapshot local data before the request. A background refresh can return an
-  // older/empty result while a newly uploaded shift is already visible locally.
-  const localDaily=[...(state.schedule.entries||[])];
-  const localBase=[...(state.schedule.baseEntries||[])];
-  await __loadScheduleServerV8();
-
-  const serverDaily=[...(state.schedule.entries||[])];
-  const serverBase=[...(state.schedule.baseEntries||[])];
-  const dailyGroups=new Set(serverDaily.map(x=>`${String(x.date||'').slice(0,10)}::${Number(x.shift)||0}`));
-  const baseShifts=new Set(serverBase.map(x=>Number(x.shift)||0));
-  // Use local rows only for a date/shift or base shift missing from the server
-  // response; never replace a complete server group with stale local data.
-  state.schedule.entries=serverDaily.concat(localDaily.filter(x=>!dailyGroups.has(`${String(x.date||'').slice(0,10)}::${Number(x.shift)||0}`)));
-  state.schedule.baseEntries=serverBase.concat(localBase.filter(x=>!baseShifts.has(Number(x.shift)||0)));
-
-  const seen=new Set();
-  state.schedule.entries=state.schedule.entries.filter(x=>{
-    const key=[String(x.date||'').slice(0,10),Number(x.shift),Number(x.lesson),normalizeClass(x.className),normalizeScheduleSubject(x.subject),normalizePersonName(x.teacher),String(x.room||'').trim()].join('|');
-    if(!x.subject && !x.teacher)return false;
-    if(looksLikeTeacherName(x.subject) && !x.teacher)return false;
-    if(seen.has(key))return false;
-    seen.add(key);return true;
-  }).map(x=>({...x,subject:normalizeScheduleSubject(x.subject)}));
-  return true;
-};
-
-/* ---------- Authoritative schedule upload ---------- */
-window.uploadSchedule=async function(){
-  if(!isDispatcher())return alert('Загрузка расписания доступна только диспетчеру и администратору.');
-  const f=document.getElementById('scheduleFile')?.files?.[0];
-  const selectedShift=Number(document.getElementById('scheduleShift')?.value||0);
-  const dateInput=document.getElementById('scheduleDate')?.value||'';
-  if(!f)return alert('Выберите Excel-файл расписания.');
-  if(!dateInput)return alert('Укажите дату расписания.');
-  if(!selectedShift)return alert('Укажите смену.');
-  try{
-    const XLSXLib=ensureXlsxLoaded();
-    const wb=XLSXLib.read(await f.arrayBuffer(),{type:'array'});
-    const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
-    parsed.date=dateInput;
-    if(!parsed.entries?.length)throw new Error('В файле не найдено ни одного урока для выбранной смены.');
-    await saveScheduleRows(parsed);
-    // Keep the rows just saved in memory; do not immediately overwrite them
-    // with a possibly stale read from the REST API.
-    const oldEntries=state.schedule.entries||[];
-    state.schedule.entries=oldEntries
-      .filter(x=>!(String(x.date).slice(0,10)===String(parsed.date).slice(0,10)&&Number(x.shift)===Number(parsed.shift)))
-      .concat(parsed.entries.map(x=>({...x,date:parsed.date,shift:Number(parsed.shift)})));
-    const now=new Date().toISOString();
-    state.schedule.versions=(state.schedule.versions||[]).filter(v=>!(String(v.date).slice(0,10)===String(parsed.date).slice(0,10)&&Number(v.shift)===Number(parsed.shift)));
-    state.schedule.versions.push({id:Date.now(),date:parsed.date,shift:Number(parsed.shift),fileName:f.name,uploadedAt:now,readBy:{[state.currentUser.login]:{at:now}}});
-    state.schedule.uploadedFile=f.name;
-    save();
-    const info=document.getElementById('scheduleImportInfo');
-    if(info)info.innerHTML=`Загружено: <b>${escapeHtml(parsed.date)}</b>, <b>${parsed.shift}-я смена</b>; классов: <b>${parsed.classes.length}</b>; записей: <b>${parsed.entries.length}</b>.`;
-    alert(`Расписание загружено: ${parsed.date}, ${parsed.shift}-я смена. Записей: ${parsed.entries.length}.`);
-    render();
-  }catch(e){console.error(e);alert('Не удалось сохранить расписание: '+(e.message||e));}
-};
-
-/* ---------- Shift-aware sorting and display ---------- */
-function scheduleSort(a,b){
-  const sa=Number(a.shift)||99,sb=Number(b.shift)||99;
-  return sa-sb || (Number(a.lesson)||99)-(Number(b.lesson)||99) || classSort(a.className,b.className) || String(a.subject||'').localeCompare(String(b.subject||''),'ru');
+async function loadAllBaseScheduleRows(){
+  const pageSize=1000;
+  const all=[];
+  let offset=0;
+  while(true){
+    const query=`select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc,id.asc&limit=${pageSize}&offset=${offset}`;
+    const page=await sbRest('school_base_schedule',query);
+    if(!Array.isArray(page))throw new Error('Некорректный ответ при загрузке базового расписания.');
+    all.push(...page);
+    if(page.length<pageSize)break;
+    offset+=page.length;
+  }
+  return all;
 }
-scheduleForUser=function(entries,mode){
-  let arr=[];
-  if(mode&&mode.startsWith('teacher:')) {
-    const wanted=mode.slice(8);
-    arr=(entries||[]).filter(x=>teacherMatches(x.teacher,wanted));
+
+async function loadScheduleServer(){
+  const {today,tomorrow}=getScheduleWindowDates();
+  // Удаляем прошлые даты только под учётной записью диспетчера/администратора.
+  // Загрузка расписания ограничена сегодняшним и завтрашним днём, чтобы не упираться в лимит REST API.
+  await cleanupOldScheduleRows(today);
+  const dailyQuery=`select=*&schedule_date=gte.${today}&schedule_date=lte.${tomorrow}&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc`;
+  let daily=await sbRest('school_schedule_lessons',dailyQuery);
+  let base=await loadAllBaseScheduleRows();
+
+  // Одноразовая миграция только актуальных записей из старого localStorage.
+  if(!(daily||[]).length && isDispatcher() && (state.schedule.entries||[]).length){
+    const groups={};
+    (state.schedule.entries||[]).filter(x=>x.date>=today&&x.date<=tomorrow).forEach(x=>{const k=`${x.date}::${x.shift}`;(groups[k]??=[]).push(x);});
+    for(const arr of Object.values(groups)){
+      if(arr.length)await saveScheduleRows({date:arr[0].date,shift:arr[0].shift,entries:arr});
+    }
+    daily=await sbRest('school_schedule_lessons',dailyQuery);
   }
-  else if(isGuest()) arr=[...(entries||[])];
-  else if(mode==='mine') arr=(entries||[]).filter(x=>teacherMatches(x.teacher,state.currentUser.name));
-  else if(mode&&mode.startsWith('class:')) {
-    const wanted=normalizeClass(mode.slice(6));
-    arr=(entries||[]).filter(x=>normalizeClass(x.className)===wanted);
+  if(!(base||[]).length && isDispatcher() && (state.schedule.baseEntries||[]).length){
+    const groups={};
+    (state.schedule.baseEntries||[]).forEach(x=>{const k=String(x.shift);(groups[k]??=[]).push(x);});
+    for(const arr of Object.values(groups)){
+      if(arr.length)await saveBaseScheduleRows({shift:arr[0].shift,entries:arr});
+    }
+    base=await loadAllBaseScheduleRows();
   }
-  return arr.sort(scheduleSort);
+  const mappedDaily=(daily||[]).map(x=>({
+    id:Number(x.id),date:x.schedule_date,shift:Number(x.shift),lesson:Number(x.lesson),className:x.class_name,
+    subject:x.subject||"",teacher:x.teacher||"",room:x.room||""
+  }));
+  const seenKeys=new Set();
+  state.schedule.entries=mappedDaily.filter(x=>{
+    if(!x.subject && !x.teacher)return false;
+    if(!x.teacher && looksLikeTeacherName(x.subject))return false;
+    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join("|");
+    if(seenKeys.has(key))return false;
+    seenKeys.add(key);return true;
+  });
+  state.schedule.baseEntries=(base||[]).map(x=>({
+    id:Number(x.id),shift:Number(x.shift),dayIndex:Number(x.day_index),lesson:Number(x.lesson),className:x.class_name,
+    subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
+  }));
+  state.schedule.versions=(daily||[]).reduce((acc,x)=>{
+    const k=`${x.schedule_date}::${x.shift}`;
+    if(!acc.some(v=>v.key===k))acc.push({key:k,date:x.schedule_date,shift:Number(x.shift),fileName:''});
+    return acc;
+  },[]);
+  return true;
+}
+
+async function saveScheduleRows(parsed){
+  const date=parsed.date, shift=Number(parsed.shift), now=new Date().toISOString();
+  await sbMutate('school_schedule_lessons','DELETE',`schedule_date=eq.${encodeURIComponent(date)}&shift=eq.${shift}`);
+  const rows=(parsed.entries||[]).map(x=>({
+    schedule_date:date,shift,lesson:Number(x.lesson)||0,class_name:String(x.className||''),subject:String(x.subject||''),
+    teacher:String(x.teacher||''),room:String(x.room||''),uploaded_at:now,uploaded_by:Number(state.currentUser.id)
+  }));
+  if(rows.length)await sbMutate('school_schedule_lessons','POST','',rows);
+}
+
+async function saveBaseScheduleRows(parsed){
+  const shift=Number(parsed.shift),now=new Date().toISOString();
+  await sbMutate('school_base_schedule','DELETE',`shift=eq.${shift}`);
+  const rows=(parsed.entries||[]).map(x=>({
+    shift,day_index:Number(x.dayIndex)||0,lesson:Number(x.lesson)||0,class_name:String(x.className||''),subject:String(x.subject||''),
+    teacher:String(x.teacher||''),room:String(x.room||''),uploaded_at:now,uploaded_by:Number(state.currentUser.id)
+  }));
+  if(rows.length)await sbMutate('school_base_schedule','POST','',rows);
+}
+
+window.uploadSchedule=function(){
+    if(!isDispatcher())return alert("Загрузка расписания доступна только диспетчеру и администратору.");
+    const f=document.getElementById("scheduleFile")?.files[0], selectedShift=document.getElementById("scheduleShift")?.value;
+    if(!f)return alert("Выберите Excel-файл расписания.");
+    if(!selectedShift)return alert("Укажите, это 1-я или 2-я смена.");
+    const reader=new FileReader();
+    reader.onload=async e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:"array"});
+        const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
+        const {today,tomorrow}=getScheduleWindowDates();
+        if(parsed.date!==today&&parsed.date!==tomorrow)throw new Error("Можно загружать расписание только на сегодня или завтра.");
+        // Сначала сохраняем данные на сервере. Если запись не удалась, локально
+        // не показываем загрузку как успешную и не очищаем старые строки.
+        await saveScheduleRows(parsed);
+        await cleanupOldScheduleRows(today);
+        const old=state.schedule.entries.filter(x=>x.date===parsed.date&&x.shift===parsed.shift);
+        state.schedule.entries=state.schedule.entries.filter(x=>x.date>=today&&x.date<=tomorrow&&!(x.date===parsed.date&&x.shift===parsed.shift));
+        state.schedule.entries.push(...parsed.entries);
+        const now=new Date().toISOString();
+        const version={id:Date.now(),date:parsed.date,shift:parsed.shift,fileName:f.name,uploadedAt:now,count:parsed.entries.length,readBy:{[state.currentUser.login]:{at:now}}};
+        state.schedule.versions=(state.schedule.versions||[]).filter(v=>v.date>=today&&v.date<=tomorrow&&!(v.date===parsed.date&&v.shift===parsed.shift));
+        state.schedule.versions.push(version);state.schedule.uploadedFile=f.name;
+        save();
+        const info=document.getElementById("scheduleImportInfo");
+        if(info)info.innerHTML=`Распознано: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>. ${old.length?"Предыдущее расписание этой даты и смены заменено.":"Расписание добавлено."}`;
+        alert(`Расписание сохранено на сервере: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);
+        render();
+      }catch(err){console.error(err);alert("Не удалось загрузить расписание: "+(err.message||"проверьте формат Excel."));}
+    };
+    reader.readAsArrayBuffer(f);
+  };
+
+window.uploadBaseSchedule=async function(){
+  if(!isDispatcher())return alert('Загрузка базового расписания доступна только диспетчеру и администратору.');
+  const f=document.getElementById('baseScheduleFile')?.files?.[0], selectedShift=document.getElementById('baseScheduleShift')?.value;
+  if(!f)return alert('Выберите Excel-файл базового расписания.');
+  if(!selectedShift)return alert('Укажите, это 1-я или 2-я смена.');
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
+      await saveBaseScheduleRows(parsed);
+      state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>Number(x.shift)!==Number(parsed.shift)).concat(parsed.entries);
+      state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>Number(v.shift)!==Number(parsed.shift));
+      state.schedule.baseVersions.push({id:Date.now(),shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length});
+      state.schedule.baseUploadedFile=f.name;save();
+      const info=document.getElementById('baseScheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>.`;
+      alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);render();
+    }catch(err){console.error(err);alert('Не удалось сохранить базовое расписание: '+(err.message||'проверьте формат Excel и права доступа.'));}
+  };
+  reader.readAsArrayBuffer(f);
 };
-scheduleShiftFor=function(entries){
-  const shifts=[...new Set(entries.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
-  if(!shifts.length)return '—';
-  return `<div class="schedule-shift-badges">${shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s}</span>`).join('')}</div>`;
-};
-renderScheduleTable=function(entries,mode){
-  const arr=scheduleForUser(entries,mode);
-  if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
-  const roomOf=x=>x.room??x.roomName??x.room_name??x.room_number??x.roomNumber??x.cabinet??x.classroom??'';
-  const cellStyle='padding:4px 5px;white-space:normal;overflow-wrap:anywhere;word-break:normal;vertical-align:top;';
-  return `<div class="schedule-view" style="width:100%;max-width:100%;"><div class="schedule-shift-badges">${scheduleShiftFor(arr).replace(/^<div class="schedule-shift-badges">|<\/div>$/g,'')}</div><div class="table-wrap schedule-table-wrap" style="width:100%;max-width:100%;overflow-x:visible;overflow-y:visible;"><table class="data-table schedule-table" style="width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;"><colgroup><col style="width:11%"><col style="width:7%"><col style="width:8%"><col style="width:23%"><col style="width:36%"><col style="width:15%"></colgroup><thead><tr><th style="${cellStyle}">Смена</th><th style="${cellStyle}">Урок</th><th style="${cellStyle}">Класс</th><th style="${cellStyle}">Предмет</th><th style="${cellStyle}">Учитель</th><th style="${cellStyle}">Кабинет</th></tr></thead><tbody>${arr.map(x=>`<tr class="shift-row-${Number(x.shift)===2?2:1}"><td style="${cellStyle}"><span class="schedule-shift-badge shift${Number(x.shift)===2?2:1}">${Number(x.shift)}</span></td><td style="${cellStyle}">${Number(x.lesson)}</td><td style="${cellStyle}">${escapeHtml(x.className)}</td><td style="${cellStyle}">${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}</td><td style="${cellStyle}">${escapeHtml(x.teacher||'—')}</td><td style="${cellStyle}">${escapeHtml(roomOf(x)||'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
-};
-renderScheduleSelector=function(day){
+
+/* Schedule selectors and class/teacher filtering moved from the main module. */
+// Daily schedule selectors: class and teacher filters share the same loaded server rows.
+function scheduleViewerCanChooseAnyClass(){
   const user=state.currentUser||{};
-  const roleValues=[...(Array.isArray(user.roleKeys)?user.roleKeys:[]),user.role,user.roles,user.system_role,user.systemRole].flat().filter(Boolean).map(x=>String(x).toLowerCase());
-  const roleText=roleValues.join(' ');
-  const canChooseAnyClass=roleValues.some(r=>['admin','director','deputy','administrator'].includes(r.trim()))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b|\badministrator\b/.test(roleText);
-  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const rosterForUser=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
-  const rosterClasses=rosterForUser.map(x=>typeof x==='string'?x:x?.name);
-  const allClasses=[...new Set([
-    ...(state.classRoster||[]).map(x=>x?.name),
-    ...(state.schedule.entries||[]).map(x=>x?.className),
-    ...(state.schedule.baseEntries||[]).map(x=>x?.className)
-  ].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-  const teacherScheduleClasses=[...(state.schedule.entries||[]),...(state.schedule.baseEntries||[])]
-    .filter(x=>teacherMatches(x.teacher,user.name))
-    .map(x=>x.className).filter(Boolean);
-  const myClasses=[...new Set([
-    ...rosterClasses,...teacherScheduleClasses,
-    ...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),
-    ...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])
-  ].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
-  const classes=canChooseAnyClass?allClasses:myClasses;
-  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
-  const allScheduleEntries=[...(state.schedule.entries||[]),...(state.schedule.baseEntries||[])];
-  const teachers=[...new Set([...(state.users||[]).map(x=>x?.name),...allScheduleEntries.map(x=>x?.teacher)]
-    .filter(Boolean).map(x=>String(x).trim()).filter(x=>x && x!=='—'))].sort((a,b)=>a.localeCompare(b,'ru'));
-  const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-  const dt=day==='tomorrow'?nextSchoolDay():new Date();
-  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="scheduleTeacherChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div><div id="scheduleResult_${day}"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
-};
-window.showScheduleChoice=function(day){
-  const sel=document.getElementById(`scheduleChoice_${day}`);
-  const teacherSel=document.getElementById(`scheduleTeacherChoice_${day}`);
-  if(!sel||!teacherSel)return;
-  const dt=day==='tomorrow'?nextSchoolDay():new Date();
-  const iso=dateIsoLocal(dt);
-  const result=document.getElementById(`scheduleResult_${day}`);if(!result)return;
-  const mode=teacherSel.value||sel.value;
-  if(teacherSel.value)sel.value='';
-  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(iso),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-};
-renderScheduleHomeSelector=function(day='today'){
+  const roles=Array.isArray(user.roleKeys)?user.roleKeys:[];
+  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(' ').toLowerCase();
+  return ['admin','director','deputy'].some(r=>roles.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText)||isGuest();
+}
+function scheduleViewerClasses(){
   const user=state.currentUser||{};
-  const roleValues=[...(Array.isArray(user.roleKeys)?user.roleKeys:[]),user.role,user.roles,user.system_role,user.systemRole].flat().filter(Boolean).map(x=>String(x).toLowerCase());
-  const roleText=roleValues.join(' ');
-  const canChooseAnyClass=roleValues.some(r=>['admin','director','deputy','administrator'].includes(r.trim()))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b|\badministrator\b/.test(roleText);
+  const all=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
+  const allUnique=[...new Set(all)].sort(classSort);
+  if(scheduleViewerCanChooseAnyClass())return allUnique;
   const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const rosterForUser=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
-  const rosterClasses=rosterForUser.map(x=>typeof x==='string'?x:x?.name);
-  const allClasses=[...new Set([
-    ...(state.classRoster||[]).map(x=>x?.name),
-    ...(state.schedule.entries||[]).map(x=>x?.className),
-    ...(state.schedule.baseEntries||[]).map(x=>x?.className)
-  ].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-  const teacherScheduleClasses=[...(state.schedule.entries||[]),...(state.schedule.baseEntries||[])]
-    .filter(x=>teacherMatches(x.teacher,user.name))
-    .map(x=>x.className).filter(Boolean);
-  const myClasses=[...new Set([
-    ...rosterClasses,...teacherScheduleClasses,
-    ...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),
-    ...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])
-  ].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
-  const classes=canChooseAnyClass?allClasses:myClasses;
-  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${canChooseAnyClass?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
-  const allScheduleEntries=[...(state.schedule.entries||[]),...(state.schedule.baseEntries||[])];
-  const teachers=[...new Set([...(state.users||[]).map(x=>x?.name),...allScheduleEntries.map(x=>x?.teacher)]
-    .filter(Boolean).map(x=>String(x).trim()).filter(x=>x && x!=='—'))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
+  const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])];
+  const taught=(state.schedule.entries||[]).filter(x=>teacherMatches(x.teacher,user.name)).map(x=>x.className);
+  return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
+}
+function scheduleViewerTeachers(){
+  // Источник списка — сотрудники из state.users. Не добавляем teacher из строк
+  // расписания: там могут встречаться предметы и сокращённые варианты ФИО.
+  const candidates=(state.users||[])
+    .filter(u=>!u.roleKeys?.includes('guest')&&u.name)
+    .map(u=>String(u.name).trim())
+    .filter(Boolean)
+    .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
+  const unique=[];
+  for(const name of candidates){
+    if(!unique.some(existing=>teacherMatches(name,existing)||teacherMatches(existing,name)))unique.push(name);
+  }
+  return unique.sort((a,b)=>a.localeCompare(b,'ru'));
+}
+function scheduleViewerControls(day,home=false){
+  const classes=scheduleViewerClasses();
+  const teachers=scheduleViewerTeachers();
+  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
+  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
+  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${scheduleViewerCanChooseAnyClass()?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
   const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-  const id=`homeScheduleChoice_${day}`,resultId=`homeScheduleResult_${day}`;
-  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${id}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="homeScheduleTeacherChoice_${day}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div><div class="muted">Выберите вариант или конкретного учителя.</div><div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант.</div></div>`;
-};
-window.showHomeScheduleChoice=function(day='today'){
-  const sel=document.getElementById(`homeScheduleChoice_${day}`);
-  const teacherSel=document.getElementById(`homeScheduleTeacherChoice_${day}`);
-  const result=document.getElementById(`homeScheduleResult_${day}`);if(!sel||!teacherSel||!result)return;
+  const handler=home?'showHomeScheduleChoice':'showScheduleChoice';
+  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classId}" onchange="${handler}('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="${teacherId}" aria-label="Выберите учителя" onchange="${handler}('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите вариант или конкретного учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
+}
+renderScheduleSelector=function(day){return scheduleViewerControls(day,false);};
+renderScheduleHomeSelector=function(day='today'){return scheduleViewerControls(day,true);};
+function renderScheduleSelection(day,home=false){
+  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
+  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
+  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
+  const classSel=document.getElementById(classId),teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
+  if(!classSel||!teacherSel||!result)return;
   const dt=day==='tomorrow'?nextSchoolDay():new Date();
-  const mode=teacherSel.value||sel.value;
-  if(teacherSel.value)sel.value='';
+  const mode=teacherSel.value||classSel.value;
+  if(teacherSel.value)classSel.value='';
+  if(classSel.value)teacherSel.value='';
   result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-};
+}
+window.showScheduleChoice=function(day){renderScheduleSelection(day,false);};
+window.showHomeScheduleChoice=function(day='today'){renderScheduleSelection(day,true);};
 renderBaseScheduleSelector=function(){
-  // Use both the roster and the uploaded base timetable so classes of shift 2
-  // remain selectable even if the roster refresh is incomplete.
   const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.baseEntries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
   return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
 };
+
 window.showBaseScheduleChoice=function(){
-  const c=document.getElementById('baseScheduleChoice')?.value;if(!c)return;
-  const arr=(state.schedule.baseEntries||[]).filter(x=>normalizeClass(x.className)===normalizeClass(c)).sort(scheduleSort);
-  if(!arr.length){document.getElementById('baseScheduleResult').innerHTML='<div class="schedule-empty">Базовое расписание для класса не найдено.</div>';return;}
-  const shifts=[...new Set(arr.map(x=>Number(x.shift)).filter(x=>x===1||x===2))].sort((a,b)=>a-b);
-  const days=['Понедельник','Вторник','Среда','Четверг','Пятница'];
-  const badges=shifts.map(s=>`<span class="schedule-shift-badge shift${s}">${s} смена</span>`).join('');
-  let html=`<div class="schedule-shift-badges">${badges}</div><div class="table-wrap"><table class="data-table schedule-table"><tr><th>Смена</th><th>Урок</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>`;
-  for(const shift of shifts){
+    const c=document.getElementById("baseScheduleChoice")?.value;if(!c)return;
+    const arr=(state.schedule.baseEntries||[]).filter(x=>x.className===c);
+    if(!arr.length){document.getElementById("baseScheduleResult").innerHTML='<div class="schedule-empty">Базовое расписание для класса не найдено.</div>';return;}
+    const shifts=[...new Set(arr.map(x=>x.shift))];
+    const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
+    let html=`<div class="schedule-shift">Смена: ${escapeHtml(shifts.join(", "))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th>${days.map(d=>`<th>${d}</th>`).join("")}</tr>`;
     for(let lesson=1;lesson<=20;lesson++){
-      const rows=arr.filter(x=>Number(x.shift)===shift&&Number(x.lesson)===lesson);
-      if(!rows.length)continue;
-      html+=`<tr class="shift-row-${shift}"><td><span class="schedule-shift-badge shift${shift}">${shift}</span></td><td>${lesson}</td>${days.map((_,i)=>{const cells=rows.filter(x=>Number(x.dayIndex)===i);return `<td>${cells.map(x=>`${escapeHtml(normalizeScheduleSubject(x.subject)||'—')}<br><span class="muted">${escapeHtml(x.teacher||'')}</span>`).join('<hr style="border:0;border-top:1px solid var(--line);margin:5px 0">')||'—'}</td>`;}).join('')}</tr>`;
+      if(!arr.some(x=>x.lesson===lesson))continue;
+      html+=`<tr><td>${lesson}</td>${days.map((_,i)=>{const cells=arr.filter(x=>x.lesson===lesson&&x.dayIndex===i);const cell=cells.map(x=>escapeHtml(x.subject)+(x.teacher?"<br><span class=\"muted\">"+escapeHtml(x.teacher)+"</span>":"")).join("<hr style=\"border:0;border-top:1px solid var(--line);margin:5px 0\">")||"—";return "<td>"+cell+"</td>";}).join("")}</tr>`;
     }
-  }
-  html+='</table></div>';document.getElementById('baseScheduleResult').innerHTML=html;
-};
+    html+=`</table></div>`;
+    document.getElementById("baseScheduleResult").innerHTML=html;
+  };
 
 
-// Start the application only after the complete modular runtime is available.
-(async()=>{
-  if(!window.supabase)return;
-  try{
-    const {data:{session}}=await window.supabase.auth.getSession();
-    if(session?.user && await window.loadRealEmployees(session.user)){
-      await window.loadAppSettingsFromSupabase();
-      await window.loadUserAssignments();
-      await window.loadDocumentsFromSupabase();
-      try{ if(typeof window.refreshRuntimeData==='function') await window.refreshRuntimeData(); }catch(e){}
-      document.getElementById('authScreen')?.classList.add('hidden');
-      document.getElementById('app')?.classList.remove('hidden');
-      window.render();
-    }
-  }catch(e){ console.error('Ошибка запуска приложения:',e); }
-})();
+function renderScheduleModule(){
+  const canDispatch=isDispatcher();
+  if(isGuest()){renderGuestSchedulePage();return;}
+  const d=dateInfo(), tomorrow=nextSchoolDay();
+  const newSched=hasUnreadSchedule();
+  shell("Расписание",`Расписание уроков. ${newSched?'<span class="schedule-new-badge">● есть непрочитанные изменения</span>':''}`,
+    `<div class="schedule-page-grid">
+      <div class="card ${newSched?'schedule-new':''}">
+        <h3>Расписание на сегодня <span class="muted">(${d.full})</span></h3>
+        ${renderScheduleSelector("today")}
+      </div>
+      <div class="card">
+        <h3>Расписание на завтра <span class="muted">(${tomorrow.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>
+        ${renderScheduleSelector("tomorrow")}
+      </div>
+      <div class="card">
+        <h3>Базовое расписание</h3>
+        ${renderBaseScheduleSelector()}
+      </div>
+    </div>
+    ${canDispatch?`<div class="card" style="margin-top:16px"><h3>Загрузка расписания на конкретную дату</h3>
+      <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Дата расписания</label><input id="scheduleDate" type="date" value="${dateIsoLocal(nextSchoolDay())}"></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+      <p class="muted">Загрузить расписание может только диспетчер или администратор. При повторной загрузке той же даты и смены предыдущая версия полностью заменяется.</p>
+      <button class="btn green" style="margin-top:12px" onclick="uploadSchedule()">Загрузить и опубликовать</button><div id="scheduleImportInfo" class="muted" style="margin-top:10px"></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>Загрузка базового расписания</h3>
+      <div class="schedule-import-grid"><div><label>Файл базового расписания</label><input id="baseScheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Смена</label><select id="baseScheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
+      <p class="muted">Базовых расписаний два — для 1-й и 2-й смен. Новая загрузка выбранной смены полностью заменяет старое базовое расписание этой смены.</p>
+      <button class="btn green" style="margin-top:12px" onclick="uploadBaseSchedule()">Загрузить базовое расписание</button><div id="baseScheduleImportInfo" class="muted" style="margin-top:10px"></div>
+    </div>`:""}`);
+  if(newSched) markScheduleRead();
+}
+window.App=window.App||{};
+window.App.pageRenderers=window.App.pageRenderers||{};
+window.App.pageRenderers.schedule=renderScheduleModule;
 </script>
 </body></html>
