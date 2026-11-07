@@ -169,6 +169,55 @@ function exportJournalAnalytics(){
 }
 window.exportJournalAnalytics=exportJournalAnalytics;
 
+// Electronic journal controls: these handlers belong to the analytics module.
+window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
+  window.showJournalAnalytics=function(){
+    const from=document.getElementById("jFrom")?.value||"",to=document.getElementById("jTo")?.value||"";
+    const arr=state.journalOverdue.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
+    const grouped={};arr.forEach(x=>{grouped[x.login]??={name:x.name,count:0,dates:[]};grouped[x.login].count+=x.count;grouped[x.login].dates.push(x);});
+    const el=document.getElementById("journalAnalytics");if(!el)return;
+    const total=arr.reduce((sum,x)=>sum+Number(x.count||0),0);
+    el.innerHTML=`<div class="journal-total">Всего незаполненных страниц: <b>${total}</b></div><div class="table-wrap journal-table-wrap"><table class="data-table"><tr><th>Педагог</th><th>Просрочено страниц</th><th>Даты</th></tr>${Object.values(grouped).map((x,i)=>`<tr><td>${x.name}</td><td><strong class="journal-page-count">${x.count}</strong></td><td><span>${x.dates.map(d=>d.date).join(', ')}</span></td></tr>`).join("")||'<tr><td colspan="3">Нет просрочек за период.</td></tr>'}</table></div>`;
+  };
+
+window.handleJournalFile=function(event){
+  const f=event?.target?.files?.[0];
+  window.__journalFile=f||null;
+  const el=document.getElementById('journalUploadInfo');
+  if(el)el.innerHTML=f?`Выбран файл: <b>${escapeHtml(f.name)}</b>. Нажмите «Загрузить и обработать».`:'Файл не выбран.';
+};
+window.processJournalUpload=async function(){
+  if(!isManager())return alert('Загрузка отчёта электронного журнала доступна директору и заместителям.');
+  const f=window.__journalFile||document.getElementById('journalFile')?.files?.[0];
+  if(!f)return alert('Сначала выберите Excel-файл.');
+  const reportDate=document.getElementById('journalReportDate')?.value||(()=>{const d=new Date();d.setDate(d.getDate()-1);return dateIsoLocal(d);})();
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+    const employees=teacherLikeUsers().map(u=>({u,surname:String(u.name||'').trim().split(/\s+/)[0]})).filter(x=>x.surname);
+    const textCells=[];
+    for(const sn of wb.SheetNames){
+      const ws=wb.Sheets[sn];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      rows.forEach(row=>textCells.push(row.map(v=>String(v??'')).join(' ')));
+    }
+    const result=[];
+    for(const item of employees){
+      const pattern=new RegExp(`(^|[^А-Яа-яЁёA-Za-z])${item.surname.replace(/[.*+?^${}()|[\]\\]/g,'\\window.exportJournalAnalytics=exportJournalAnalytics;')}(?=$|[^А-Яа-яЁёA-Za-z])`,'gi');
+      let count=0;
+      for(const line of textCells){const m=line.match(pattern);if(m)count+=m.length;}
+      if(count>0)result.push({employee_id:Number(item.u.id),employee_login:item.u.login||'',employee_name:item.u.name,report_date:reportDate,overdue_count:count});
+    }
+    await sbMutate('journal_overdue','DELETE',`report_date=eq.${encodeURIComponent(reportDate)}`);
+    if(result.length)await sbMutate('journal_overdue','POST','',result);
+    state.journalOverdue=(state.journalOverdue||[]).filter(x=>x.date!==reportDate).concat(result.map(x=>({id:Date.now()+Math.random(),employeeId:x.employee_id,login:x.employee_login,name:x.employee_name,date:x.report_date,count:x.overdue_count})));
+    save();
+    const info=document.getElementById('journalUploadInfo');
+    if(info)info.innerHTML=`Обработано: <b>${escapeHtml(f.name)}</b>. Дата отчёта: <b>${reportDate}</b>. Педагогов с просрочками: <b>${result.length}</b>.`;
+    alert(`Отчёт электронного журнала обработан. Выявлено педагогов с просрочками: ${result.length}.`);
+    showJournalAnalytics();
+  }catch(e){console.error(e);alert('Не удалось обработать отчёт электронного журнала: '+(e.message||e));}
+};
+
 function renderAnalytics(){
   if(!isManager()){shell('Аналитика','Доступна директору и заместителям.',`<div class="card"><div class="empty">Раздел аналитики доступен директору и заместителям.</div></div>`);return;}
   const visits=(state.notifications||[]).filter(n=>n.type==='visit').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ru'));
