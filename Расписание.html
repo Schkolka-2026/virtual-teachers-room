@@ -297,8 +297,13 @@ function scheduleViewerClasses(){
 function scheduleViewerTeachers(){
   // Источник списка — сотрудники из state.users. Не добавляем teacher из строк
   // расписания: там могут встречаться предметы и сокращённые варианты ФИО.
+  const scheduleTeacherNames=[...(state.schedule.entries||[]),...(state.schedule.baseEntries||[])]
+    .map(x=>String(x?.teacher||'').trim()).filter(Boolean);
   const candidates=(state.users||[])
-    .filter(u=>!u.roleKeys?.includes('guest')&&u.name)
+    .filter(u=>u.name&&!u.roleKeys?.includes('guest')&&(
+      u.roleKeys?.some(role=>['teacher','class_teacher'].includes(role))||
+      scheduleTeacherNames.some(name=>teacherMatches(name,u.name))
+    ))
     .map(u=>String(u.name).trim())
     .filter(Boolean)
     .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
@@ -319,7 +324,7 @@ function scheduleViewerControls(day,home=false){
   const teacherOptions=teachers.map(t=>'<option value="teacher:'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
   const handler=home?'showHomeScheduleChoice':'showScheduleChoice';
   return '<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+
-    '<select id="'+mineId+'" aria-label="Мой класс или моё расписание" onchange="'+handler+'(\''+day+'\')"><option value="">Мой класс / моё расписание</option><option value="mine">Показать</option></select>'+
+    '<select id="'+mineId+'" aria-label="Мой класс или моё расписание" onchange="'+handler+'(\''+day+'\')"><option value="">Мой класс / моё расписание</option><option value="mine">Мой класс / моё расписание</option></select>'+
     '<select id="'+classId+'" aria-label="Класс" onchange="'+handler+'(\''+day+'\')"><option value="">Класс</option>'+classOptions+'</select>'+
     '<select id="'+teacherId+'" aria-label="Учителя" onchange="'+handler+'(\''+day+'\')"><option value="">Учителя</option>'+teacherOptions+'</select>'+
     '</div>'+(home?'<div class="muted">Выберите один из трёх фильтров.</div>':'')+
