@@ -290,21 +290,20 @@ function scheduleViewerCanChooseAnyClass(){
   return ['admin','director','deputy'].some(r=>roles.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText)||isGuest();
 }
 function scheduleViewerClasses(){
-  const user=state.currentUser||{};
-  const all=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
-  const allUnique=[...new Set(all)].sort(classSort);
-  if(scheduleViewerCanChooseAnyClass())return allUnique;
-  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
-  const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])];
-  const taught=(state.schedule.entries||[]).filter(x=>teacherMatches(x.teacher,user.name)).map(x=>x.className);
-  return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
+  const all=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)]
+    .filter(Boolean).map(x=>String(x).trim());
+  return [...new Set(all)].sort(classSort);
 }
 function scheduleViewerTeachers(){
   // Источник списка — сотрудники из state.users. Не добавляем teacher из строк
   // расписания: там могут встречаться предметы и сокращённые варианты ФИО.
+  const scheduleTeacherNames=[...(state.schedule.entries||[]),...(state.schedule.baseEntries||[])]
+    .map(x=>String(x?.teacher||'').trim()).filter(Boolean);
   const candidates=(state.users||[])
-    .filter(u=>!u.roleKeys?.includes('guest')&&u.name)
+    .filter(u=>u.name&&!u.roleKeys?.includes('guest')&&(
+      u.roleKeys?.some(role=>['teacher','class_teacher'].includes(role))||
+      scheduleTeacherNames.some(name=>teacherMatches(name,u.name))
+    ))
     .map(u=>String(u.name).trim())
     .filter(Boolean)
     .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
@@ -317,27 +316,36 @@ function scheduleViewerTeachers(){
 function scheduleViewerControls(day,home=false){
   const classes=scheduleViewerClasses();
   const teachers=scheduleViewerTeachers();
-  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
-  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
-  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
-  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${scheduleViewerCanChooseAnyClass()?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
-  const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const mineId=home?"homeScheduleMine_"+day:"scheduleMine_"+day;
+  const classId=home?"homeScheduleChoice_"+day:"scheduleChoice_"+day;
+  const teacherId=home?"homeScheduleTeacherChoice_"+day:"scheduleTeacherChoice_"+day;
+  const resultId=home?"homeScheduleResult_"+day:"scheduleResult_"+day;
+  const classOptions=classes.map(c=>'<option value="class:'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
+  const teacherOptions=teachers.map(t=>'<option value="teacher:'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
   const handler=home?'showHomeScheduleChoice':'showScheduleChoice';
-  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classId}" onchange="${handler}('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="${teacherId}" aria-label="Выберите учителя" onchange="${handler}('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите вариант или конкретного учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
+  return '<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+
+    '<select id="'+mineId+'" aria-label="Мой класс или моё расписание" onchange="'+handler+'(\''+day+'\')"><option value="">Выберите фильтр</option><option value="mine">Мой класс / моё расписание</option></select>'+
+    '<select id="'+classId+'" aria-label="Класс" onchange="'+handler+'(\''+day+'\')"><option value="">Класс</option>'+classOptions+'</select>'+
+    '<select id="'+teacherId+'" aria-label="Учителя" onchange="'+handler+'(\''+day+'\')"><option value="">Учителя</option>'+teacherOptions+'</select>'+
+    '</div>'+(home?'<div class="muted">Выберите один из трёх фильтров.</div>':'')+
+    '<div id="'+resultId+'" style="margin-top:12px"><div class="schedule-empty">Выберите один из трёх фильтров.</div></div>';
 }
 renderScheduleSelector=function(day){return scheduleViewerControls(day,false);};
 renderScheduleHomeSelector=function(day='today'){return scheduleViewerControls(day,true);};
 function renderScheduleSelection(day,home=false){
-  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
-  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
-  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
-  const classSel=document.getElementById(classId),teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
-  if(!classSel||!teacherSel||!result)return;
+  const mineId=home?"homeScheduleMine_"+day:"scheduleMine_"+day;
+  const classId=home?"homeScheduleChoice_"+day:"scheduleChoice_"+day;
+  const teacherId=home?"homeScheduleTeacherChoice_"+day:"scheduleTeacherChoice_"+day;
+  const resultId=home?"homeScheduleResult_"+day:"scheduleResult_"+day;
+  const mineSel=document.getElementById(mineId),classSel=document.getElementById(classId);
+  const teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
+  if(!mineSel||!classSel||!teacherSel||!result)return;
   const dt=day==='tomorrow'?nextSchoolDay():new Date();
-  const mode=teacherSel.value||classSel.value;
-  if(teacherSel.value)classSel.value='';
-  if(classSel.value)teacherSel.value='';
-  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
+  const mode=mineSel.value||classSel.value||teacherSel.value;
+  if(mineSel.value){classSel.value='';teacherSel.value='';}
+  else if(classSel.value){mineSel.value='';teacherSel.value='';}
+  else if(teacherSel.value){mineSel.value='';classSel.value='';}
+  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите один из трёх фильтров.</div>';
 }
 window.showScheduleChoice=function(day){renderScheduleSelection(day,false);};
 window.showHomeScheduleChoice=function(day='today'){renderScheduleSelection(day,true);};
