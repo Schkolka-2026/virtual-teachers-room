@@ -371,36 +371,36 @@
       console.warn("Роли не синхронизированы: у сотрудника «"+(u.name||u.login||u.id)+"» ещё нет привязанной учётной записи Supabase.");
       return false;
     }
-
-    // user_roles.user_id имеет внешний ключ на user_profiles.id.
-    // Поэтому сначала убеждаемся, что профиль с UUID этой учётной записи существует.
     const profiles=await sbRest("user_profiles","select=id&id=eq."+encodeURIComponent(authUserId));
     if(!Array.isArray(profiles)||!profiles.some(p=>String(p.id)===String(authUserId))){
       await sbMutate("user_profiles","POST","",{
-        id:authUserId,
-        full_name:String(u.name||u.full_name||u.login||"Пользователь"),
-        login:String(u.login||""),
-        phone:String(u.phone||""),
-        position:String(u.position||""),
-        is_active:true,
-        updated_at:new Date().toISOString()
+        id:authUserId,full_name:String(u.name||u.full_name||u.login||"Пользователь"),
+        login:String(u.login||""),phone:String(u.phone||""),position:String(u.position||""),
+        is_active:true,updated_at:new Date().toISOString()
       });
     }
-
     const roleRows=await sbRest("roles","select=id,code");
     const roleIdByCode={};
     (roleRows||[]).forEach(r=>{if(r.code!=null&&r.id!=null)roleIdByCode[String(r.code).trim().toLowerCase()]=Number(r.id);});
     const aliases={"администратор":"admin","директор":"director","заместитель":"deputy","учитель":"teacher","диспетчер":"dispatcher","секретарь":"secretary","классный руководитель":"class_teacher","психолог":"psychologist","социальный педагог":"social_teacher","гость":"guest"};
-    const roleCodes=[...new Set((u.roleKeys||[]).map(x=>{
-      const raw=String(x||"").trim().toLowerCase();
-      return aliases[raw]||raw;
-    }).filter(Boolean))];
+    const roleCodes=[...new Set((u.roleKeys||[]).map(x=>{const raw=String(x||"").trim().toLowerCase();return aliases[raw]||raw;}).filter(Boolean))];
     if(!roleCodes.length)roleCodes.push("teacher");
     const unknown=roleCodes.filter(code=>roleIdByCode[code]==null);
     if(unknown.length)throw new Error("Неизвестные роли: "+unknown.join(", ")+". Роли не сохранены.");
-    await sbMutate("user_roles","DELETE","user_id=eq."+encodeURIComponent(authUserId));
-    const payload=roleCodes.map(code=>({user_id:authUserId,role_id:roleIdByCode[code]}));
-    if(payload.length)await sbMutate("user_roles","POST","",payload);
+
+    // Сначала добавляем недостающие роли, затем удаляем лишние.
+    // Так собственная учётная запись администратора не теряет is_manager()
+    // между DELETE и INSERT и не блокирует себя политикой RLS.
+    const currentAuthId=state.currentUser?.authUserId||state.currentUser?.auth_user_id;
+    const editingSelf=String(currentAuthId||"")===String(authUserId);
+    if(editingSelf&&state.currentUser?.roleKeys?.includes("admin")&&!roleCodes.includes("admin"))roleCodes.push("admin");
+    const wantedIds=[...new Set(roleCodes.map(code=>roleIdByCode[code]))];
+    const existingRows=await sbRest("user_roles","select=role_id&user_id=eq."+encodeURIComponent(authUserId));
+    const existingIds=new Set((existingRows||[]).map(x=>Number(x.role_id)));
+    const missing=wantedIds.filter(id=>!existingIds.has(Number(id)));
+    if(missing.length)await sbMutate("user_roles","POST","",missing.map(role_id=>({user_id:authUserId,role_id})));
+    const keep=wantedIds.map(String).join(",");
+    await sbMutate("user_roles","DELETE","user_id=eq."+encodeURIComponent(authUserId)+"&role_id=not.in.("+keep+")");
     return true;
   }
 
