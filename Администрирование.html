@@ -1,41 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><title>Администрирование</title></head><body>
+<html lang="ru"><head><meta charset="utf-8"><title>Администрирование — модуль интерфейса</title></head><body>
 <script type="text/plain" data-module>
-/* ---------- Shared settings and notifications ---------- */
-
-/* ---------- Shared settings: always persist to Supabase before reporting success ---------- */
-window.saveResponsibles = async function(){
-  if(!isAdmin()) return;
-  const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
-  const next={...(state.responsibles||{})};
-  keys.forEach(k=>{ next[k]=document.getElementById(`resp_${k}`)?.value.trim()||""; });
-  if(!(await saveAppSetting("responsibles",next))) return alert("Не удалось сохранить ответственных в базе данных.");
-  state.responsibles=next;
-  save();
-  alert("Ответственные за направления сохранены.");
-  render();
-};
-
-window.saveDuty = async function(){
-  if(!(isAdmin()||state.currentUser?.roleKeys?.includes("deputy"))) return;
-  const next=(state.dutySchedule||[]).map((x,i)=>({
-    ...x,
-    name1:document.getElementById(`duty_name1_${i}`)?.value.trim()||"",
-    phone1:document.getElementById(`duty_phone1_${i}`)?.value.trim()||"",
-    name2:document.getElementById(`duty_name2_${i}`)?.value.trim()||"",
-    phone2:document.getElementById(`duty_phone2_${i}`)?.value.trim()||""
-  }));
-  if(!(await saveAppSetting("dutySchedule",next))) return alert("Не удалось сохранить график дежурства в базе данных.");
-  state.dutySchedule=next;
-  save();
-  alert("График дежурства сохранён.");
-  render();
-};
-
-
-</script>
-<script type="text/plain" data-module>
-  function renderAdminModule(){
+/* Admin UI module. Uses the current main app state and handlers. */
+function renderAdminModule(){
     if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
     const respNames={transport:"Подвоз",vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
     shell("Администрирование","Пользователи, роли, расписание, дежурство и ответственные за направления.",
@@ -51,5 +18,226 @@ window.saveDuty = async function(){
       </div>`);
   }
 window.App.pageRenderers["admin"]=renderAdminModule;
+
+
+/* Admin-owned responsible-person handler moved unchanged from Главная.html. */
+window.setResponsible=function(page){if(!(isAdmin()||state.currentUser?.roleKeys?.includes("director")))return;const v=prompt("ФИО заместителя, ответственного за направление:",state.responsibles?.[page]||"");if(v===null)return;state.responsibles[page]=v.trim();save();render();};
+
+/* Admin-owned settings handlers moved unchanged from Главная.html. */
+window.saveBellMatrix=async function(){
+    const bm=ensureBellMatrix();
+    document.querySelectorAll(".bell-time").forEach(inp=>{
+      const key=inp.dataset.bellKey,day=inp.dataset.bellDay,n=+inp.dataset.bellN,part=inp.dataset.part; const arr=bm[key][day];
+      let row=arr.find(x=>+x.n===n); if(!row){row={n,start:"",end:""};arr.push(row);} row[part]=inp.value||"";
+    });
+    ["shift1","shift2Primary","shift2Grade6"].forEach(k=>["monday","weekdays"].forEach(day=>{bm[k][day]=bm[k][day].sort((a,b)=>+a.n-+b.n);}));
+    state.schedule.bellMatrix=bm;state.schedule.bellSchedules={monday:bm.shift1.monday,weekdays:bm.shift1.weekdays};state.schedule.bells=bm.shift1.weekdays;save();await saveAppSetting("bellMatrix",bm);alert("Расписание звонков сохранено.");render();
+  }
+
+window.saveVacations=async function(){state.vacationsText=document.getElementById("vacationsText").value;save();await saveAppSetting("vacationsText",state.vacationsText);alert("Сроки каникул сохранены.");render();}
+
+window.saveDispatcher=async function(){
+    if(!isAdmin())return; const id=+document.getElementById("dispatcherSelect").value;
+    state.users.forEach(u=>{if(u.roleKeys?.includes("dispatcher")){u.roleKeys=u.roleKeys.filter(r=>r!=="dispatcher");u.roles=rolesText(u.roleKeys);}});
+    const u=state.users.find(x=>x.id===id);if(u&&!u.roleKeys.includes("dispatcher"))u.roleKeys.push("dispatcher");
+    if(u)u.roles=rolesText(u.roleKeys);state.dispatcherIds=[id];save();await saveAppSetting("dispatcherIds",state.dispatcherIds);alert("Диспетчер назначен.");render();
+  }
+
+window.saveSecretary=async function(){
+    if(!isAdmin())return;
+    const select=document.getElementById("secretarySelect");
+    const ids=[...(select?.selectedOptions||[])].map(o=>Number(o.value)).filter(Number.isFinite);
+    if(ids.length>5)return alert("Можно назначить роль «Секретарь» не более чем 5 пользователям.");
+    state.users.forEach(u=>{u.roleKeys=(u.roleKeys||[]).filter(r=>r!=="secretary");u.roles=rolesText(u.roleKeys);});
+    ids.forEach(id=>{
+      const u=state.users.find(x=>Number(x.id)===id);
+      if(u && !u.roleKeys.includes("secretary")){u.roleKeys.push("secretary");u.roles=rolesText(u.roleKeys);}
+    });
+    state.__secretaryEmployeeIds=ids;
+    state.__secretaryEmployeeId=ids[0]??null; // compatibility with the old setting
+    save();
+    const ok=await saveAppSetting("secretaryEmployeeIds",ids);
+    await saveAppSetting("secretaryEmployeeId",ids[0]??null); // keep old key for backward compatibility
+    if(!ok)console.warn("Не удалось сохранить список секретарей в Supabase.");
+    alert(`Роль «Секретарь» назначена: ${ids.length} пользователям.`);
+    render();
+  }
+
+window.saveResponsibles=async function(){
+    if(!isAdmin())return; const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
+    keys.forEach(k=>state.responsibles[k]=document.getElementById(`resp_${k}`)?.value.trim()||"");save();await saveAppSetting("responsibles",state.responsibles);alert("Ответственные за направления сохранены.");render();
+  }
+
+window.saveDuty=async function(){
+    if(!(isAdmin()||state.currentUser.roleKeys.includes("deputy")))return;
+    state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();await saveAppSetting("dutySchedule",state.dutySchedule);alert("График дежурства сохранён.");render();
+  }
+
+
+/* Admin-owned class roster import moved unchanged from Главная.html. */
+    window.uploadClassRoster=async function(){
+      if(!isAdmin())return;
+      const f=document.getElementById("rosterFile")?.files?.[0];
+      if(!f)return alert("Выберите Excel-файл.");
+      try{
+        const data=await f.arrayBuffer();
+        const wb=XLSX.read(data,{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+        const normalizeKey=k=>String(k||"").toLowerCase().replace(/[^a-zа-яё0-9]/gi,"");
+        const get=(row,candidates)=>{
+          for(const key of Object.keys(row)){
+            const nk=normalizeKey(key);
+            if(candidates.some(c=>nk===normalizeKey(c)||nk.includes(normalizeKey(c))))return row[key];
+          }
+          return "";
+        };
+        const normalizeClassName=value=>String(value||"").trim().replace(/\s+/g,"").replace(/-/g,"").toUpperCase();
+        const parsed=rows.map((r,i)=>{
+          const rawName=get(r,["Класс","class","class_name"]);
+          const name=normalizeClassName(rawName);
+          const m=name.match(/^(\d{1,2})([А-ЯЁA-Z])$/);
+          const studentCount=+String(get(r,["Кол-во учеников","Количество учеников","student_count","students"])||0).replace(/,/g,".");
+          const shift=+String(get(r,["Смена","shift"])||0);
+          return {row:i+2,name,grade:m?+m[1]:0,letter:m?m[2]:"",studentCount,shift};
+        }).filter(x=>x.name);
+        const invalid=parsed.filter(x=>!x.grade||!x.letter||x.grade<1||x.grade>11);
+        if(!parsed.length)throw new Error("Не найдены строки с классами.");
+        if(invalid.length)throw new Error(`Не удалось распознать класс(ы): ${invalid.map(x=>`строка ${x.row}: ${x.name}`).join(", ")}. Используйте формат 6А, 6Б, 7А и т.п.`);
+        const duplicateNames=parsed.filter((x,i,a)=>a.findIndex(y=>y.name===x.name)===i && a.filter(y=>y.name===x.name).length>1).map(x=>x.name);
+        if(duplicateNames.length)throw new Error(`В Excel повторяются классы: ${duplicateNames.join(", ")}. Оставьте по одной строке на класс.`);
+
+        const yearId=await getCurrentAcademicYearId();
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session)throw new Error("Нет активной сессии Supabase.");
+        if(!yearId)throw new Error("Не найден учебный год 2026-2027 в таблице academic_years.");
+
+        // Важно: больше не пытаемся сначала найти класс через SELECT, а затем POST.
+        // Даже если SELECT ограничен RLS, upsert корректно обработает уже существующий
+        // класс по уникальному ключу (grade, letter, academic_year_id).
+        for(const item of parsed){
+          const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?on_conflict=grade,letter,academic_year_id`,{
+            method:"POST",
+            headers:{
+              apikey:SUPABASE_PUBLISHABLE_KEY,
+              Authorization:`Bearer ${session.access_token}`,
+              "Content-Type":"application/json",
+              Prefer:"resolution=merge-duplicates,return=minimal"
+            },
+            body:JSON.stringify({
+              grade:item.grade,
+              letter:item.letter,
+              is_active:true,
+              academic_year_id:yearId,
+              student_count:item.studentCount,
+              shift:item.shift
+            })
+          });
+          if(!resp.ok){
+            const txt=await resp.text();
+            throw new Error(`Не удалось сохранить класс ${item.name}: HTTP ${resp.status} ${txt}`);
+          }
+        }
+
+        // Только после успешного upsert всех строк деактивируем классы,
+        // которых нет в новой ведомости.
+        let currentRows=[];
+        try{
+          currentRows=await sbRest("classes");
+        }catch(e){
+          console.warn("Не удалось прочитать классы для деактивации:",e);
+        }
+        const existing=(currentRows||[]).filter(r=>String(r.academic_year_id??"")===String(yearId));
+        const wanted=new Set(parsed.map(x=>x.name));
+        for(const old of existing){
+          const oldName=classNameFromRow(old);
+          if(oldName && !wanted.has(oldName) && old.is_active!==false){
+            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(old.id)}`,{
+              method:"PATCH",
+              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},
+              body:JSON.stringify({is_active:false})
+            });
+            if(!resp.ok)throw new Error(`Не удалось деактивировать прежний класс ${oldName}: HTTP ${resp.status}`);
+          }
+        }
+
+        state.classRoster=parsed.map(x=>({name:x.name,grade:x.grade,letter:x.letter,studentCount:x.studentCount,shift:x.shift,academicYearId:yearId}));
+        save();
+        const info=document.getElementById("rosterInfo");
+        if(info)info.textContent=`Загружено классов: ${parsed.length}. Данные классов сохранены в Supabase для 2026-2027 учебного года.`;
+        alert(`Контингент обновлён: ${parsed.length} классов.`);
+        render();
+      }catch(e){
+        console.error(e);
+        alert("Не удалось обновить контингент: "+(e.message||"проверьте Excel и права доступа."));
+      }
+    };
+
+
+/* Admin-owned account credential handlers moved unchanged from Главная.html. */
+window.setUserCredentials=async function(id){
+    if(!isAdmin())return;
+    const u=state.users.find(x=>x.id===id);if(!u)return;
+    const existingLogin=String(u.login||"").startsWith("employee_")?"":String(u.login||"");
+    const modal=document.createElement("div");
+    modal.className="notify-modal-backdrop";
+    modal.id="credentialsModal";
+    modal.innerHTML=`<div class="notify-modal" role="dialog" aria-modal="true" style="width:min(560px,100%)">
+      <h3>Данные для входа</h3>
+      <p class="muted">${escapeHtml(u.name)}</p>
+      <div class="notify-form">
+        <div class="notify-row"><label for="credLogin">Логин</label><input id="credLogin" autocomplete="off" value="${escapeHtml(existingLogin)}" placeholder="Например: ivanova.mp"></div>
+        <div class="notify-row"><label for="credPassword">Новый пароль</label><input id="credPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Не менее 6 символов"></div>
+      </div>
+      <p class="muted" style="margin-top:12px">Пароль не сохраняется в базе приложения. Он передаётся в защищённую функцию Supabase и хранится только в Auth.</p>
+      <div class="notify-modal-actions">
+        <button class="btn" onclick="closeCredentialsModal()">Отмена</button>
+        <button class="btn green" id="saveCredentialsBtn" onclick="saveUserCredentials(${Number(id)})">Сохранить данные доступа</button>
+      </div>
+      <div class="error" id="credentialsError"></div>
+    </div>`;
+    modal.addEventListener("click",e=>{if(e.target===modal)closeCredentialsModal();});
+    document.body.appendChild(modal);
+    document.getElementById("credLogin")?.focus();
+  };
+  window.closeCredentialsModal=function(){document.getElementById("credentialsModal")?.remove();};
+  window.saveUserCredentials=async function(id){
+    if(!isAdmin())return;
+    const u=state.users.find(x=>x.id===id);if(!u)return;
+    const login=document.getElementById("credLogin")?.value.trim().toLowerCase()||"";
+    const password=document.getElementById("credPassword")?.value||"";
+    const err=document.getElementById("credentialsError");
+    const btn=document.getElementById("saveCredentialsBtn");
+    if(!login){err.textContent="Введите логин.";return;}
+    if(!/^[a-z0-9._-]{3,40}$/.test(login)){err.textContent="Логин: 3–40 символов, только латинские буквы, цифры, точка, дефис или _.";
+      return;}
+    if(password.length<6){err.textContent="Пароль должен содержать не менее 6 символов.";return;}
+    if(btn)btn.disabled=true; err.textContent="Сохраняем…";
+    try{
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session)throw new Error("Сессия администратора завершена. Войдите заново.");
+      const r=await fetch(SUPABASE_FUNCTION_URL,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization":`Bearer ${session.access_token}`,
+          "apikey":SUPABASE_PUBLISHABLE_KEY
+        },
+        body:JSON.stringify({employeeId:Number(u.id),login,password})
+      });
+      const payload=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(payload.error||`Ошибка ${r.status}`);
+      u.login=login;
+      u.authUserId=payload.authUserId||u.authUserId;
+      save();
+      closeCredentialsModal();
+      alert(`Данные доступа для ${u.name} сохранены.\n\nЛогин: ${login}\nПароль установлен.`);
+      render();
+    }catch(e){
+      err.textContent=e.message||"Не удалось сохранить данные доступа.";
+      if(btn)btn.disabled=false;
+    }
+  };
+  window.resetPassword=function(id){return setUserCredentials(id);};
 </script>
 </body></html>

@@ -204,33 +204,44 @@
         if(aid)accByAuth[String(aid)]=a;
       });
 
-      const leaderClassesByEmp={};
+      // class_leaders хранит связь user_id (UUID user_profiles) + class_id.
+      // Не используем employee_id: такого поля в фактической таблице нет.
+      const leaderClassesByAuth={};
       (classLeaders||[]).forEach(cl=>{
-        const emp=cl.employee_id??cl.employeeId??cl.emp_id;
+        const authId=cl.user_id??cl.userId;
         let cn=String(firstValue(cl,["class_name","className","name","класс"])||"").trim();
         const classId=cl.class_id??cl.classId;
         if(!cn&&classId!=null){
           const rr=(state.classRoster||[]).find(x=>String(x.id)===String(classId));
           cn=rr?.name||"";
         }
-        if(emp!=null&&cn)(leaderClassesByEmp[String(emp)]??=[]).push(cn);
+        if(authId&&cn)(leaderClassesByAuth[String(authId)]??=[]).push(cn);
       });
 
       const rolesByAuth={};
       userRoles.forEach(ur=>{
-        const vals=Object.values(ur).map(String),auth=vals.find(v=>v===authUser.id);
+        // Загружаем роли для всех сотрудников, а не только для вошедшего
+        // пользователя: user_roles.user_id — UUID конкретного профиля.
+        const auth=ur.user_id??ur.userId??ur.auth_user_id;
         if(!auth)return;
         const rid=ur.role_id??ur.roleId??ur.roles_id;
-        const code=roleById[String(rid)]??String(ur.role_code??ur.code??ur.role??"").toLowerCase();
-        if(code)(rolesByAuth[auth]??=[]).push(code);
+        const code=roleById[String(rid)]??String(ur.role_code??ur.code??ur.role??"").trim().toLowerCase();
+        if(code)(rolesByAuth[String(auth)]??=[]).push(code);
       });
 
       const normalizeRoles=(raw)=>{
+        const aliases={
+          "администратор":"admin","директор":"director","заместитель":"deputy",
+          "учитель":"teacher","диспетчер":"dispatcher","секретарь":"secretary",
+          "классный руководитель":"class_teacher","психолог":"psychologist",
+          "социальный педагог":"social_teacher","гость":"guest"
+        };
         const mapped=(raw||[]).map(k=>{
-          const x=String(k).toLowerCase();
-          return x.includes("admin")?"admin":x.includes("director")?"director":x.includes("deputy")?"deputy":x.includes("dispatcher")?"dispatcher":x.includes("secretary")?"secretary":"teacher";
-        });
-        const clean=[...new Set(mapped)].filter(Boolean);
+          const x=String(k||"").trim().toLowerCase();
+          if(aliases[x])return aliases[x];
+          return ["admin","director","deputy","teacher","dispatcher","secretary","class_teacher","psychologist","social_teacher","guest"].includes(x)?x:"";
+        }).filter(Boolean);
+        const clean=[...new Set(mapped)];
         return clean.length?clean:["teacher"];
       };
 
@@ -240,8 +251,8 @@
         if(authId===authUser.id && authUser.id==="452539e6-f627-4767-bcf6-a22a10c0c997")roleKeys=["admin"];
         const email=firstValue(row,["email","mail","Эл. почта","электронная_почта"]);
         const login=firstValue(acc,["login","username","логин"])||firstValue(row,["login","username","логин"])||(authId===authUser.id?"admin":email||`employee_${id}`);
-        const leaderClasses=[...(leaderClassesByEmp[String(id)]||[])];
-        return {id,name:normalizeEmployeeName(row),login,roleKeys,roles:rolesText(roleKeys),classes:leaderClasses,shift:{},attendanceClasses:leaderClasses.slice(),replacement:[],email,phone:firstValue(row,["phone","telephone","Телефон"]),qualification:firstValue(row,["qualification","Квалификация"]),dbRow:row,authUserId:authId};
+        const leaderClasses=[...(authId?leaderClassesByAuth[String(authId)]||[]:[])];
+        return {id,name:normalizeEmployeeName(row),login,roleKeys,roles:rolesText(roleKeys),classes:leaderClasses,shift:{},attendanceClasses:leaderClasses.slice(),replacement:[],email,phone:firstValue(row,["phone","telephone","Телефон"]),position:firstValue(row,["position","job_title","должность","Должность"]),qualification:firstValue(row,["qualification","Квалификация"]),dbRow:row,authUserId:authId};
       });
 
       const metadataEmployeeId=authUser?.user_metadata?.employee_id;
@@ -264,7 +275,7 @@
       // We already have the verified employee_id/login/name in Auth user_metadata.
       if(!me && targetId){
         const roleKeys=authUser.id==="452539e6-f627-4767-bcf6-a22a10c0c997"?["admin"]:normalizeRoles(rolesByAuth[authUser.id]);
-        const leaderClasses=[...(leaderClassesByEmp[targetId]||[])];
+        const leaderClasses=[...(leaderClassesByAuth[String(authUser.id)]||[])];
         me={
           id:Number(targetId),
           name:metadataName||"Сотрудник",
@@ -354,13 +365,56 @@
     const payload={employee_id:Number(u.id),attendance_classes:u.attendanceClasses||[],replacement_classes:u.replacement||[],shift:u.shift||{},updated_at:new Date().toISOString()};
     try{const updated=await sbMutate("user_assignments","PATCH",`employee_id=eq.${encodeURIComponent(Number(u.id))}`,{attendance_classes:payload.attendance_classes,replacement_classes:payload.replacement_classes,shift:payload.shift,updated_at:payload.updated_at});if(Array.isArray(updated)&&updated.length)return true;await sbMutate("user_assignments","POST","",payload);return true;}catch(e){console.warn("Не удалось сохранить назначения",u.id,e);return false;}
   }
+  async function syncUserRolesForUser(u){
+    const authUserId=u.authUserId||u.auth_user_id;
+    if(!authUserId){
+      console.warn("Роли не синхронизированы: у сотрудника «"+(u.name||u.login||u.id)+"» ещё нет привязанной учётной записи Supabase.");
+      return false;
+    }
+
+    // user_roles.user_id имеет внешний ключ на user_profiles.id.
+    // Поэтому сначала убеждаемся, что профиль с UUID этой учётной записи существует.
+    const profiles=await sbRest("user_profiles","select=id&id=eq."+encodeURIComponent(authUserId));
+    if(!Array.isArray(profiles)||!profiles.some(p=>String(p.id)===String(authUserId))){
+      await sbMutate("user_profiles","POST","",{
+        id:authUserId,
+        full_name:String(u.name||u.full_name||u.login||"Пользователь"),
+        login:String(u.login||""),
+        phone:String(u.phone||""),
+        position:String(u.position||""),
+        is_active:true,
+        updated_at:new Date().toISOString()
+      });
+    }
+
+    const roleRows=await sbRest("roles","select=id,code");
+    const roleIdByCode={};
+    (roleRows||[]).forEach(r=>{if(r.code!=null&&r.id!=null)roleIdByCode[String(r.code).trim().toLowerCase()]=Number(r.id);});
+    const aliases={"администратор":"admin","директор":"director","заместитель":"deputy","учитель":"teacher","диспетчер":"dispatcher","секретарь":"secretary","классный руководитель":"class_teacher","психолог":"psychologist","социальный педагог":"social_teacher","гость":"guest"};
+    const roleCodes=[...new Set((u.roleKeys||[]).map(x=>{
+      const raw=String(x||"").trim().toLowerCase();
+      return aliases[raw]||raw;
+    }).filter(Boolean))];
+    if(!roleCodes.length)roleCodes.push("teacher");
+    const unknown=roleCodes.filter(code=>roleIdByCode[code]==null);
+    if(unknown.length)throw new Error("Неизвестные роли: "+unknown.join(", ")+". Роли не сохранены.");
+    await sbMutate("user_roles","DELETE","user_id=eq."+encodeURIComponent(authUserId));
+    const payload=roleCodes.map(code=>({user_id:authUserId,role_id:roleIdByCode[code]}));
+    if(payload.length)await sbMutate("user_roles","POST","",payload);
+    return true;
+  }
+
   async function syncClassLeadersForUser(u){
     try{
-      const yearId=await getCurrentAcademicYearId();
+      const authUserId=u.authUserId||u.auth_user_id;
+      if(!authUserId){
+        console.warn("Классное руководство не синхронизировано: у сотрудника нет привязанной учётной записи Supabase.");
+        return false;
+      }
       const wanted=(u.classes||[]).map(normalizeClass).filter(Boolean);
-      const ids=(state.classRoster||[]).filter(r=>wanted.includes(normalizeClass(r.name))).map(r=>Number(r.id));
-      await sbMutate("class_leaders","DELETE",`employee_id=eq.${encodeURIComponent(u.id)}`);
-      for(const classId of ids)await sbMutate("class_leaders","POST","",{employee_id:Number(u.id),class_id:classId,academic_year_id:yearId||null});
+      const ids=[...new Set((state.classRoster||[]).filter(r=>wanted.includes(normalizeClass(r.name))).map(r=>Number(r.id)).filter(id=>Number.isFinite(id)&&id>0))];
+      await sbMutate("class_leaders","DELETE",`user_id=eq.${encodeURIComponent(authUserId)}`);
+      if(ids.length)await sbMutate("class_leaders","POST","",ids.map(classId=>({user_id:authUserId,class_id:classId})));
       return true;
     }catch(e){console.warn("Не удалось сохранить классное руководство:",e);return false;}
   }
@@ -377,9 +431,9 @@
       save();
     }catch(e){console.warn("Документы Supabase пока недоступны:",e);}
   }
-  async function uploadToYandexFolder(file,folderUrl,page,title){
+  async function uploadToYandexFolder(file,folderUrl,page,title,replaceDocumentId=""){
     const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error("Сессия завершена. Войдите заново.");
-    const form=new FormData();form.append("file",file);form.append("folderPublicUrl",folderUrl);form.append("page",page);form.append("title",title);form.append("fileName",file.name);
+    const form=new FormData();form.append("file",file);form.append("folderPublicUrl",folderUrl);form.append("page",page);form.append("title",title);form.append("fileName",file.name);if(replaceDocumentId)form.append("replaceDocumentId",String(replaceDocumentId));
     const r=await fetch(YANDEX_UPLOAD_FUNCTION_URL,{method:"POST",headers:{Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},body:form});
     const p=await r.json().catch(()=>({}));if(!r.ok)throw new Error(p.error||`Ошибка загрузки на Яндекс Диск: ${r.status}`);return p;
   }
@@ -648,36 +702,9 @@ function noticeHtml(n){
       ${state.plan.map(x=>`<tr><td>${x.date}</td><td>${x.time}</td><td>${x.title}</td><td>${x.place}</td><td>${x.participants}</td><td>${x.responsible||"—"}</td><td><span class="chip">${x.status}</span></td><td>${canEdit?`<div class="icon-actions">${x.status==="На согласовании"?`<button class="small-btn" onclick="publishPlan(${x.id})">Опубликовать</button>`:""}<button class="small-btn" onclick="editPlan(${x.id})">Изменить</button><button class="small-btn danger" onclick="deletePlan(${x.id})">Удалить</button></div>`:"—"}</td></tr>`).join("")}</table></div></div>`);
   }
   function renderSchedule(){
-    const canDispatch=isDispatcher();
-    if(isGuest()){renderGuestSchedulePage();return;}
-    const d=dateInfo(), tomorrow=nextSchoolDay();
-    const newSched=hasUnreadSchedule();
-    shell("Расписание",`Расписание уроков. ${newSched?'<span class="schedule-new-badge">● есть непрочитанные изменения</span>':''}`,
-      `<div class="schedule-page-grid">
-        <div class="card ${newSched?'schedule-new':''}">
-          <h3>Расписание на сегодня <span class="muted">(${d.full})</span></h3>
-          ${renderScheduleSelector("today")}
-        </div>
-        <div class="card">
-          <h3>Расписание на завтра <span class="muted">(${tomorrow.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>
-          ${renderScheduleSelector("tomorrow")}
-        </div>
-        <div class="card">
-          <h3>Базовое расписание</h3>
-          ${renderBaseScheduleSelector()}
-        </div>
-      </div>
-      ${canDispatch?`<div class="card" style="margin-top:16px"><h3>Загрузка расписания на конкретную дату</h3>
-        <div class="schedule-import-grid"><div><label>Файл расписания</label><input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Дата расписания</label><input id="scheduleDate" type="date" value="${dateIsoLocal(nextSchoolDay())}"></div><div><label>Смена</label><select id="scheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
-        <p class="muted">Загрузить расписание может только диспетчер или администратор. При повторной загрузке той же даты и смены предыдущая версия полностью заменяется.</p>
-        <button class="btn green" style="margin-top:12px" onclick="uploadSchedule()">Загрузить и опубликовать</button><div id="scheduleImportInfo" class="muted" style="margin-top:10px"></div>
-      </div>
-      <div class="card" style="margin-top:16px"><h3>Загрузка базового расписания</h3>
-        <div class="schedule-import-grid"><div><label>Файл базового расписания</label><input id="baseScheduleFile" type="file" accept=".xlsx,.xls,.csv"></div><div><label>Смена</label><select id="baseScheduleShift"><option value="">Выберите смену</option><option value="1">1 смена</option><option value="2">2 смена</option></select></div></div>
-        <p class="muted">Базовых расписаний два — для 1-й и 2-й смены. Новая загрузка выбранной смены полностью заменяет старое базовое расписание этой смены.</p>
-        <button class="btn green" style="margin-top:12px" onclick="uploadBaseSchedule()">Загрузить базовое расписание</button><div id="baseScheduleImportInfo" class="muted" style="margin-top:10px"></div>
-      </div>`:""}`);
-    if(newSched) markScheduleRead();
+    const moduleRenderer=window.App?.pageRenderers?.schedule;
+    if(typeof moduleRenderer==="function")return moduleRenderer();
+    shell("Расписание","Модуль расписания не загружен.",`<div class="card"><div class="empty">Не удалось загрузить модуль расписания. Обновите страницу.</div></div>`);
   }
   function renderNotifications(){
     const can=isManager();
@@ -717,6 +744,8 @@ function noticeHtml(n){
   function userCanSeeDoc(doc){
     if(!doc||!state.currentUser)return false;
     const u=state.currentUser;
+    if(isManager()||isSecretary())return true;
+    if(doc.uploadedBy===u.login)return true;
     const isOrder=String(doc.sectionKey||"").split("::")[1]?.includes("Приказы");
     if(isOrder && ["admin","director","deputy"].some(r=>u.roleKeys?.includes(r)))return true;
     if(doc.targetAll || doc.targetType==="all")return true;
@@ -725,11 +754,11 @@ function noticeHtml(n){
     const parallels=(doc.targetClassLeaderParallels||[]).map(String);
     if(parallels.length && isClassLeader && (u.classes||[]).some(c=>parallels.includes(String(c).match(/^\d+/)?.[0])))return true;
     if((doc.targetUsers||[]).includes(u.login))return true;
+    if((doc.targetEmployeeIds||[]).some(id=>Number(id)===Number(u.id)))return true;
     if(doc.targetType==="specific" && (doc.targetUsers||[]).includes(u.login))return true;
     return false;
   }
   function unreadDocs(page,title){return state.documents.some(d=>d.sectionKey===docKey(page,title)&&userCanSeeDoc(d)&&!(d.readBy||{})[state.currentUser.login]);}
-  window.setResponsible=function(page){if(!(isAdmin()||state.currentUser?.roleKeys?.includes("director")))return;const v=prompt("ФИО заместителя, ответственного за направление:",state.responsibles?.[page]||"");if(v===null)return;state.responsibles[page]=v.trim();save();render();};
   function moduleCard(title,text,side="",hasNew=false){if(!guestAllowed(state.currentPage,title))return ``;const isNew=unreadDocs(state.currentPage,title)||hasNew&&unreadDocs(state.currentPage,title);return `<div class="module-card ${side} ${isNew?'module-new':''}" onclick="openDocs('${escapeHtml(state.currentPage)}','${escapeHtml(title)}')"><div class="module-card-title">${escapeHtml(title)}${isNew?'<span class="new-dot">● новое</span>':''}</div><div class="muted">${escapeHtml(text)}</div><div class="module-folder">📂 Открыть папку →</div></div>`;}
   function normativeCard(){return `<div class="normative-card"><h3>Нормативные документы</h3><div class="normative-cols"><div onclick="openDocs(state.currentPage,'Нормативные документы — Федеральные')"><b>Федеральные документы</b><p>📂 Открыть</p></div><div onclick="openDocs(state.currentPage,'Нормативные документы — Региональные/муниципальные')"><b>Региональные / муниципальные документы</b><p>📂 Открыть</p></div><div onclick="openDocs(state.currentPage,'Нормативные документы — Локальные')"><b>Локальные документы</b><p>📂 Открыть</p></div></div></div>`;}
   function normativeCardNoLocal(exam=""){const suffix=exam?` ${exam}`:"";return `<div class="normative-card full"><h3>Нормативные документы${suffix}</h3><div class="normative-cols two-cols"><div onclick="openDocs('gia','Нормативные документы — Федеральные${suffix}')"><b>Федеральные документы${suffix}</b><p>📂 Открыть</p></div><div onclick="openDocs('gia','Нормативные документы — Региональные/муниципальные${suffix}')"><b>Региональные / муниципальные документы${suffix}</b><p>📂 Открыть</p></div></div></div>`;}
@@ -752,19 +781,7 @@ function noticeHtml(n){
   function renderAdmin(){
     const moduleRenderer=window.App?.pageRenderers?.["admin"];
     if(typeof moduleRenderer==="function")return moduleRenderer();
-    if(!isAdmin()){shell("Администрирование","Доступно администратору.",`<div class="card"><div class="empty">Недостаточно прав.</div></div>`);return;}
-    const respNames={transport:"Подвоз",vseobuch:"Всеобуч",education:"Учебная работа",journal:"Электронный журнал",upbringing:"Воспитательная работа",ovz:"Обучающиеся с ОВЗ и инвалидностью",olymp:"Олимпиадное и конкурсное движение",gia:"ЕГЭ / ОГЭ",attestation:"Методическая работа",career:"Профориентация",psych:"Социально-психологическая служба",security:"Безопасность",reports:"Отчеты",archive:"Архив"};
-    shell("Администрирование","Пользователи, роли, расписание, дежурство и ответственные за направления.",
-      `<div class="admin-grid">
-      <div class="card admin-span12"><h3>Пользователи и доступы</h3><div class="toolbar"><button class="btn green" onclick="addUser()">＋ Добавить пользователя</button></div><div class="table-wrap"><table class="data-table"><tr><th>ФИО</th><th>Логин</th><th>Роли</th><th>Классное руководство / смена</th><th>Посещаемость</th><th>Замещения</th><th></th></tr>${state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.login)}</td><td>${escapeHtml(u.roles||rolesText(u.roleKeys))}</td><td>${Object.entries(u.shift||{}).map(([c,s])=>`${escapeHtml(c)} — ${s} смена`).join("<br>")||"—"}</td><td>${(u.attendanceClasses||[]).join(", ")||"—"}</td><td>${(u.replacement||[]).join(", ")||"—"}</td><td><button class="small-btn" onclick="editUser(${u.id})">Изменить</button> <button class="small-btn danger" onclick="deleteUser(${u.id})">Удалить</button> <button class="small-btn" onclick="setUserCredentials(${u.id})">Логин / пароль</button></td></tr>`).join("")}</table></div><p class="role-hint">Секретарь — дополнительная роль существующего пользователя, как и Диспетчер. Отдельной учётной записи секретаря нет.</p></div>
-      <div class="card"><h3>Диспетчер расписания</h3><label>Назначить диспетчера</label><select id="dispatcherSelect">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("dispatcher")||state.dispatcherIds.includes(u.id)?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveDispatcher()">Сохранить</button></div>
-      <div class="card"><h3>Секретарь</h3><label>Назначить до 5 пользователей с ролью «Секретарь»</label><select id="secretarySelect" class="secretary-multi" multiple size="7">${state.users.filter(u=>!u.roleKeys.includes("guest")).map(u=>`<option value="${u.id}" ${u.roleKeys.includes("secretary")?"selected":""}>${escapeHtml(u.name)}</option>`).join("")}</select><button class="btn green" style="margin-top:12px" onclick="saveSecretary()">Сохранить</button><p class="muted">Можно выбрать не более 5 человек. Каждый секретарь входит под своим обычным логином и получает права роли «Секретарь».</p></div>
-      <div class="card admin-span12"><h3>Расписание звонков</h3><p class="muted">Таблица соответствует утверждённому расписанию школы: три группы по сменам, отдельно понедельник и вторник-пятница.</p><div class="table-wrap">${renderBellMatrixTable(true)}</div><button class="btn green" style="margin-top:12px" onclick="saveBellMatrix()">Сохранить расписание звонков</button></div>
-      <div class="card admin-span12"><h3>Контингент классов</h3><p class="muted">Excel-файл с тремя столбцами: «Класс» / «Кол-во учеников» / «Смена». Классы сохраняются в Supabase; прежние классы только деактивируются после успешной проверки новой загрузки.</p><div class="roster-upload"><input id="rosterFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn green" style="margin-top:10px" onclick="uploadClassRoster()">Загрузить и заменить данные</button><div id="rosterInfo" class="roster-meta">В системе загружено классов: ${(state.classRoster||[]).length}.</div></div></div>
-      <div class="card"><h3>Ответственные за направления</h3><p class="muted">Администратор указывает ФИО заместителя, курирующего каждый модуль.</p><div class="responsible-admin-list">${Object.entries(respNames).map(([k,n])=>`<label>${n}<input id="resp_${k}" value="${escapeHtml(state.responsibles[k]||"")}" placeholder="ФИО заместителя"></label>`).join("")}</div><button class="btn green" style="margin-top:12px" onclick="saveResponsibles()">Сохранить ответственных</button></div>
-      <div class="card admin-span12"><h3>Дежурство администрации</h3><div class="table-wrap"><table class="data-table duty-table"><tr><th>День</th><th>ФИО 1</th><th>Телефон 1</th><th>ФИО 2</th><th>Телефон 2</th></tr>${state.dutySchedule.map((x,i)=>`<tr><td>${escapeHtml(x.day)}</td><td><input id="duty_name1_${i}" value="${escapeHtml(x.name1||"")}"></td><td><input id="duty_phone1_${i}" value="${escapeHtml(x.phone1||"")}"></td><td><input id="duty_name2_${i}" value="${escapeHtml(x.name2||"")}"></td><td><input id="duty_phone2_${i}" value="${escapeHtml(x.phone2||"")}"></td></tr>`).join("")}</table></div><button class="btn green" style="margin-top:12px" onclick="saveDuty()">Сохранить график дежурства</button></div>
-      <div class="card admin-span12"><h3>Сроки каникул</h3><p class="muted">Сюда можно вставить полный график каникул на учебный год — несколько строк, таблицу или текстовый приказ.</p><label>Расписание каникул</label><textarea id="vacationsText" class="vacations-editor" rows="12" placeholder="Например:\nОсенние каникулы — ...\nЗимние каникулы — ...\nВесенние каникулы — ...\nЛетние каникулы — ...">${escapeHtml(state.vacationsText||"")}</textarea><button class="btn green" style="margin-top:12px" onclick="saveVacations()">Сохранить расписание каникул</button></div>
-      </div>`);
+    shell("Администрирование","Модуль администрирования не загружен.",`<div class="card"><div class="empty">Не удалось загрузить модуль администрирования. Обновите страницу.</div></div>`);
   }
   function renderSettings(){
     const moduleRenderer=window.App?.pageRenderers?.["settings"];
@@ -833,15 +850,6 @@ function noticeHtml(n){
     }
   };
   function classSort(a,b){const pa=String(a).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[],pb=String(b).match(/(\d+)\s*([А-ЯA-ZЁа-яa-zё]*)/i)||[];return (+pa[1]||0)-(+pb[1]||0)||String(pa[2]||'').localeCompare(String(pb[2]||''),'ru');}
-  window.journalPeriod=function(kind){document.getElementById("jDates").classList.toggle("hidden",kind!=="custom");if(kind==="yesterday"){const d=new Date();d.setDate(d.getDate()-1);const s=dateIsoLocal(d);document.getElementById("jFrom").value=s;document.getElementById("jTo").value=s;}};
-  window.showJournalAnalytics=function(){
-    const from=document.getElementById("jFrom")?.value||"",to=document.getElementById("jTo")?.value||"";
-    const arr=state.journalOverdue.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
-    const grouped={};arr.forEach(x=>{grouped[x.login]??={name:x.name,count:0,dates:[]};grouped[x.login].count+=x.count;grouped[x.login].dates.push(x);});
-    const el=document.getElementById("journalAnalytics");if(!el)return;
-    const total=arr.reduce((sum,x)=>sum+Number(x.count||0),0);
-    el.innerHTML=`<div class="journal-total">Всего незаполненных страниц: <b>${total}</b></div><div class="table-wrap journal-table-wrap"><table class="data-table"><tr><th>Педагог</th><th>Просрочено страниц</th><th>Даты</th></tr>${Object.values(grouped).map((x,i)=>`<tr><td>${x.name}</td><td><strong class="journal-page-count">${x.count}</strong></td><td><span>${x.dates.map(d=>d.date).join(', ')}</span></td></tr>`).join("")||'<tr><td colspan="3">Нет просрочек за период.</td></tr>'}</table></div>`;
-  };
   window.toggleJournalDates=function(id){document.getElementById(id)?.classList.toggle('hidden');};
   window.addPlan=function(){const title=prompt("Мероприятие:");if(!title)return;state.plan.push({id:Date.now(),date:prompt("Дата:","15.08")||"",time:prompt("Время:","12:00")||"",title,place:prompt("Место:","Кабинет")||"",participants:prompt("Участники:","Мой класс")||"",responsible:isManager()?state.currentUser.name:"",status:isManager()?"Опубликовано":"На согласовании",author:state.currentUser.login});save();render();};
   window.publishPlan=function(id){const x=state.plan.find(p=>p.id===id);if(x){x.status="Опубликовано";x.responsible=x.responsible||state.currentUser.name;save();render();}};
@@ -902,7 +910,6 @@ function noticeHtml(n){
   window.readNotification=function(id){const n=state.notifications.find(x=>x.id===id);if(n){n.read=true;save();render();}};
   window.markNotificationsRead=function(){state.notifications.forEach(n=>n.read=true);save();render();};
   window.saveMyData=function(){const d={};document.querySelectorAll('[id^="md_"]').forEach(e=>d[e.id.slice(3)]=e.value.trim());state.myData[state.currentUser.login]=d;save();alert("Анкета сохранена.");render();};
-  window.exportMyData=function(){const keys=Object.keys(state.myData), rows=keys.map(k=>[k,...Object.values(state.myData[k])]);downloadCSV(["Логин","Данные анкеты"],rows,"мои_данные.csv");};
   window.addUser=function(){
     if(!isAdmin())return;
     const name=prompt("ФИО:");if(!name)return;
@@ -940,7 +947,19 @@ function noticeHtml(n){
     u.replacement=replacement.split(",").map(x=>x.trim()).filter(Boolean);
     if(!u.roleKeys.includes("dispatcher"))state.dispatcherIds=(state.dispatcherIds||[]).filter(x=>x!==u.id);
     save();
-    Promise.all([syncClassLeadersForUser(u),saveUserAssignments(u)]).then(()=>{alert("Данные пользователя сохранены.");render();});
+    let roleSyncError=null;
+    syncUserRolesForUser(u).catch(e=>{roleSyncError=e;console.error("Не удалось сохранить профиль и роли:",e);return false;}).then(async rolesSaved=>{
+      const [leadersSaved,assignmentsSaved]=await Promise.all([syncClassLeadersForUser(u),saveUserAssignments(u)]);
+      const issues=[];
+      if(!rolesSaved)issues.push(roleSyncError?"профиль и роли — "+(roleSyncError.message||"ошибка Supabase"):"профиль и роли — после привязки учётной записи");
+      if(!leadersSaved)issues.push("классное руководство — проверьте привязку учётной записи и доступ к class_leaders");
+      if(!assignmentsSaved)issues.push("назначения классов — проверьте доступ к user_assignments");
+      alert(issues.length?"Изменения сохранены не полностью. Не удалось сохранить: "+issues.join("; ")+".":"Данные пользователя сохранены.");
+      render();
+    }).catch(e=>{
+      console.error("Не удалось сохранить назначения пользователя:",e);
+      alert("Не удалось сохранить часть назначений пользователя. "+(e.message||"Проверьте доступ к таблицам Supabase."));
+    });
   };
   window.editUserRoles=function(id){return editUser(id);};
   window.deleteUser=function(id){
@@ -955,298 +974,26 @@ function noticeHtml(n){
     delete state.portfolio[u.login];
     save();render();
   };
-  window.setUserCredentials=async function(id){
-    if(!isAdmin())return;
-    const u=state.users.find(x=>x.id===id);if(!u)return;
-    const existingLogin=String(u.login||"").startsWith("employee_")?"":String(u.login||"");
-    const modal=document.createElement("div");
-    modal.className="notify-modal-backdrop";
-    modal.id="credentialsModal";
-    modal.innerHTML=`<div class="notify-modal" role="dialog" aria-modal="true" style="width:min(560px,100%)">
-      <h3>Данные для входа</h3>
-      <p class="muted">${escapeHtml(u.name)}</p>
-      <div class="notify-form">
-        <div class="notify-row"><label for="credLogin">Логин</label><input id="credLogin" autocomplete="off" value="${escapeHtml(existingLogin)}" placeholder="Например: ivanova.mp"></div>
-        <div class="notify-row"><label for="credPassword">Новый пароль</label><input id="credPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Не менее 6 символов"></div>
-      </div>
-      <p class="muted" style="margin-top:12px">Пароль не сохраняется в базе приложения. Он передаётся в защищённую функцию Supabase и хранится только в Auth.</p>
-      <div class="notify-modal-actions">
-        <button class="btn" onclick="closeCredentialsModal()">Отмена</button>
-        <button class="btn green" id="saveCredentialsBtn" onclick="saveUserCredentials(${Number(id)})">Сохранить данные доступа</button>
-      </div>
-      <div class="error" id="credentialsError"></div>
-    </div>`;
-    modal.addEventListener("click",e=>{if(e.target===modal)closeCredentialsModal();});
-    document.body.appendChild(modal);
-    document.getElementById("credLogin")?.focus();
-  };
-  window.closeCredentialsModal=function(){document.getElementById("credentialsModal")?.remove();};
-  window.saveUserCredentials=async function(id){
-    if(!isAdmin())return;
-    const u=state.users.find(x=>x.id===id);if(!u)return;
-    const login=document.getElementById("credLogin")?.value.trim().toLowerCase()||"";
-    const password=document.getElementById("credPassword")?.value||"";
-    const err=document.getElementById("credentialsError");
-    const btn=document.getElementById("saveCredentialsBtn");
-    if(!login){err.textContent="Введите логин.";return;}
-    if(!/^[a-z0-9._-]{3,40}$/.test(login)){err.textContent="Логин: 3–40 символов, только латинские буквы, цифры, точка, дефис или _.";
-      return;}
-    if(password.length<6){err.textContent="Пароль должен содержать не менее 6 символов.";return;}
-    if(btn)btn.disabled=true; err.textContent="Сохраняем…";
-    try{
-      const {data:{session}}=await supabase.auth.getSession();
-      if(!session)throw new Error("Сессия администратора завершена. Войдите заново.");
-      const r=await fetch(SUPABASE_FUNCTION_URL,{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "Authorization":`Bearer ${session.access_token}`,
-          "apikey":SUPABASE_PUBLISHABLE_KEY
-        },
-        body:JSON.stringify({employeeId:Number(u.id),login,password})
-      });
-      const payload=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(payload.error||`Ошибка ${r.status}`);
-      u.login=login;
-      u.authUserId=payload.authUserId||u.authUserId;
-      save();
-      closeCredentialsModal();
-      alert(`Данные доступа для ${u.name} сохранены.\n\nЛогин: ${login}\nПароль установлен.`);
-      render();
-    }catch(e){
-      err.textContent=e.message||"Не удалось сохранить данные доступа.";
-      if(btn)btn.disabled=false;
-    }
-  };
-  window.resetPassword=function(id){return setUserCredentials(id);};
+
   function renderBellEditorTable(){const monday=state.schedule.bellSchedules?.monday||[],weekdays=state.schedule.bellSchedules?.weekdays||[];const max=Math.max(monday.length,weekdays.length);let html="";for(let i=0;i<max;i++){const a=monday[i],b=weekdays[i];html+=`<tr><td>${i<max?`<b>${i+1}</b>`:""}</td><td>Урок ${i+1}</td><td><input id="monday_s_${i}" type="time" value="${a?.start||b?.start||"08:30"}"></td><td><input id="monday_e_${i}" type="time" value="${a?.end||b?.end||"09:15"}"></td><td><span class="muted">Пн</span></td></tr>`;html+=`<tr><td></td><td>Урок ${i+1}</td><td><input id="weekdays_s_${i}" type="time" value="${b?.start||a?.start||"08:30"}"></td><td><input id="weekdays_e_${i}" type="time" value="${b?.end||a?.end||"09:15"}"></td><td><span class="muted">Вт–Пт</span></td></tr>`;}return html;}
   function renderBellRows(kind){const arr=state.schedule.bellSchedules?.[kind]||[];return arr.map((b,i)=>`<div class="bell-row"><input id="${kind}_n_${i}" type="number" min="1" value="${b.n}"><input id="${kind}_s_${i}" type="time" value="${b.start}"><span>—</span><input id="${kind}_e_${i}" type="time" value="${b.end}"><button class="small-btn danger" onclick="removeBellRow('${kind}',${i})">×</button></div>`).join("");}
   window.addBellRow=function(kind){state.schedule.bellSchedules[kind].push({n:state.schedule.bellSchedules[kind].length+1,start:"08:30",end:"09:15"});save();render();};
   window.removeBellRow=function(kind,i){state.schedule.bellSchedules[kind].splice(i,1);save();render();};
-  window.saveBellMatrix=async function(){
-    const bm=ensureBellMatrix();
-    document.querySelectorAll(".bell-time").forEach(inp=>{
-      const key=inp.dataset.bellKey,day=inp.dataset.bellDay,n=+inp.dataset.bellN,part=inp.dataset.part; const arr=bm[key][day];
-      let row=arr.find(x=>+x.n===n); if(!row){row={n,start:"",end:""};arr.push(row);} row[part]=inp.value||"";
-    });
-    ["shift1","shift2Primary","shift2Grade6"].forEach(k=>["monday","weekdays"].forEach(day=>{bm[k][day]=bm[k][day].sort((a,b)=>+a.n-+b.n);}));
-    state.schedule.bellMatrix=bm;state.schedule.bellSchedules={monday:bm.shift1.monday,weekdays:bm.shift1.weekdays};state.schedule.bells=bm.shift1.weekdays;save();await saveAppSetting("bellMatrix",bm);alert("Расписание звонков сохранено.");render();
-  };
-  window.saveVacations=async function(){state.vacationsText=document.getElementById("vacationsText").value;save();await saveAppSetting("vacationsText",state.vacationsText);alert("Сроки каникул сохранены.");render();};
-  window.saveDispatcher=async function(){
-    if(!isAdmin())return; const id=+document.getElementById("dispatcherSelect").value;
-    state.users.forEach(u=>{if(u.roleKeys?.includes("dispatcher")){u.roleKeys=u.roleKeys.filter(r=>r!=="dispatcher");u.roles=rolesText(u.roleKeys);}});
-    const u=state.users.find(x=>x.id===id);if(u&&!u.roleKeys.includes("dispatcher"))u.roleKeys.push("dispatcher");
-    if(u)u.roles=rolesText(u.roleKeys);state.dispatcherIds=[id];save();await saveAppSetting("dispatcherIds",state.dispatcherIds);alert("Диспетчер назначен.");render();
-  };
-  window.saveSecretary=async function(){
-    if(!isAdmin())return;
-    const select=document.getElementById("secretarySelect");
-    const ids=[...(select?.selectedOptions||[])].map(o=>Number(o.value)).filter(Number.isFinite);
-    if(ids.length>5)return alert("Можно назначить роль «Секретарь» не более чем 5 пользователям.");
-    state.users.forEach(u=>{u.roleKeys=(u.roleKeys||[]).filter(r=>r!=="secretary");u.roles=rolesText(u.roleKeys);});
-    ids.forEach(id=>{
-      const u=state.users.find(x=>Number(x.id)===id);
-      if(u && !u.roleKeys.includes("secretary")){u.roleKeys.push("secretary");u.roles=rolesText(u.roleKeys);}
-    });
-    state.__secretaryEmployeeIds=ids;
-    state.__secretaryEmployeeId=ids[0]??null; // compatibility with the old setting
-    save();
-    const ok=await saveAppSetting("secretaryEmployeeIds",ids);
-    await saveAppSetting("secretaryEmployeeId",ids[0]??null); // keep old key for backward compatibility
-    if(!ok)console.warn("Не удалось сохранить список секретарей в Supabase.");
-    alert(`Роль «Секретарь» назначена: ${ids.length} пользователям.`);
-    render();
-  };
-  window.saveResponsibles=async function(){
-    if(!isAdmin())return; const keys=["transport","vseobuch","education","journal","upbringing","ovz","olymp","gia","attestation","career","psych","security","reports","archive"];
-    keys.forEach(k=>state.responsibles[k]=document.getElementById(`resp_${k}`)?.value.trim()||"");save();await saveAppSetting("responsibles",state.responsibles);alert("Ответственные за направления сохранены.");render();
-  };
-  window.saveDuty=async function(){
-    if(!(isAdmin()||state.currentUser.roleKeys.includes("deputy")))return;
-    state.dutySchedule.forEach((x,i)=>{x.name1=document.getElementById(`duty_name1_${i}`)?.value.trim()||"";x.phone1=document.getElementById(`duty_phone1_${i}`)?.value.trim()||"";x.name2=document.getElementById(`duty_name2_${i}`)?.value.trim()||"";x.phone2=document.getElementById(`duty_phone2_${i}`)?.value.trim()||"";});save();await saveAppSetting("dutySchedule",state.dutySchedule);alert("График дежурства сохранён.");render();
-  };
+  ;
+  ;
+  ;
+  ;
+  ;
+  ;
   function normalizeClass(s){return String(s||"").trim().toUpperCase().replace(/\s+/g,"");}
   function parseDateFromText(v){const s=String(v??"").trim();if(!s)return null;let m=s.match(/\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})\b/);if(m)return `${m[3]}-${String(+m[2]).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;m=s.match(/\b(\d{1,2})[.\/-](\d{1,2})\b/);if(m)return `${new Date().getFullYear()}-${String(+m[2]).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;m=s.match(/\b(\d{1,2})\s+([А-Яа-яЁё]+)(?:\s+(\d{4}))?\b/);if(!m)return null;const months={января:0,февраля:1,марта:2,апреля:3,мая:4,июня:5,июля:6,августа:7,сентября:8,октября:9,ноября:10,декабря:11};const mon=months[m[2].toLowerCase()];if(mon===undefined)return null;const y=m[3]?+m[3]:new Date().getFullYear();return `${y}-${String(mon+1).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;}
   function cellVal(v){return v==null?"":String(v).trim();}
   function looksLikeTeacherName(v){const s=String(v||"").trim();if(!s)return false;try{if(flexibleUserByName(s,teacherLikeUsers()))return true;}catch(e){}return /^[А-ЯЁ][а-яё-]{2,}\s+[А-ЯЁ]\.(?:\s*[А-ЯЁ]\.)?$/.test(s);}
-  function parseScheduleWorkbook(wb,fileName,selectedShift){
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
-    let dateIso=null,shift=selectedShift?+selectedShift:null;
-    for(const row of a.slice(0,15)){
-      for(const cell of (row||[])){
-        const d=parseDateFromText(cell);
-        if(d){dateIso=d;break;}
-      }
-      const text=(row||[]).map(cellVal).join(" ");
-      const sm=text.match(/([12])\s*(?:смена|см)/i);
-      if(sm&&!selectedShift)shift=+sm[1];
-      if(dateIso)break;
-    }
-    const manualDate=document.getElementById("scheduleDate")?.value||"";
-    if(manualDate)dateIso=manualDate;
-    if(!dateIso)throw new Error("Не удалось определить дату расписания. Укажите дату вручную в поле «Дата расписания».");
-    if(!shift)throw new Error("Не выбрана смена.");
+  
 
-    // В файле расписания школы заголовок находится в строке с '#',
-    // затем для каждого класса идут две колонки: предмет/кабинет.
-    let headerRow=a.findIndex(row=>String(row?.[0]||"").trim()==="#");
-    if(headerRow<0){
-      headerRow=3;
-    }
-    const header=a[headerRow]||[];
-    const classes=[];
-    for(let c=1;c<header.length;c+=2){
-      const className=normalizeClass(header[c]);
-      if(className)classes.push({className,subCol:c,roomCol:c+1});
-    }
-    if(!classes.length)throw new Error("Не удалось определить классы в файле.");
+  
 
-    const isLessonNumber=v=>/^\d{1,2}$/.test(cellVal(v));
-    const entries=[];
-    let r=headerRow+1;
-    while(r<a.length){
-      if(!isLessonNumber(a[r]?.[0])){r++;continue;}
-      const lesson=Number(cellVal(a[r][0]));
-      let rr=r+1;
-      while(rr<a.length && !isLessonNumber(a[rr]?.[0]))rr++;
-
-      for(const c of classes){
-        // Основной предмет располагается в строке номера урока,
-        // преподаватель — в следующей строке.
-        const subject=cellVal(a[r]?.[c.subCol]);
-        const room=cellVal(a[r]?.[c.roomCol]);
-        const teacher=cellVal(a[r+1]?.[c.subCol]);
-        if(subject && !looksLikeTeacherName(subject)){
-          entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_base`,date:dateIso,shift,lesson,className:c.className,subject,room,teacher,group:0});
-        }
-
-        // Дополнительные группы/подгруппы внутри блока урока:
-        // каждая реальная дополнительная запись состоит из пары
-        // «предмет» + следующая строка «учитель».
-        let k=r+2, group=1;
-        while(k<rr){
-          const extraSubject=cellVal(a[k]?.[c.subCol]);
-          const extraTeacher=cellVal(a[k+1]?.[c.subCol]);
-          if(extraSubject && !looksLikeTeacherName(extraSubject) && extraTeacher && looksLikeTeacherName(extraTeacher)){
-            const extraRoom=cellVal(a[k]?.[c.roomCol])||cellVal(a[k+1]?.[c.roomCol]);
-            entries.push({id:`${dateIso}_${shift}_${c.className}_${lesson}_${c.subCol}_g${group}`,date:dateIso,shift,lesson,className:c.className,subject:extraSubject,room:extraRoom,teacher:extraTeacher,group});
-            group++;
-            k+=2;
-          }else{
-            k++;
-          }
-        }
-      }
-      r=rr;
-    }
-
-    // Защита от повторной записи одного и того же урока.
-    const seen=new Set();
-    const unique=entries.filter(x=>{
-      const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join("|");
-      if(seen.has(key))return false;
-      seen.add(key);return true;
-    });
-    return {date:dateIso,shift,entries:unique,classes:[...new Set(unique.map(x=>x.className))],fileName};
-  }
-
-  function parseBaseScheduleWorkbook(wb,fileName,selectedShift){
-    const ws=wb.Sheets[wb.SheetNames[0]], a=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
-    const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
-    const entries=[]; let currentClass="", shift=selectedShift?+selectedShift:null;
-    for(let r=0;r<a.length;r++){
-      const row=a[r]||[];
-      const first=cellVal(row[0]);
-      const cm=first.match(/Класс\s*-\s*(.+)/i);
-      if(cm){currentClass=normalizeClass(cm[1]);continue;}
-      const rowText=row.map(cellVal).join(" ");
-      const sm=rowText.match(/([12])\s*(?:смена|см)/i);if(sm&&!shift)shift=+sm[1];
-      const lesson=+first;
-      if(!currentClass||!lesson||lesson>20)continue;
-      for(let c=1;c<=5;c++){
-        const subject=cellVal(row[c]);
-        if(!subject)continue;
-        let teacher="";
-        if(r+1<a.length && !+cellVal(a[r+1]?.[0])) teacher=cellVal(a[r+1]?.[c]);
-        let group=0;
-        let rr=r+1;
-        while(rr<a.length && !+cellVal(a[rr]?.[0]) && !String(a[rr]?.[0]||"").toLowerCase().includes("класс -")) rr++;
-        for(let k=r+2;k<rr;k++){
-          const extra=cellVal(a[k]?.[c]);
-          if(extra && !/^[А-ЯЁA-Z][^]*\s[А-ЯЁA-Z]\./u.test(extra) && extra!==subject) {
-            // Дополнительный предмет/группа. Учитель обычно следует следующей строкой.
-            let extraTeacher=cellVal(a[k+1]?.[c]);
-            if(extraTeacher) entries.push({id:`base_${selectedShift}_${currentClass}_${lesson}_${c}_${k}`,shift:+selectedShift,day:days[c-1],dayIndex:c-1,lesson,className:currentClass,subject:extra,teacher:extraTeacher,group:++group});
-          }
-        }
-        entries.push({id:`base_${selectedShift}_${currentClass}_${lesson}_${c}`,shift:+selectedShift,day:days[c-1],dayIndex:c-1,lesson,className:currentClass,subject,teacher,group});
-      }
-    }
-    if(!shift)throw new Error("Не выбрана смена.");
-    const valid=entries.filter(x=>x.shift===shift);
-    return {shift,entries:valid,classes:[...new Set(valid.map(x=>x.className))],fileName};
-  }
-
-  window.uploadSchedule=function(){
-    if(!isDispatcher())return alert("Загрузка расписания доступна только диспетчеру и администратору.");
-    const f=document.getElementById("scheduleFile")?.files[0], selectedShift=document.getElementById("scheduleShift")?.value;
-    if(!f)return alert("Выберите Excel-файл расписания.");
-    if(!selectedShift)return alert("Укажите, это 1-я или 2-я смена.");
-    const reader=new FileReader();
-    reader.onload=async e=>{
-      try{
-        const wb=XLSX.read(e.target.result,{type:"array"});
-        const parsed=parseScheduleWorkbook(wb,f.name,selectedShift);
-        const {today,tomorrow}=getScheduleWindowDates();
-        if(parsed.date!==today&&parsed.date!==tomorrow)throw new Error("Можно загружать расписание только на сегодня или завтра.");
-        // Сначала сохраняем данные на сервере. Если запись не удалась, локально
-        // не показываем загрузку как успешную и не очищаем старые строки.
-        await saveScheduleRows(parsed);
-        await cleanupOldScheduleRows(today);
-        const old=state.schedule.entries.filter(x=>x.date===parsed.date&&x.shift===parsed.shift);
-        state.schedule.entries=state.schedule.entries.filter(x=>x.date>=today&&x.date<=tomorrow&&!(x.date===parsed.date&&x.shift===parsed.shift));
-        state.schedule.entries.push(...parsed.entries);
-        const now=new Date().toISOString();
-        const version={id:Date.now(),date:parsed.date,shift:parsed.shift,fileName:f.name,uploadedAt:now,count:parsed.entries.length,readBy:{[state.currentUser.login]:{at:now}}};
-        state.schedule.versions=(state.schedule.versions||[]).filter(v=>v.date>=today&&v.date<=tomorrow&&!(v.date===parsed.date&&v.shift===parsed.shift));
-        state.schedule.versions.push(version);state.schedule.uploadedFile=f.name;
-        save();
-        const info=document.getElementById("scheduleImportInfo");
-        if(info)info.innerHTML=`Распознано: <b>${parsed.date}</b>, <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей уроков: <b>${parsed.entries.length}</b>. ${old.length?"Предыдущее расписание этой даты и смены заменено.":"Расписание добавлено."}`;
-        alert(`Расписание сохранено на сервере: ${parsed.date}, ${parsed.shift}-я смена, ${parsed.entries.length} записей.`);
-        render();
-      }catch(err){console.error(err);alert("Не удалось загрузить расписание: "+(err.message||"проверьте формат Excel."));}
-    };
-    reader.readAsArrayBuffer(f);
-  };
-
-  window.uploadBaseSchedule=function(){
-    if(!isDispatcher())return alert("Загрузка базового расписания доступна только диспетчеру и администратору.");
-    const f=document.getElementById("baseScheduleFile")?.files[0], selectedShift=document.getElementById("baseScheduleShift")?.value;
-    if(!f)return alert("Выберите Excel-файл базового расписания.");
-    if(!selectedShift)return alert("Укажите, это 1-я или 2-я смена.");
-    const reader=new FileReader();
-    reader.onload=e=>{
-      try{
-        const wb=XLSX.read(e.target.result,{type:"array"});
-        const parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
-        state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>x.shift!==parsed.shift);
-        state.schedule.baseEntries.push(...parsed.entries);
-        const now=new Date().toISOString();
-        state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>v.shift!==parsed.shift);
-        state.schedule.baseVersions.push({id:Date.now(),shift:parsed.shift,fileName:f.name,uploadedAt:now,count:parsed.entries.length});
-        state.schedule.baseUploadedFile=f.name;
-        save();
-        const info=document.getElementById("baseScheduleImportInfo");
-        if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>. Предыдущая версия этой смены заменена.`;
-        alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);
-        render();
-      }catch(err){console.error(err);alert("Не удалось обработать базовое расписание: "+(err.message||"проверьте формат Excel."));}
-    };
-    reader.readAsArrayBuffer(f);
-  };
+  
 
   function getScheduleForDate(iso){const target=String(iso||'').slice(0,10);return (state.schedule.entries||[]).filter(x=>String(x.date||'').slice(0,10)===target).sort((a,b)=>Number(a.shift||99)-Number(b.shift||99)||Number(a.lesson||99)-Number(b.lesson||99)||classSort(a.className,b.className));}
   function normalizePersonName(v){return String(v||"").toLowerCase().replace(/ё/g,"е").replace(/[^а-яa-z0-9 ]/gi," ").replace(/\s+/g," ").trim();}
@@ -1281,92 +1028,15 @@ function noticeHtml(n){
     if(!arr.length)return '<div class="schedule-empty">Расписание для выбранного варианта не найдено.</div>';
     return `<div class="schedule-view"><div class="schedule-shift">Смена: ${escapeHtml(scheduleShiftFor(arr))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th><th>Класс</th><th>Предмет</th><th>Учитель</th><th>Кабинет</th></tr>${arr.map(x=>`<tr><td>${x.lesson}</td><td>${escapeHtml(x.className)}</td><td>${escapeHtml(x.subject||"—")}</td><td>${escapeHtml(x.teacher||"—")}</td><td>${escapeHtml(x.room||"—")}</td></tr>`).join("")}</table></div></div>`;
   }
-  // Выбор класса/учителя находится в том же замыкании, что и renderSchedule.
-  // Поэтому обновление глобальной копии функции из отдельного модуля не может его перекрыть.
-  function scheduleSelectorClasses(){
-    const user=state.currentUser||{};
-    const fromData=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
-    const all=[...new Set(fromData)].sort(classSort);
-    if(isManager()||isDispatcher()||isGuest())return all;
-    // Для варианта «Мой класс» используем только назначение классного руководства,
-    // загруженное из class_leaders в поле user.classes. Нагрузка и замещения сюда не входят.
-    const same=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-    const assigned=Array.isArray(user.classes)&&user.classes.length?user.classes:(same.classes||[]);
-    return [...new Set(assigned.filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
-  }
-  function scheduleSelectorTeachers(){
-    // Справочник employees → state.users является источником списка сотрудников.
-    // Не добавляем значения из расписания: в поле teacher могут встречаться предметы
-    // или альтернативные записи ФИО с инициалами.
-    const candidates=(state.users||[])
-      .filter(u=>!u.roleKeys?.includes('guest')&&u.name)
-      .map(u=>String(u.name).trim())
-      .filter(Boolean)
-      .sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length||a.localeCompare(b,'ru'));
-    const unique=[];
-    for(const name of candidates){
-      if(!unique.some(existing=>teacherMatches(name,existing)||teacherMatches(existing,name)))unique.push(name);
-    }
-    return unique.sort((a,b)=>a.localeCompare(b,'ru'));
-  }
-  function renderScheduleSelector(day){
-    const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
-    const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${(isManager()||isDispatcher()||isGuest())?escapeHtml(c):`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
-    const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="scheduleChoice_${day}" onchange="showScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="scheduleTeacherChoice_${day}" aria-label="Выберите учителя" onchange="showScheduleChoice('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div><div id="scheduleResult_${day}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
-  }
-  window.showScheduleChoice=function(day){
-    const classSel=document.getElementById(`scheduleChoice_${day}`),teacherSel=document.getElementById(`scheduleTeacherChoice_${day}`),result=document.getElementById(`scheduleResult_${day}`);
-    if(!classSel||!teacherSel||!result)return;
-    const mode=teacherSel.value||classSel.value;
-    if(teacherSel.value)classSel.value='';
-    if(classSel.value)teacherSel.value='';
-    const dt=day==='tomorrow'?nextSchoolDay():new Date();
-    result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-  };
-  function renderScheduleHomeSelector(day="today"){
-    const classes=scheduleSelectorClasses(),teachers=scheduleSelectorTeachers();
-    const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${(isManager()||isDispatcher()||isGuest())?escapeHtml(c):`Мой класс — ${escapeHtml(c)}`}</option>`).join('');
-    const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="homeScheduleChoice_${day}" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="homeScheduleTeacherChoice_${day}" aria-label="Выберите учителя" onchange="showHomeScheduleChoice('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div><div class="muted">Выберите вариант или конкретного учителя.</div><div id="homeScheduleResult_${day}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
-  }
-  window.showHomeScheduleChoice=function(day="today"){
-    const classSel=document.getElementById(`homeScheduleChoice_${day}`),teacherSel=document.getElementById(`homeScheduleTeacherChoice_${day}`),result=document.getElementById(`homeScheduleResult_${day}`);
-    if(!classSel||!teacherSel||!result)return;
-    const mode=teacherSel.value||classSel.value;
-    if(teacherSel.value)classSel.value='';
-    if(classSel.value)teacherSel.value='';
-    const dt=day==='tomorrow'?nextSchoolDay():new Date();
-    result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-  };
   function hasUnreadSchedule(){return (state.schedule.versions||[]).some(v=>!(v.readBy||{})[state.currentUser.login]);}
   function markScheduleRead(){(state.schedule.versions||[]).forEach(v=>{v.readBy=v.readBy||{};v.readBy[state.currentUser.login]={at:new Date().toISOString()};});save();}
-  function renderBaseScheduleSelector(){
-    const classes=[...new Set((state.schedule.baseEntries||[]).map(x=>x.className))].sort(classSort);
-    return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select></div>
-      <div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div>
-      <div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
-  }
-  window.showBaseScheduleChoice=function(){
-    const c=document.getElementById("baseScheduleChoice")?.value;if(!c)return;
-    const arr=(state.schedule.baseEntries||[]).filter(x=>x.className===c);
-    if(!arr.length){document.getElementById("baseScheduleResult").innerHTML='<div class="schedule-empty">Базовое расписание для класса не найдено.</div>';return;}
-    const shifts=[...new Set(arr.map(x=>x.shift))];
-    const days=["Понедельник","Вторник","Среда","Четверг","Пятница"];
-    let html=`<div class="schedule-shift">Смена: ${escapeHtml(shifts.join(", "))}</div><div class="table-wrap"><table class="data-table"><tr><th>Урок</th>${days.map(d=>`<th>${d}</th>`).join("")}</tr>`;
-    for(let lesson=1;lesson<=20;lesson++){
-      if(!arr.some(x=>x.lesson===lesson))continue;
-      html+=`<tr><td>${lesson}</td>${days.map((_,i)=>{const cells=arr.filter(x=>x.lesson===lesson&&x.dayIndex===i);const cell=cells.map(x=>escapeHtml(x.subject)+(x.teacher?"<br><span class=\"muted\">"+escapeHtml(x.teacher)+"</span>":"")).join("<hr style=\"border:0;border-top:1px solid var(--line);margin:5px 0\">")||"—";return "<td>"+cell+"</td>";}).join("")}</tr>`;
-    }
-    html+=`</table></div>`;
-    document.getElementById("baseScheduleResult").innerHTML=html;
-  };
+
   function renderGuestHomeSchedule(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();return `<section class="card"><h3>📅 Расписание уроков</h3><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClass" class="schedule-class-select" onchange="renderGuestSelectedSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></section>`;}
   window.renderGuestSelectedSchedule=function(){const c=document.getElementById("guestClass")?.value;if(!c)return;const d=dateInfo(),tom=nextSchoolDay();const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestScheduleResult").innerHTML=`<div class="schedule-columns"><div><h4>Сегодня <span class="muted">(${d.full})</span></h4>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h4>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h4>${renderScheduleTable(filter(getScheduleForDate(dateIsoLocal(tom))),"class:"+c)}</div></div>`;};
   function renderGuestSchedulePage(){const classes=[...new Set((state.schedule.entries||[]).map(x=>x.className))].sort();shell("Расписание","Режим просмотра для гостя.",`<div class="card"><p class="muted">Выберите класс — расписание появится только для выбранного класса.</p><select id="guestClassPage" class="schedule-class-select" onchange="renderGuestPageSchedule()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select><div id="guestPageScheduleResult" style="margin-top:14px"><div class="schedule-empty">Класс не выбран.</div></div></div>`);}
   window.renderGuestPageSchedule=function(){const c=document.getElementById("guestClassPage")?.value;if(!c)return;const d=dateInfo(),tom=nextSchoolDay();const filter=a=>a.filter(x=>x.className===c);document.getElementById("guestPageScheduleResult").innerHTML=`<div class="schedule-columns"><div><h3>Сегодня <span class="muted">(${d.full})</span></h3>${renderScheduleTable(filter(getScheduleForDate(d.iso)),"class:"+c)}</div><div><h3>Завтра <span class="muted">(${tom.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})})</span></h3>${renderScheduleTable(filter(getScheduleForDate(dateIsoLocal(tom))),"class:"+c)}</div></div>`;};
 
-  function docUploadAllowed(page,title){if(isGuest())return false;if(title.includes("Приказы"))return canManageOrders();return true;}
+  function docUploadAllowed(page,title){return !isGuest()&&canManageOrders();}
   function docTargetLabel(d){
     const parts=[];
     if(d.targetAll)parts.push("Все");
@@ -1416,7 +1086,7 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
       <div class="doc-meta">Загружен: ${escapeHtml(d.uploadedByName||"")} · ${new Date(d.uploadedAt).toLocaleString('ru-RU')}</div>
       ${isOrder?`<div class="doc-targets">Предназначен: ${escapeHtml(docTargetLabel(d))}</div>`:""}
       ${ackAt?`<div class="ack-info">✓ Ознакомлен: ${new Date(ackAt).toLocaleString('ru-RU')}</div>`:""}
-      <div class="doc-actions">${(d.url||d.data)?`<a class="btn" href="${escapeHtml(d.url||d.data)}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}</div>
+      <div class="doc-actions">${(d.url||d.data)?`<a class="btn" href="${escapeHtml(d.url||d.data)}" target="_blank" rel="noopener">Открыть</a>`:""}${userCanSeeDoc(d)&&!seen?`<button class="btn green" onclick="ackDocument(${d.id})">✓ Ознакомился</button>`:""}${isOrder&&manager?`<button class="btn" onclick="whoRead(${d.id})">Кто ознакомился</button>`:""}${canReplaceDocument(d)?`<button class="btn" onclick="replaceDocument(${d.id})">Заменить файл</button>`:""}${canDeleteDocument(d)?`<button class="btn danger" onclick="deleteDocument(${d.id})">Удалить</button>`:""}</div>
     </div>`;
   }
   window.toggleDocSpecific=function(show){document.getElementById("specificUsersBox")?.classList.toggle("hidden",!show);};
@@ -1425,6 +1095,7 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
     document.getElementById("specificUsersBox")?.classList.toggle("hidden",!document.getElementById("targetSpecific")?.checked);
   };
   window.uploadDocument=async function(page,title){
+    if(!docUploadAllowed(page,title))return alert("Загружать документы и приказы могут только администратор, директор, заместитель директора и секретарь.");
     const f=document.getElementById("docFile")?.files[0];if(!f)return alert("Выберите документ.");
     const folderUrl=yandexFolderForPage(page);if(!folderUrl)return alert("Для этого раздела ещё не настроена папка Яндекс Диска.");
     const name=document.getElementById("docTitle")?.value.trim()||f.name;
@@ -1473,7 +1144,25 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
     const lines=rows.map(r=>`<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td></tr>`).join("");
     const w=window.open("","_blank","width=900,height=600");if(w){w.document.write(`<title>Ознакомление с приказом</title><h2>Кто ознакомился</h2><table border="1" cellpadding="8" style="border-collapse:collapse"><tr><th>Название приказа</th><th>ФИО</th><th>Дата и время</th></tr>${lines}</table>`);w.document.close();}
   };
-  function canDeleteDocument(d){return isAdmin() || d?.uploadedBy===state.currentUser?.login;}
+  function canEditOwnDocument(d){return !!d && (isManager() || d.uploadedBy===state.currentUser?.login);}
+  function canReplaceDocument(d){return canEditOwnDocument(d) && !!d.storagePath;}
+  function canDeleteDocument(d){return !!d && (isManager() || d.uploadedBy===state.currentUser?.login);}
+  window.replaceDocument=async function(id){
+    const d=state.documents.find(x=>Number(x.id)===Number(id));if(!d||!canReplaceDocument(d))return;
+    const input=document.createElement("input");input.type="file";input.accept="*/*";
+    input.onchange=async()=>{
+      const file=input.files?.[0];if(!file)return;
+      const folderUrl=yandexFolderForPage(String(d.sectionKey||"").split("::")[0]);
+      if(!folderUrl)return alert("Для этого раздела не настроена папка Яндекс Диска.");
+      if(!confirm(`Заменить файл «${d.fileName||d.title}» новым файлом «${file.name}»? Карточка документа и список адресатов сохранятся.`))return;
+      try{
+        const result=await uploadToYandexFolder(file,folderUrl,String(d.sectionKey).split("::")[0],d.title||d.fileName,String(d.id));
+        if(result.path!==d.storagePath)throw new Error("Яндекс Диск вернул другой путь. Карточка документа не изменена; проверьте папку вручную.");
+        alert("Файл заменён. Карточка документа, адресаты и отметки ознакомления сохранены.");
+      }catch(e){console.error(e);alert("Не удалось заменить файл: "+(e.message||"ошибка Яндекс Диска."));}
+    };
+    input.click();
+  };
   window.deleteDocument=async function(id){
     const d=state.documents.find(x=>x.id===id);if(!d||!canDeleteDocument(d))return;
     if(!confirm(`Удалить карточку документа «${d.title||d.fileName}»? Сам файл останется на Яндекс Диске.`))return;
@@ -1488,103 +1177,6 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
     catch(e){alert("Не удалось загрузить документ: "+(e.message||"ошибка Яндекс Диска."));}
   };
   window.deletePortfolio=function(i){const a=state.portfolio[state.currentUser.login]||[];if(confirm("Удалить документ из портфолио?")){a.splice(i,1);state.portfolio[state.currentUser.login]=a;save();render();}};
-    window.uploadClassRoster=async function(){
-      if(!isAdmin())return;
-      const f=document.getElementById("rosterFile")?.files?.[0];
-      if(!f)return alert("Выберите Excel-файл.");
-      try{
-        const data=await f.arrayBuffer();
-        const wb=XLSX.read(data,{type:"array"});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
-        const normalizeKey=k=>String(k||"").toLowerCase().replace(/[^a-zа-яё0-9]/gi,"");
-        const get=(row,candidates)=>{
-          for(const key of Object.keys(row)){
-            const nk=normalizeKey(key);
-            if(candidates.some(c=>nk===normalizeKey(c)||nk.includes(normalizeKey(c))))return row[key];
-          }
-          return "";
-        };
-        const normalizeClassName=value=>String(value||"").trim().replace(/\s+/g,"").replace(/-/g,"").toUpperCase();
-        const parsed=rows.map((r,i)=>{
-          const rawName=get(r,["Класс","class","class_name"]);
-          const name=normalizeClassName(rawName);
-          const m=name.match(/^(\d{1,2})([А-ЯЁA-Z])$/);
-          const studentCount=+String(get(r,["Кол-во учеников","Количество учеников","student_count","students"])||0).replace(/,/g,".");
-          const shift=+String(get(r,["Смена","shift"])||0);
-          return {row:i+2,name,grade:m?+m[1]:0,letter:m?m[2]:"",studentCount,shift};
-        }).filter(x=>x.name);
-        const invalid=parsed.filter(x=>!x.grade||!x.letter||x.grade<1||x.grade>11);
-        if(!parsed.length)throw new Error("Не найдены строки с классами.");
-        if(invalid.length)throw new Error(`Не удалось распознать класс(ы): ${invalid.map(x=>`строка ${x.row}: ${x.name}`).join(", ")}. Используйте формат 6А, 6Б, 7А и т.п.`);
-        const duplicateNames=parsed.filter((x,i,a)=>a.findIndex(y=>y.name===x.name)===i && a.filter(y=>y.name===x.name).length>1).map(x=>x.name);
-        if(duplicateNames.length)throw new Error(`В Excel повторяются классы: ${duplicateNames.join(", ")}. Оставьте по одной строке на класс.`);
-
-        const yearId=await getCurrentAcademicYearId();
-        const {data:{session}}=await supabase.auth.getSession();
-        if(!session)throw new Error("Нет активной сессии Supabase.");
-        if(!yearId)throw new Error("Не найден учебный год 2026-2027 в таблице academic_years.");
-
-        // Важно: больше не пытаемся сначала найти класс через SELECT, а затем POST.
-        // Даже если SELECT ограничен RLS, upsert корректно обработает уже существующий
-        // класс по уникальному ключу (grade, letter, academic_year_id).
-        for(const item of parsed){
-          const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?on_conflict=grade,letter,academic_year_id`,{
-            method:"POST",
-            headers:{
-              apikey:SUPABASE_PUBLISHABLE_KEY,
-              Authorization:`Bearer ${session.access_token}`,
-              "Content-Type":"application/json",
-              Prefer:"resolution=merge-duplicates,return=minimal"
-            },
-            body:JSON.stringify({
-              grade:item.grade,
-              letter:item.letter,
-              is_active:true,
-              academic_year_id:yearId,
-              student_count:item.studentCount,
-              shift:item.shift
-            })
-          });
-          if(!resp.ok){
-            const txt=await resp.text();
-            throw new Error(`Не удалось сохранить класс ${item.name}: HTTP ${resp.status} ${txt}`);
-          }
-        }
-
-        // Только после успешного upsert всех строк деактивируем классы,
-        // которых нет в новой ведомости.
-        let currentRows=[];
-        try{
-          currentRows=await sbRest("classes");
-        }catch(e){
-          console.warn("Не удалось прочитать классы для деактивации:",e);
-        }
-        const existing=(currentRows||[]).filter(r=>String(r.academic_year_id??"")===String(yearId));
-        const wanted=new Set(parsed.map(x=>x.name));
-        for(const old of existing){
-          const oldName=classNameFromRow(old);
-          if(oldName && !wanted.has(oldName) && old.is_active!==false){
-            const resp=await fetch(`${SUPABASE_URL}/rest/v1/classes?id=eq.${encodeURIComponent(old.id)}`,{
-              method:"PATCH",
-              headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:"return=minimal"},
-              body:JSON.stringify({is_active:false})
-            });
-            if(!resp.ok)throw new Error(`Не удалось деактивировать прежний класс ${oldName}: HTTP ${resp.status}`);
-          }
-        }
-
-        state.classRoster=parsed.map(x=>({name:x.name,grade:x.grade,letter:x.letter,studentCount:x.studentCount,shift:x.shift,academicYearId:yearId}));
-        save();
-        const info=document.getElementById("rosterInfo");
-        if(info)info.textContent=`Загружено классов: ${parsed.length}. Данные классов сохранены в Supabase для 2026-2027 учебного года.`;
-        alert(`Контингент обновлён: ${parsed.length} классов.`);
-        render();
-      }catch(e){
-        console.error(e);
-        alert("Не удалось обновить контингент: "+(e.message||"проверьте Excel и права доступа."));
-      }
-    };
   window.changePassword=function(){const p=prompt("Новый пароль:");if(p)alert("В MVP пароль изменен локально. В серверной версии изменение будет сохранено в учетной записи.");};
   function downloadCSV(headers,rows,name){const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
   function searchCatalogue(){return [
@@ -1777,19 +1369,14 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
   window.__schoolBase["parseDateFromText"] = parseDateFromText;
   window.__schoolBase["cellVal"] = cellVal;
   window.__schoolBase["looksLikeTeacherName"] = looksLikeTeacherName;
-  window.__schoolBase["parseScheduleWorkbook"] = parseScheduleWorkbook;
-  window.__schoolBase["parseBaseScheduleWorkbook"] = parseBaseScheduleWorkbook;
   window.__schoolBase["getScheduleForDate"] = getScheduleForDate;
   window.__schoolBase["normalizePersonName"] = normalizePersonName;
   window.__schoolBase["teacherMatches"] = teacherMatches;
   window.__schoolBase["scheduleForUser"] = scheduleForUser;
   window.__schoolBase["scheduleShiftFor"] = scheduleShiftFor;
   window.__schoolBase["renderScheduleTable"] = renderScheduleTable;
-  window.__schoolBase["renderScheduleSelector"] = renderScheduleSelector;
-  window.__schoolBase["renderScheduleHomeSelector"] = renderScheduleHomeSelector;
   window.__schoolBase["hasUnreadSchedule"] = hasUnreadSchedule;
   window.__schoolBase["markScheduleRead"] = markScheduleRead;
-  window.__schoolBase["renderBaseScheduleSelector"] = renderBaseScheduleSelector;
   window.__schoolBase["renderGuestHomeSchedule"] = renderGuestHomeSchedule;
   window.__schoolBase["renderGuestSchedulePage"] = renderGuestSchedulePage;
   window.__schoolBase["docUploadAllowed"] = docUploadAllowed;
@@ -1805,8 +1392,8 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
   window.__schoolBase["closeMobileMenu"] = closeMobileMenu;
   window.__schoolBase["showRecoveryForm"] = showRecoveryForm;
 
-  // Shared runtime API: functions defined inside this IIFE must be explicitly exported
-  // before core.js and feature modules can call them.
+  // Shared runtime API: functions defined inside this IIFE are explicitly exported
+  // before the separately loaded feature modules use them.
   window.__schoolBase["sbRest"] = sbRest;
   window.__schoolBase["sbMutate"] = sbMutate;
   window.__schoolBase["getCurrentAcademicYearId"] = getCurrentAcademicYearId;
@@ -1828,7 +1415,7 @@ ${docs.length?`<div class="doc-list">${docs.map(d=>renderDocItem(d,manager)).joi
 })();
 </script>
 <script type="text/plain" data-module>
-/* CORE.JS — application integration and smaller modules */
+/* Application integration and smaller feature modules */
 const __base = window.__schoolBase;
 Object.keys(__base).forEach(k => { if (!(k in window)) window[k] = __base[k]; });
 let state = __base.state;
@@ -1870,72 +1457,11 @@ async function refreshRuntimeData(){
   try{save();}catch(e){}
 }
 
-function getScheduleWindowDates(){
-  const today=dateIsoLocal(new Date());
-  const next=new Date();next.setDate(next.getDate()+1);
-  return {today,tomorrow:dateIsoLocal(next)};
-}
 
-async function cleanupOldScheduleRows(today=getScheduleWindowDates().today){
-  if(!isDispatcher())return false;
-  try{
-    await sbMutate('school_schedule_lessons','DELETE',`schedule_date=lt.${encodeURIComponent(today)}`);
-    return true;
-  }catch(e){
-    console.warn('Не удалось удалить устаревшие записи расписания:',e);
-    return false;
-  }
-}
 
-async function loadScheduleServer(){
-  const {today,tomorrow}=getScheduleWindowDates();
-  // Удаляем прошлые даты только под учётной записью диспетчера/администратора.
-  // Загрузка расписания ограничена сегодняшним и завтрашним днём, чтобы не упираться в лимит REST API.
-  await cleanupOldScheduleRows(today);
-  const dailyQuery=`select=*&schedule_date=gte.${today}&schedule_date=lte.${tomorrow}&order=schedule_date.asc,shift.asc,lesson.asc,class_name.asc`;
-  let daily=await sbRest('school_schedule_lessons',dailyQuery);
-  let base=await sbRest('school_base_schedule','select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc');
 
-  // Одноразовая миграция только актуальных записей из старого localStorage.
-  if(!(daily||[]).length && isDispatcher() && (state.schedule.entries||[]).length){
-    const groups={};
-    (state.schedule.entries||[]).filter(x=>x.date>=today&&x.date<=tomorrow).forEach(x=>{const k=`${x.date}::${x.shift}`;(groups[k]??=[]).push(x);});
-    for(const arr of Object.values(groups)){
-      if(arr.length)await saveScheduleRows({date:arr[0].date,shift:arr[0].shift,entries:arr});
-    }
-    daily=await sbRest('school_schedule_lessons',dailyQuery);
-  }
-  if(!(base||[]).length && isDispatcher() && (state.schedule.baseEntries||[]).length){
-    const groups={};
-    (state.schedule.baseEntries||[]).forEach(x=>{const k=String(x.shift);(groups[k]??=[]).push(x);});
-    for(const arr of Object.values(groups)){
-      if(arr.length)await saveBaseScheduleRows({shift:arr[0].shift,entries:arr});
-    }
-    base=await sbRest('school_base_schedule','select=*&order=shift.asc,day_index.asc,lesson.asc,class_name.asc');
-  }
-  const mappedDaily=(daily||[]).map(x=>({
-    id:Number(x.id),date:x.schedule_date,shift:Number(x.shift),lesson:Number(x.lesson),className:x.class_name,
-    subject:x.subject||"",teacher:x.teacher||"",room:x.room||""
-  }));
-  const seenKeys=new Set();
-  state.schedule.entries=mappedDaily.filter(x=>{
-    if(!x.subject && !x.teacher)return false;
-    if(!x.teacher && looksLikeTeacherName(x.subject))return false;
-    const key=[x.date,x.shift,x.lesson,x.className,x.subject,x.teacher,x.room].join("|");
-    if(seenKeys.has(key))return false;
-    seenKeys.add(key);return true;
-  });
-  state.schedule.baseEntries=(base||[]).map(x=>({
-    id:Number(x.id),shift:Number(x.shift),dayIndex:Number(x.day_index),lesson:Number(x.lesson),className:x.class_name,
-    subject:x.subject||'',teacher:x.teacher||'',room:x.room||''
-  }));
-  state.schedule.versions=(daily||[]).reduce((acc,x)=>{
-    const k=`${x.schedule_date}::${x.shift}`;
-    if(!acc.some(v=>v.key===k))acc.push({key:k,date:x.schedule_date,shift:Number(x.shift),fileName:''});
-    return acc;
-  },[]);
-  return true;
-}
+
+
 
 async function loadNotificationsServer(){
   const rows=await sbRest('school_notifications','select=*&order=created_at.desc');
@@ -1974,25 +1500,9 @@ async function loadJournalOverdueServer(){
   return true;
 }
 
-async function saveScheduleRows(parsed){
-  const date=parsed.date, shift=Number(parsed.shift), now=new Date().toISOString();
-  await sbMutate('school_schedule_lessons','DELETE',`schedule_date=eq.${encodeURIComponent(date)}&shift=eq.${shift}`);
-  const rows=(parsed.entries||[]).map(x=>({
-    schedule_date:date,shift,lesson:Number(x.lesson)||0,class_name:String(x.className||''),subject:String(x.subject||''),
-    teacher:String(x.teacher||''),room:String(x.room||''),uploaded_at:now,uploaded_by:Number(state.currentUser.id)
-  }));
-  if(rows.length)await sbMutate('school_schedule_lessons','POST','',rows);
-}
 
-async function saveBaseScheduleRows(parsed){
-  const shift=Number(parsed.shift),now=new Date().toISOString();
-  await sbMutate('school_base_schedule','DELETE',`shift=eq.${shift}`);
-  const rows=(parsed.entries||[]).map(x=>({
-    shift,day_index:Number(x.dayIndex)||0,lesson:Number(x.lesson)||0,class_name:String(x.className||''),subject:String(x.subject||''),
-    teacher:String(x.teacher||''),room:String(x.room||''),uploaded_at:now,uploaded_by:Number(state.currentUser.id)
-  }));
-  if(rows.length)await sbMutate('school_base_schedule','POST','',rows);
-}
+
+
 
 function ensureXlsxLoaded(){
   if(!window.XLSX) throw new Error("Библиотека Excel XLSX не загружена. Обновите страницу и повторите попытку.");
@@ -2130,120 +1640,8 @@ window.markNotificationsRead=async function(){
   state.notifications.forEach(n=>n.read=true);save();render();
 };
 
-// Electronic journal control.
-window.handleJournalFile=function(event){
-  const f=event?.target?.files?.[0];
-  window.__journalFile=f||null;
-  const el=document.getElementById('journalUploadInfo');
-  if(el)el.innerHTML=f?`Выбран файл: <b>${escapeHtml(f.name)}</b>. Нажмите «Загрузить и обработать».`:'Файл не выбран.';
-};
-window.processJournalUpload=async function(){
-  if(!isManager())return alert('Загрузка отчёта электронного журнала доступна директору и заместителям.');
-  const f=window.__journalFile||document.getElementById('journalFile')?.files?.[0];
-  if(!f)return alert('Сначала выберите Excel-файл.');
-  const reportDate=document.getElementById('journalReportDate')?.value||(()=>{const d=new Date();d.setDate(d.getDate()-1);return dateIsoLocal(d);})();
-  try{
-    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
-    const employees=teacherLikeUsers().map(u=>({u,surname:String(u.name||'').trim().split(/\s+/)[0]})).filter(x=>x.surname);
-    const textCells=[];
-    for(const sn of wb.SheetNames){
-      const ws=wb.Sheets[sn];
-      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      rows.forEach(row=>textCells.push(row.map(v=>String(v??'')).join(' ')));
-    }
-    const result=[];
-    for(const item of employees){
-      const pattern=new RegExp(`(^|[^А-Яа-яЁёA-Za-z])${item.surname.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?=$|[^А-Яа-яЁёA-Za-z])`,'gi');
-      let count=0;
-      for(const line of textCells){const m=line.match(pattern);if(m)count+=m.length;}
-      if(count>0)result.push({employee_id:Number(item.u.id),employee_login:item.u.login||'',employee_name:item.u.name,report_date:reportDate,overdue_count:count});
-    }
-    await sbMutate('journal_overdue','DELETE',`report_date=eq.${encodeURIComponent(reportDate)}`);
-    if(result.length)await sbMutate('journal_overdue','POST','',result);
-    state.journalOverdue=(state.journalOverdue||[]).filter(x=>x.date!==reportDate).concat(result.map(x=>({id:Date.now()+Math.random(),employeeId:x.employee_id,login:x.employee_login,name:x.employee_name,date:x.report_date,count:x.overdue_count})));
-    save();
-    const info=document.getElementById('journalUploadInfo');
-    if(info)info.innerHTML=`Обработано: <b>${escapeHtml(f.name)}</b>. Дата отчёта: <b>${reportDate}</b>. Педагогов с просрочками: <b>${result.length}</b>.`;
-    alert(`Отчёт электронного журнала обработан. Выявлено педагогов с просрочками: ${result.length}.`);
-    showJournalAnalytics();
-  }catch(e){console.error(e);alert('Не удалось обработать отчёт электронного журнала: '+(e.message||e));}
-};
 
-window.uploadBaseSchedule=async function(){
-  if(!isDispatcher())return alert('Загрузка базового расписания доступна только диспетчеру и администратору.');
-  const f=document.getElementById('baseScheduleFile')?.files?.[0], selectedShift=document.getElementById('baseScheduleShift')?.value;
-  if(!f)return alert('Выберите Excel-файл базового расписания.');
-  if(!selectedShift)return alert('Укажите, это 1-я или 2-я смена.');
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'}),parsed=parseBaseScheduleWorkbook(wb,f.name,selectedShift);
-      await saveBaseScheduleRows(parsed);
-      state.schedule.baseEntries=(state.schedule.baseEntries||[]).filter(x=>Number(x.shift)!==Number(parsed.shift)).concat(parsed.entries);
-      state.schedule.baseVersions=(state.schedule.baseVersions||[]).filter(v=>Number(v.shift)!==Number(parsed.shift));
-      state.schedule.baseVersions.push({id:Date.now(),shift:Number(parsed.shift),fileName:f.name,uploadedAt:new Date().toISOString(),count:parsed.entries.length});
-      state.schedule.baseUploadedFile=f.name;save();
-      const info=document.getElementById('baseScheduleImportInfo');if(info)info.innerHTML=`Распознано: <b>${parsed.shift}-я смена</b>, классов: <b>${parsed.classes.length}</b>, записей: <b>${parsed.entries.length}</b>.`;
-      alert(`Базовое расписание ${parsed.shift}-й смены загружено.`);render();
-    }catch(err){console.error(err);alert('Не удалось сохранить базовое расписание: '+(err.message||'проверьте формат Excel и права доступа.'));}
-  };
-  reader.readAsArrayBuffer(f);
-};
 
-// Daily schedule selectors: class and teacher filters share the same loaded server rows.
-function scheduleViewerCanChooseAnyClass(){
-  const user=state.currentUser||{};
-  const roles=Array.isArray(user.roleKeys)?user.roleKeys:[];
-  const roleText=[user.role,user.roles,user.system_role,user.systemRole].filter(Boolean).join(' ').toLowerCase();
-  return ['admin','director','deputy'].some(r=>roles.includes(r))||/администратор|директор|заместител|\badmin\b|\bdirector\b|\bdeputy\b/.test(roleText)||isGuest();
-}
-function scheduleViewerClasses(){
-  const user=state.currentUser||{};
-  const all=[...(state.classRoster||[]).map(x=>x?.name),...(state.schedule.entries||[]).map(x=>x?.className),...(state.schedule.baseEntries||[]).map(x=>x?.className)].filter(Boolean).map(x=>String(x).trim());
-  const allUnique=[...new Set(all)].sort(classSort);
-  if(scheduleViewerCanChooseAnyClass())return allUnique;
-  const sameUser=(state.users||[]).find(u=>String(u.id)===String(user.id)||(u.login&&u.login===user.login))||{};
-  const roster=typeof classRosterForUser==='function'?(classRosterForUser(user)||[]):[];
-  const assigned=[...roster.map(x=>typeof x==='string'?x:x?.name),...(user.classes||[]),...(user.attendanceClasses||[]),...(user.replacement||[]),...(sameUser.classes||[]),...(sameUser.attendanceClasses||[]),...(sameUser.replacement||[])];
-  const taught=(state.schedule.entries||[]).filter(x=>teacherMatches(x.teacher,user.name)).map(x=>x.className);
-  return [...new Set([...assigned,...taught].filter(Boolean).map(x=>String(typeof x==='object'?(x.name||x.className||''):x).trim()).filter(Boolean))].sort(classSort);
-}
-function scheduleViewerTeachers(){
-  const fromUsers=(state.users||[]).filter(u=>!u.roleKeys?.includes('guest')).map(u=>u?.name);
-  const fromRows=(state.schedule.entries||[]).map(x=>x?.teacher);
-  return [...new Set([...fromUsers,...fromRows].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
-}
-function scheduleViewerControls(day,home=false){
-  const classes=scheduleViewerClasses();
-  const teachers=scheduleViewerTeachers();
-  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
-  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
-  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
-  const classOptions=classes.map(c=>`<option value="class:${escapeHtml(c)}">${scheduleViewerCanChooseAnyClass()?escapeHtml(c):(classes.length===1?'Мой класс':`Мой класс — ${escapeHtml(c)}`)}</option>`).join('');
-  const teacherOptions=teachers.map(t=>`<option value="teacher:${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-  const handler=home?'showHomeScheduleChoice':'showScheduleChoice';
-  return `<div class="schedule-choice" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="${classId}" onchange="${handler}('${day}')"><option value="">Выберите вариант</option><option value="mine">Мое расписание</option>${classOptions}</select><select id="${teacherId}" aria-label="Выберите учителя" onchange="${handler}('${day}')"><option value="">Выберите учителя</option>${teacherOptions}</select></div>${home?'<div class="muted">Выберите вариант или конкретного учителя.</div>':''}<div id="${resultId}" style="margin-top:12px"><div class="schedule-empty">Выберите вариант или учителя.</div></div>`;
-}
-renderScheduleSelector=function(day){return scheduleViewerControls(day,false);};
-renderScheduleHomeSelector=function(day='today'){return scheduleViewerControls(day,true);};
-function renderScheduleSelection(day,home=false){
-  const classId=home?`homeScheduleChoice_${day}`:`scheduleChoice_${day}`;
-  const teacherId=home?`homeScheduleTeacherChoice_${day}`:`scheduleTeacherChoice_${day}`;
-  const resultId=home?`homeScheduleResult_${day}`:`scheduleResult_${day}`;
-  const classSel=document.getElementById(classId),teacherSel=document.getElementById(teacherId),result=document.getElementById(resultId);
-  if(!classSel||!teacherSel||!result)return;
-  const dt=day==='tomorrow'?nextSchoolDay():new Date();
-  const mode=teacherSel.value||classSel.value;
-  if(teacherSel.value)classSel.value='';
-  if(classSel.value)teacherSel.value='';
-  result.innerHTML=mode?renderScheduleTable(getScheduleForDate(dateIsoLocal(dt)),mode):'<div class="schedule-empty">Выберите вариант или учителя.</div>';
-}
-window.showScheduleChoice=function(day){renderScheduleSelection(day,false);};
-window.showHomeScheduleChoice=function(day='today'){renderScheduleSelection(day,true);};
-renderBaseScheduleSelector=function(){
-  const classes=[...new Set([...(state.classRoster||[]).map(x=>x.name),...(state.schedule.baseEntries||[]).map(x=>x.className)].filter(Boolean).map(x=>String(x).trim()))].sort(classSort);
-  return `<div class="schedule-choice"><select id="baseScheduleChoice" onchange="showBaseScheduleChoice()"><option value="">Выберите класс</option>${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select></div><div class="muted">Выберите класс, чтобы увидеть базовое расписание.</div><div id="baseScheduleResult" style="margin-top:12px"><div class="schedule-empty">Класс не выбран.</div></div>`;
-};
 
 // Persistent work plan.
 function formatPlanDate(v){
