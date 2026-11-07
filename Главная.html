@@ -623,7 +623,7 @@ function noticeHtml(n){
         <div class="home-main">
           <div class="home-top-row">
             <section class="card home-equal-card"><h3>✅ Текущие задачи</h3><div class="muted">На сегодня</div><div style="margin-top:10px">${state.tasks.filter(t=>t.kind!=="schedule").map(taskHtml).join("")}</div>${pendingTasks()?`<div class="muted" style="margin-top:10px;color:var(--red);font-weight:700">❗ Есть обязательная задача, требующая выполнения.</div>`:""}</section>
-            <section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,5).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}${journalAlert}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
+            <section class="card home-equal-card"><h3>🔔 Уведомления</h3>${state.notifications.slice(0,1).map(noticeHtml).join("")||'<div class="empty">Нет уведомлений.</div>'}${journalAlert}<button class="btn" style="margin-top:10px" onclick="navigate('notifications')">Все уведомления →</button></section>
           </div>
           ${planCard}
         </div>
@@ -1017,7 +1017,12 @@ function noticeHtml(n){
   function scheduleForUser(entries,mode){
     const rows=entries||[];
     if(isGuest())return rows;
-    if(mode==="mine")return rows.filter(x=>teacherMatches(x.teacher,state.currentUser?.name));
+    if(mode==="mine"){
+      const user=state.currentUser||{};
+      const leaderClasses=[...new Set([...(user.classes||[]),...(user.attendanceClasses||[])].filter(Boolean).map(x=>normalizeClass(x)))];
+      if(leaderClasses.length)return rows.filter(x=>leaderClasses.includes(normalizeClass(x.className)));
+      return rows.filter(x=>teacherMatches(x.teacher,user.name));
+    }
     if(mode&&mode.startsWith("teacher:")){const wanted=mode.slice(8);return rows.filter(x=>teacherMatches(x.teacher,wanted));}
     if(mode&&mode.startsWith("class:")){const wanted=mode.slice(6);return rows.filter(x=>normalizeClass(x.className)===normalizeClass(wanted));}
     return [];
@@ -1436,7 +1441,7 @@ window.navigate = function(page){
   if(state?.currentPage !== page) state.currentPage = page;
   if(typeof save === 'function') save();
   document.getElementById('profileMenu')?.classList.add('hidden');
-  if(page === 'analytics' && window.App.analytics?.render) return window.App.analytics.render();
+  if(page === 'analytics' && window.App.analytics?.render) return __legacyNavigate(page);
   if(page === 'reports' && window.App.reports?.render) return window.App.reports.render();
   return __legacyNavigate(page);
 };
