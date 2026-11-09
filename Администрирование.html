@@ -108,7 +108,7 @@ window.saveDuty=async function(){
         if(duplicateNames.length)throw new Error(`В Excel повторяются классы: ${duplicateNames.join(", ")}. Оставьте по одной строке на класс.`);
 
         const yearId=await getCurrentAcademicYearId();
-        const {data:{session}}=await supabase.auth.getSession();
+        const {data:{session}}=await window.__schoolBase.supabase.auth.getSession();
         if(!session)throw new Error("Нет активной сессии Supabase.");
         if(!yearId)throw new Error("Не найден учебный год 2026-2027 в таблице academic_years.");
 
