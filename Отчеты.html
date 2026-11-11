@@ -324,6 +324,196 @@ window.exportInputDiagnostics = async function(){
     alert('Не удалось получить результаты: ' + (e.message || e));
   }
 };
+
+/* TERM1_SUMMARY_FORM_V1 */
+const term1Districts = [
+ ['microdistrict_ekodolye','Экодолье'],['microdistrict_priuralye','Приуралье'],
+ ['microdistrict_perovsky','Перовский'],['microdistrict_vesenniy','Весенний'],
+ ['microdistrict_snt_karachi','СНТ Карачи'],['microdistrict_orenburg','г. Оренбург'],
+ ['microdistrict_ivanovka_old','с. Ивановка (старая)'],
+ ['microdistrict_ivanovskie_sady_zarya','Ивановские сады, СНТ Заря']
+];
+const term1Esc = value => (window.escapeHtml || (x => String(x ?? '')))(value);
+const term1User = () => window.App?.state?.currentUser || {};
+const term1Manager = () => ['admin','director','deputy'].some(r => (term1User().roleKeys || []).includes(r));
+const term1AuthId = () => term1User().authUserId || term1User().auth_user_id || null;
+const term1Percent = value => Number(value || 0).toFixed(2).replace('.',',') + '%';
+const term1Sort = (a,b) => (window.classSort || ((x,y)=>String(x).localeCompare(String(y),'ru')))(a,b);
+async function term1Context(){
+ const user=term1User(), authId=term1AuthId();
+ if(!authId) throw new Error('Не удалось определить учётную запись пользователя.');
+ const year=typeof window.getCurrentAcademicYearId==='function'?await window.getCurrentAcademicYearId():null;
+ if(year==null||year==='') throw new Error('Не удалось определить текущий учебный год.');
+ const links=await window.sbRest('class_leaders','select=class_id&user_id=eq.'+encodeURIComponent(authId));
+ const ids=[...new Set((links||[]).map(x=>Number(x.class_id)).filter(Number.isFinite))];
+ if(!ids.length) return {year:Number(year),classes:[],user};
+ const rows=await window.sbRest('classes','select=id,grade,letter,student_count,academic_year_id&is_active=eq.true&academic_year_id=eq.'+year+'&id=in.('+ids.join(',')+')');
+ const classes=(rows||[]).map(x=>({id:Number(x.id),name:String(x.grade||'')+String(x.letter||''),count:Number(x.student_count)||0}))
+   .filter(x=>x.name).sort((a,b)=>term1Sort(a.name,b.name));
+ return {year:Number(year),classes,user};
+}
+function term1N(id){
+ const raw=String(document.getElementById(id)?.value??'').trim();
+ if(!raw)return 0;
+ const n=Number(raw);
+ if(!Number.isInteger(n)||n<0)throw new Error('В числовых полях допускаются только целые неотрицательные числа.');
+ return n;
+}
+function term1Rate(row){
+ const total=Number(row.student_count)||0, ex=Number(row.excellent_count)||0, good=Number(row.good_count)||0, three=Number(row.satisfactory_count)||0;
+ return {achievement:total?(ex+good+three)/total*100:0,quality:total?(ex+good)/total*100:0};
+}
+window.openTerm1Summary=async function(){
+ if((term1User().roleKeys||[]).includes('guest'))return alert('Гостям просмотр отчёта недоступен.');
+ try{
+  const ctx=await term1Context();window.__term1SummaryContext=ctx;
+  const opts=ctx.classes.map(x=>`<option value="${x.id}">${term1Esc(x.name)}</option>`).join('');
+  const districts=term1Districts.map(([k,l])=>`<div class="diag-field"><label for="t1${k}">${term1Esc(l)}</label><input id="t1${k}" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>`).join('');
+  const form=ctx.classes.length?`
+   <div class="card">
+    <h3>Итоги 1 триместр</h3>
+    <div class="diag-row">
+     <div class="diag-field"><label for="t1class">Класс («Мой класс»)</label><select id="t1class" onchange="term1ClassChanged()">${opts}</select></div>
+     <div class="diag-field"><label>Количество учеников</label><input id="t1count" type="number" readonly value="${ctx.classes[0].count}"></div>
+     <div class="diag-field"><label>Классный руководитель</label><input type="text" readonly value="${term1Esc(ctx.user.name||'')}"></div>
+    </div>
+    <h4>Распределение по микрорайонам</h4><div class="diag-row">${districts}</div><div id="t1districtcheck" class="muted"></div>
+    <h4>Результаты успеваемости</h4>
+    <div class="diag-row">
+     <div class="diag-field"><label>Отличники всего</label><input id="t1excellent" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+     <div class="diag-field"><label>ФИ отличников</label><textarea id="t1excellentnames" rows="2"></textarea></div>
+    </div>
+    <div class="diag-row">
+     <div class="diag-field"><label>Хорошисты всего:</label><input id="t1good" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+     <div class="diag-field"><label>в т.ч. с одной «4»</label><input id="t1goodone4" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+    </div>
+    <div class="diag-row">
+     <div class="diag-field"><label>Троечники всего:</label><input id="t1three" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+     <div class="diag-field"><label>в т.ч. с одной «3»</label><input id="t1threeone3" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+    </div>
+    <div class="diag-row">
+     <div class="diag-field"><label>Неуспевающие — количество</label><input id="t1fail" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+     <div class="diag-field"><label>ФИ неуспевающих</label><textarea id="t1failnames" rows="2"></textarea></div>
+    </div>
+    <div class="diag-row">
+     <div class="diag-field"><label>Неаттестованные — количество</label><input id="t1na" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
+     <div class="diag-field"><label>ФИ ученика, предмет и причина</label><textarea id="t1nadetails" rows="3" placeholder="ФИО — предмет — причина"></textarea></div>
+    </div>
+    <div class="diag-row diag-summary-row">
+     <div class="diag-field"><label>Успеваемость</label><input id="t1achievement" readonly value="0,00%"></div>
+     <div class="diag-field"><label>Качество</label><input id="t1quality" readonly value="0,00%"></div>
+    </div>
+    <div class="diag-field"><label for="t1achievements">Достижения класса</label><textarea id="t1achievements" rows="4" maxlength="5000" placeholder="Опишите достижения класса за 1 триместр"></textarea></div>
+    <div id="t1gradecheck" class="muted"></div>
+    <div class="diag-actions"><button class="btn green" onclick="saveTerm1Summary()">Сохранить и отправить</button><button class="btn" onclick="editTerm1Summary()">Редактировать сохранённый отчёт</button></div>
+    <div id="t1message" class="muted"></div>
+   </div>
+  `:`<div class="card"><h3>Итоги 1 триместр</h3><p>Вам не назначено классное руководство в текущем учебном году. Если назначение уже выполнено, обновите страницу приложения.</p></div>`;
+  const exportButton=term1Manager()?'<button class="btn" onclick="exportTerm1Summaries()">Скачать Excel</button>':'';
+  const body=form+`<div class="card"><h3>Свод по классам</h3><div class="diag-actions"><button class="btn" onclick="viewTerm1Summaries()">Просмотреть</button>${exportButton}</div><div id="t1table"></div></div>
+    <div class="diag-actions"><button class="btn" onclick="window.App.reports.render()">Назад к отчетам</button><button class="btn" onclick="openDocs('reports','Отчеты за 1 триместр')">Папка документов за 1 триместр</button></div>`;
+  if(window.App?.state)window.App.state.currentPage='reports';
+  window.shell('Отчеты за 1 триместр','Итоги 1 триместр',body);
+  if(ctx.classes.length)term1ClassChanged();
+ }catch(e){console.error(e);alert('Не удалось открыть форму итогов 1 триместра: '+(e.message||e));}
+};
+window.term1ClassChanged=function(){
+ const ctx=window.__term1SummaryContext,sel=document.getElementById('t1class');
+ if(!ctx||!sel)return;
+ const c=ctx.classes.find(x=>String(x.id)===String(sel.value));
+ const count=document.getElementById('t1count');if(count)count.value=c?c.count:0;
+ window.recalcTerm1Summary();
+};
+window.recalcTerm1Summary=function(){
+ try{
+  const total=Number(document.getElementById('t1count')?.value)||0;
+  const district=term1Districts.reduce((s,[k])=>s+term1N('t1_'+k),0);
+  const ex=term1N('t1excellent'),good=term1N('t1good'),three=term1N('t1three'),fail=term1N('t1fail'),na=term1N('t1na');
+  const grade=ex+good+three+fail+na,one4=term1N('t1goodone4'),one3=term1N('t1threeone3');
+  const d=document.getElementById('t1districtcheck'),g=document.getElementById('t1gradecheck');
+  if(d)d.textContent='По микрорайонам: '+district+' из '+total+'. '+(district===total?'Сумма совпадает.':'Сумма должна совпадать с количеством учеников.');
+  if(g)g.textContent='По категориям: '+grade+' из '+total+'. '+(grade===total?'Сумма совпадает.':'Сумма должна совпадать с количеством учеников.')+(one4>good?' Количество с одной «4» больше числа хорошистов.':'')+(one3>three?' Количество с одной «3» больше числа троечников.':'');
+  const achievement=total?(ex+good+three)/total*100:0,quality=total?(ex+good)/total*100:0;
+  const a=document.getElementById('t1achievement'),q=document.getElementById('t1quality');
+  if(a)a.value=term1Percent(achievement);if(q)q.value=term1Percent(quality);
+  return {total,district,grade,one4,one3};
+ }catch(e){const g=document.getElementById('t1gradecheck');if(g)g.textContent=e.message||String(e);return null;}
+};
+function term1Payload(){
+ const ctx=window.__term1SummaryContext,id=Number(document.getElementById('t1class')?.value),cls=ctx?.classes.find(x=>x.id===id),uid=term1AuthId();
+ if(!cls||!uid)throw new Error('Не удалось определить класс или пользователя.');
+ const p={class_id:cls.id,academic_year_id:ctx.year,class_name:cls.name,teacher_user_id:uid,teacher_name:String(ctx.user.name||'').trim(),student_count:cls.count,
+ excellent_count:term1N('t1excellent'),excellent_names:document.getElementById('t1excellentnames')?.value.trim()||'',
+ good_count:term1N('t1good'),good_one_four_count:term1N('t1goodone4'),satisfactory_count:term1N('t1three'),satisfactory_one_three_count:term1N('t1threeone3'),
+ failing_count:term1N('t1fail'),failing_names:document.getElementById('t1failnames')?.value.trim()||'',not_assessed_count:term1N('t1na'),
+ not_assessed_details:document.getElementById('t1nadetails')?.value.trim()||'',achievements_text:document.getElementById('t1achievements')?.value.trim()||''};
+ term1Districts.forEach(([k])=>p[k]=term1N('t1_'+k));return p;
+}
+window.saveTerm1Summary=async function(){
+ try{
+  const c=window.recalcTerm1Summary();if(!c)return alert('Проверьте числовые поля формы.');
+  if(c.district!==c.total)return alert('Нельзя отправить отчёт: сумма по 8 микрорайонам не совпадает с количеством учеников.');
+  if(c.grade!==c.total)return alert('Нельзя отправить отчёт: сумма пяти категорий не совпадает с количеством учеников.');
+  if(c.one4>term1N('t1good')||c.one3>term1N('t1three'))return alert('Количество учеников с одной «4» или одной «3» не может превышать соответствующую категорию.');
+  const p=term1Payload();if(!p.teacher_name)throw new Error('Не удалось определить ФИО классного руководителя.');
+  const old=await window.sbRest('term1_class_summaries','select=id&class_id=eq.'+p.class_id+'&academic_year_id=eq.'+p.academic_year_id);
+  if(old?.length)await window.sbMutate('term1_class_summaries','PATCH','id=eq.'+encodeURIComponent(old[0].id),p);
+  else await window.sbMutate('term1_class_summaries','POST','',p);
+  const m=document.getElementById('t1message');if(m)m.textContent='Отчёт сохранён. Повторное сохранение обновит строку класса без дубликата.';
+  alert('Итоги 1 триместра сохранены.');await window.viewTerm1Summaries();
+ }catch(e){console.error(e);alert('Не удалось сохранить отчёт: '+(e.message||e));}
+};
+window.editTerm1Summary=async function(){
+ try{
+  const ctx=window.__term1SummaryContext,id=Number(document.getElementById('t1class')?.value);
+  if(!ctx||!id)throw new Error('Сначала выберите класс.');
+  const rows=await window.sbRest('term1_class_summaries','select=*&class_id=eq.'+id+'&academic_year_id=eq.'+ctx.year);
+  if(!rows?.length)return alert('Для выбранного класса сохранённого отчёта пока нет.');
+  const r=rows[0];
+  term1Districts.forEach(([k])=>{const el=document.getElementById('t1_'+k);if(el)el.value=r[k]??0;});
+  const fields={t1excellent:r.excellent_count,t1excellentnames:r.excellent_names,t1good:r.good_count,t1goodone4:r.good_one_four_count,t1three:r.satisfactory_count,t1threeone3:r.satisfactory_one_three_count,t1fail:r.failing_count,t1failnames:r.failing_names,t1na:r.not_assessed_count,t1nadetails:r.not_assessed_details,t1achievements:r.achievements_text};
+  Object.entries(fields).forEach(([key,value])=>{const el=document.getElementById(key);if(el)el.value=value??'';});
+  window.recalcTerm1Summary();const m=document.getElementById('t1message');if(m)m.textContent='Загружен ранее сохранённый отчёт. После изменений нажмите «Сохранить и отправить».';
+ }catch(e){console.error(e);alert('Не удалось загрузить отчёт: '+(e.message||e));}
+};
+function term1Headers(){
+ return ['Класс','Количество учеников','Классный руководитель',...term1Districts.map(x=>x[1]),
+ 'Отличники — всего','ФИ отличников','Хорошисты всего','В т.ч. с одной «4»','Троечники всего','В т.ч. с одной «3»',
+ 'Неуспевающие — количество','ФИ неуспевающих','Неаттестованные — количество','ФИ, предмет и причина','Успеваемость','Качество','Достижения класса'];
+}
+function term1Row(r){
+ const rate=term1Rate(r);
+ return [r.class_name,r.student_count,r.teacher_name,...term1Districts.map(x=>r[x[0]]),
+ r.excellent_count,r.excellent_names,r.good_count,r.good_one_four_count,r.satisfactory_count,r.satisfactory_one_three_count,
+ r.failing_count,r.failing_names,r.not_assessed_count,r.not_assessed_details,term1Percent(rate.achievement),term1Percent(rate.quality),r.achievements_text||''];
+}
+window.viewTerm1Summaries=async function(){
+ if((term1User().roleKeys||[]).includes('guest'))return alert('Гостям просмотр отчёта недоступен.');
+ const box=document.getElementById('t1table');if(!box)return;box.innerHTML='<p class="muted">Загрузка…</p>';
+ try{
+  const ctx=window.__term1SummaryContext||await term1Context();
+  const rows=await window.sbRest('term1_class_summaries','select=*&academic_year_id=eq.'+ctx.year);
+  const sorted=(rows||[]).slice().sort((a,b)=>term1Sort(a.class_name,b.class_name));
+  if(!sorted.length){box.innerHTML='<div class="empty">Сохранённых отчётов пока нет.</div>';return;}
+  const h=term1Headers();
+  box.innerHTML=`<div class="table-wrap"><table class="data-table"><thead><tr>${h.map(x=>`<th>${term1Esc(x)}</th>`).join('')}</tr></thead><tbody>${sorted.map(r=>`<tr>${term1Row(r).map(x=>`<td>${term1Esc(x??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">В свод включено классов: ${sorted.length}. Успеваемость и качество рассчитаны автоматически.</p>`;
+ }catch(e){console.error(e);box.innerHTML='<div class="empty">Не удалось загрузить таблицу.</div>';alert('Ошибка просмотра: '+(e.message||e));}
+};
+window.exportTerm1Summaries=async function(){
+ if(!term1Manager())return alert('Выгрузка доступна только директору, заместителям и администратору.');
+ try{
+  const ctx=window.__term1SummaryContext||await term1Context();
+  const rows=await window.sbRest('term1_class_summaries','select=*&academic_year_id=eq.'+ctx.year);
+  const sorted=(rows||[]).slice().sort((a,b)=>term1Sort(a.class_name,b.class_name));
+  if(!sorted.length)return alert('Нет данных для выгрузки.');
+  if(!window.XLSX)return alert('Библиотека Excel не загружена. Обновите страницу.');
+  const h=term1Headers(),ws=window.XLSX.utils.aoa_to_sheet([h,...sorted.map(term1Row)]);
+  ws['!cols']=h.map((x,i)=>({wch:i===1?16:(i===2?26:(i>=h.length-3?35:22))}));
+  const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Итоги 1 триместр');
+  window.XLSX.writeFile(wb,'Итоги_1_триместр.xlsx');
+ }catch(e){console.error(e);alert('Не удалось выгрузить Excel: '+(e.message||e));}
+};
+/* END TERM1_SUMMARY_FORM_V1 */
   window.App = window.App || {};
   window.App.reports = window.App.reports || {};
   
@@ -353,11 +543,11 @@ window.App.reports.render = function(){
   const body = `<div class="module-grid">
     ${cards.map(([title, subtitle]) => `
       <div class="module-card"
-           onclick="openDocs('reports','${title}')">
+           onclick="${title === 'Отчеты за 1 триместр' ? 'openTerm1Summary()' : "openDocs('reports','" + title + "')"}">
         <div class="module-icon">📊</div>
         <div class="module-card-title">${title}</div>
         <div class="muted">${subtitle}</div>
-        <div class="module-folder">📂 Открыть папку →</div>
+        <div class="module-folder">${title === 'Отчеты за 1 триместр' ? '📝 Открыть форму итогов →' : '📂 Открыть папку →'}</div>
       </div>
     `).join('')}
   </div>`;
