@@ -365,42 +365,48 @@ window.openTerm1Summary=async function(){
  try{
   const ctx=await term1Context();window.__term1SummaryContext=ctx;
   const opts=ctx.classes.map(x=>`<option value="${x.id}">${term1Esc(x.name)}</option>`).join('');
-  const districts=term1Districts.map(([k,l])=>`<div class="diag-field"><label for="t1_${k}">${term1Esc(l)}</label><input id="t1_${k}" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>`).join('');
+  const districts=term1Districts.map(([k,l])=>`<div class="term1-district-item"><label for="t1_${k}">${term1Esc(l)}</label><input id="t1_${k}" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>`).join('');
   const form=ctx.classes.length?`
-   <div class="card">
+   <div class="card term1-form-card">
     <h3>Итоги 1 триместр</h3>
-    <div class="diag-row">
-     <div class="diag-field"><label for="t1class">Класс («Мой класс»)</label><select id="t1class" onchange="term1ClassChanged()">${opts}</select></div>
-     <div class="diag-field"><label>Количество учеников</label><input id="t1count" type="number" readonly value="${ctx.classes[0].count}"></div>
-     <div class="diag-field"><label>Классный руководитель</label><input type="text" readonly value="${term1Esc(ctx.user.name||'')}"></div>
+    <div class="term1-top-row">
+     <div class="term1-inline-field"><label for="t1class">Мой класс</label><select id="t1class" onchange="term1ClassChanged()">${opts}</select></div>
+     <div class="term1-inline-field"><label for="t1count">Количество учеников</label><input id="t1count" type="number" readonly value="${ctx.classes[0].count}"></div>
+     <div class="term1-inline-field"><label>Классный руководитель</label><input type="text" readonly value="${term1Esc(ctx.user.name||'')}"></div>
     </div>
-    <h4>Распределение по микрорайонам</h4><div class="diag-row">${districts}</div><div id="t1districtcheck" class="muted"></div>
-    <h4>Результаты успеваемости</h4>
-    <div class="diag-row">
-     <div class="diag-field"><label>Отличники всего</label><input id="t1excellent" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-     <div class="diag-field"><label>ФИ отличников</label><textarea id="t1excellentnames" rows="2"></textarea></div>
-    </div>
-    <div class="diag-row">
-     <div class="diag-field"><label>Хорошисты всего:</label><input id="t1good" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-     <div class="diag-field"><label>в т.ч. с одной «4»</label><input id="t1goodone4" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-    </div>
-    <div class="diag-row">
-     <div class="diag-field"><label>Троечники всего:</label><input id="t1three" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-     <div class="diag-field"><label>в т.ч. с одной «3»</label><input id="t1threeone3" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-    </div>
-    <div class="diag-row">
-     <div class="diag-field"><label>Неуспевающие — количество</label><input id="t1fail" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-     <div class="diag-field"><label>ФИ неуспевающих</label><textarea id="t1failnames" rows="2"></textarea></div>
-    </div>
-    <div class="diag-row">
-     <div class="diag-field"><label>Неаттестованные — количество</label><input id="t1na" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>
-     <div class="diag-field"><label>ФИ ученика, предмет и причина</label><textarea id="t1nadetails" rows="3" placeholder="ФИО — предмет — причина"></textarea></div>
-    </div>
-    <div class="diag-row diag-summary-row">
+    <section class="term1-district-panel">
+     <h4>Распределение по микрорайонам</h4>
+     <div class="term1-district-grid">${districts}</div>
+     <div id="t1districtcheck" class="muted"></div>
+    </section>
+    <section class="term1-results-panel">
+     <h4>Результаты успеваемости</h4>
+     <div class="term1-result-row">
+      <label for="t1excellent">Отличники:</label><input class="term1-number" id="t1excellent" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+      <textarea id="t1excellentnames" rows="1" placeholder="ФИ учеников"></textarea>
+     </div>
+     <div class="term1-result-row">
+      <label for="t1good">Хорошисты всего:</label><input class="term1-number" id="t1good" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+      <label for="t1goodone4" class="term1-secondary-label">в т.ч. с одной «4»</label><input class="term1-number" id="t1goodone4" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+     </div>
+     <div class="term1-result-row">
+      <label for="t1three">Троечники всего:</label><input class="term1-number" id="t1three" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+      <label for="t1threeone3" class="term1-secondary-label">в т.ч. с одной «3»</label><input class="term1-number" id="t1threeone3" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+     </div>
+     <div class="term1-result-row">
+      <label for="t1fail">Неуспевающие:</label><input class="term1-number" id="t1fail" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+      <textarea id="t1failnames" rows="1" placeholder="ФИ учеников и предмет"></textarea>
+     </div>
+     <div class="term1-result-row">
+      <label for="t1na">Неаттестованные:</label><input class="term1-number" id="t1na" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()">
+      <textarea id="t1nadetails" rows="1" placeholder="ФИ ученика, предмет и причина"></textarea>
+     </div>
+    </section>
+    <div class="term1-summary-fields">
      <div class="diag-field"><label>Успеваемость</label><input id="t1achievement" readonly value="0,00%"></div>
      <div class="diag-field"><label>Качество</label><input id="t1quality" readonly value="0,00%"></div>
     </div>
-    <div class="diag-field"><label for="t1achievements">Достижения класса</label><textarea id="t1achievements" rows="4" maxlength="5000" placeholder="Опишите достижения класса за 1 триместр"></textarea></div>
+    <div class="diag-field"><label for="t1achievements">Достижения класса</label><textarea id="t1achievements" rows="2" maxlength="5000" placeholder="Опишите достижения класса за 1 триместр"></textarea></div>
     <div id="t1gradecheck" class="muted"></div>
     <div class="diag-actions"><button class="btn green" onclick="saveTerm1Summary()">Сохранить и отправить</button><button class="btn" onclick="editTerm1Summary()">Редактировать сохранённый отчёт</button></div>
     <div id="t1message" class="muted"></div>
@@ -409,6 +415,32 @@ window.openTerm1Summary=async function(){
   const exportButton=term1Manager()?'<button class="btn" onclick="exportTerm1Summaries()">Скачать Excel</button>':'';
   const body=form+`<div class="card"><h3>Свод по классам</h3><div class="diag-actions"><button class="btn" onclick="viewTerm1Summaries()">Просмотреть</button>${exportButton}</div><div id="t1table"></div></div>
     <div class="diag-actions"><button class="btn" onclick="openTerm1Folder()">Назад к папке 1 триместра</button><button class="btn" onclick="window.App.reports.render()">К списку отчетов</button></div>`;
+  if(!document.getElementById("term1FormStyles")){
+   const style=document.createElement("style");style.id="term1FormStyles";
+   style.textContent=`
+    .term1-form-card{padding:16px!important}.term1-form-card h3{margin:0 0 12px}.term1-form-card h4{margin:0 0 9px;font-size:14px}
+    .term1-top-row{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin-bottom:12px}
+    .term1-inline-field{display:flex;flex-direction:column;gap:4px;min-width:0}.term1-inline-field label,.term1-district-item label{font-size:12px;font-weight:600}
+    .term1-inline-field input,.term1-inline-field select{width:100%;min-width:0;box-sizing:border-box}
+    .term1-district-panel{padding:12px;background:#fff8dc;border:1px solid #f0d77a;border-radius:11px;margin:8px 0 12px}
+    .term1-district-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+    .term1-district-item{display:flex;flex-direction:column;gap:4px;min-width:0;text-align:center}
+    .term1-district-item label{min-height:30px;display:flex;align-items:end;justify-content:center;line-height:1.15}
+    .term1-district-item input{width:100%;min-width:0;box-sizing:border-box;text-align:center;padding:6px 3px}
+    .term1-results-panel{padding:12px;background:#f4f7fb;border:1px solid #dce5f0;border-radius:11px;margin-bottom:12px}
+    .term1-result-row{display:grid;grid-template-columns:145px 64px minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}
+    .term1-result-row>label{font-size:12px;font-weight:600}.term1-result-row .term1-secondary-label{font-weight:400;text-align:right}
+    .term1-result-row .term1-number{width:100%;min-width:0;box-sizing:border-box;text-align:center;padding:6px}
+    .term1-result-row textarea{width:100%;min-width:0;box-sizing:border-box;min-height:34px;resize:vertical;padding:6px 8px}
+    .term1-result-row:has(.term1-secondary-label){grid-template-columns:145px 64px minmax(130px,1fr) 64px}
+    .term1-summary-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+    .term1-form-card .diag-field{margin-bottom:8px}.term1-form-card .diag-field>label{font-size:12px}
+    .term1-form-card #t1districtcheck,.term1-form-card #t1gradecheck{font-size:12px;margin-top:6px}
+    @media(max-width:850px){.term1-district-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.term1-top-row{grid-template-columns:1fr 1fr}.term1-top-row .term1-inline-field:last-child{grid-column:1/-1}}
+    @media(max-width:560px){.term1-top-row{grid-template-columns:1fr}.term1-top-row .term1-inline-field:last-child{grid-column:auto}.term1-result-row,.term1-result-row:has(.term1-secondary-label){grid-template-columns:112px 58px minmax(0,1fr)}.term1-result-row .term1-secondary-label{grid-column:1/2;text-align:left}.term1-result-row #t1goodone4,.term1-result-row #t1threeone3{grid-column:2/3}.term1-district-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+   `;
+   document.head.appendChild(style);
+  }
   if(window.App?.state)window.App.state.currentPage='reports';
   window.shell('Отчеты за 1 триместр','Итоги 1 триместр',body);
   if(ctx.classes.length)term1ClassChanged();
