@@ -107,10 +107,7 @@ if (typeof appShell !== 'function') {
         </div>
 
         <div class="diag-actions">
-          <button class="btn"
-                  onclick="openDocs('reports','Отчеты за 1 триместр')">
-            Назад
-          </button>
+          <button class="btn" onclick="openTerm1Folder()">Назад</button>
           <button class="btn green" onclick="submitInputDiagnostic()">
             Отправить
           </button>
@@ -411,7 +408,7 @@ window.openTerm1Summary=async function(){
   `:`<div class="card"><h3>Итоги 1 триместр</h3><p>Вам не назначено классное руководство в текущем учебном году. Если назначение уже выполнено, обновите страницу приложения.</p></div>`;
   const exportButton=term1Manager()?'<button class="btn" onclick="exportTerm1Summaries()">Скачать Excel</button>':'';
   const body=form+`<div class="card"><h3>Свод по классам</h3><div class="diag-actions"><button class="btn" onclick="viewTerm1Summaries()">Просмотреть</button>${exportButton}</div><div id="t1table"></div></div>
-    <div class="diag-actions"><button class="btn" onclick="window.App.reports.render()">Назад к отчетам</button><button class="btn" onclick="openDocs('reports','Отчеты за 1 триместр')">Папка документов за 1 триместр</button></div>`;
+    <div class="diag-actions"><button class="btn" onclick="openTerm1Folder()">Назад к папке 1 триместра</button><button class="btn" onclick="window.App.reports.render()">К списку отчетов</button></div>`;
   if(window.App?.state)window.App.state.currentPage='reports';
   window.shell('Отчеты за 1 триместр','Итоги 1 триместр',body);
   if(ctx.classes.length)term1ClassChanged();
@@ -543,7 +540,7 @@ window.App.reports.render = function(){
   const body = `<div class="module-grid">
     ${cards.map(([title, subtitle]) => `
       <div class="module-card"
-           onclick="${title === 'Отчеты за 1 триместр' ? 'openTerm1Summary()' : "openDocs('reports','" + title + "')"}">
+           onclick="${title === 'Отчеты за 1 триместр' ? 'openTerm1Folder()' : "openDocs('reports','" + title + "')"}">
         <div class="module-icon">📊</div>
         <div class="module-card-title">${title}</div>
         <div class="muted">${subtitle}</div>
@@ -562,11 +559,66 @@ window.App.reports.render = function(){
 </script>
 <script type="text/plain" data-module>
 
+window.openTerm1Folder=function(){
+  const user=window.App?.state?.currentUser||{};
+  const roles=user.roleKeys||[];
+  const canUpload=!roles.includes("guest")&&roles.some(r=>["admin","director","deputy","secretary"].includes(r));
+  if(window.App?.state)window.App.state.currentPage="reports";
+  const body=`
+    <div class="term1-folder-grid">
+      <section class="term1-folder-card term1-folder-docs">
+        <div class="term1-folder-icon">📁</div>
+        <div class="term1-folder-content">
+          <h3>Документы</h3>
+          <p>${canUpload?"Загрузка и просмотр документов за 1 триместр.":"Просмотр документов за 1 триместр."}</p>
+          <button class="btn ${canUpload?"green":""}" onclick="openDocs('reports','Отчеты за 1 триместр')">${canUpload?"Открыть документы и загрузку":"Открыть документы"}</button>
+        </div>
+      </section>
+      <section class="term1-folder-card term1-folder-diagnostic">
+        <div class="term1-folder-icon">📊</div>
+        <div class="term1-folder-content">
+          <h3>Входная диагностика</h3>
+          <p>Форма для внесения и просмотра результатов входной диагностики.</p>
+          <button class="btn" onclick="openInputDiagnostics()">Открыть форму</button>
+        </div>
+      </section>
+      <section class="term1-folder-card term1-folder-summary">
+        <div class="term1-folder-icon">📈</div>
+        <div class="term1-folder-content">
+          <h3>Итоги 1 триместра</h3>
+          <p>Отчет классного руководителя и сводная таблица по всем классам.</p>
+          <button class="btn" onclick="openTerm1Summary()">Открыть форму</button>
+        </div>
+      </section>
+    </div>`;
+  if(!document.getElementById("term1FolderStyles")){
+    const style=document.createElement("style");
+    style.id="term1FolderStyles";
+    style.textContent=`
+      .term1-folder-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch}
+      .term1-folder-card{display:flex;gap:14px;align-items:flex-start;min-width:0;padding:18px;border:1px solid #dce8e1;border-radius:15px;background:#fff;box-shadow:0 5px 16px rgba(6,61,43,.045)}
+      .term1-folder-icon{display:flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border-radius:12px;font-size:21px}
+      .term1-folder-content{min-width:0}.term1-folder-content h3{margin:1px 0 6px;font-size:16px}
+      .term1-folder-content p{min-height:38px;margin:0 0 12px;color:var(--muted);font-size:12px;line-height:1.45}
+      .term1-folder-docs{background:#f6faf7;border-color:#d6e8dc}.term1-folder-docs .term1-folder-icon{background:#e3f2e8}
+      .term1-folder-diagnostic{background:#f5f8fc;border-color:#dce6f2}.term1-folder-diagnostic .term1-folder-icon{background:#e5edf8}
+      .term1-folder-summary{background:#fff9ef;border-color:#f0e2c8}.term1-folder-summary .term1-folder-icon{background:#f8edda}
+      @media(max-width:900px){.term1-folder-grid{grid-template-columns:1fr 1fr}}
+      @media(max-width:620px){.term1-folder-grid{grid-template-columns:1fr}.term1-folder-card{padding:15px}}
+    `;
+    document.head.appendChild(style);
+  }
+  shell("Отчеты за 1 триместр","Папка отчетов",body);
+};
 window.App.pageRenderers["reports"] = function(){
   const page="reports";
-  const names=window.App.sectionNames;
   const responsibleBlock=window.App.renderResponsibleBlock(page);
-  shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по аналогии с посещаемостью и сводятся в аналитике.",`<div class="module-grid">${moduleCard("Отчеты на начало года","Формы отчетов")}${moduleCard("Отчеты за 1 триместр","Формы отчетов")}${moduleCard("Отчеты за 2 триместр","Формы отчетов")}${moduleCard("Отчеты за год","Формы отчетов")}</div>`);
+  shell("Отчеты",responsibleBlock+"Периодические отчеты заполняются по установленным формам.",`<div class="module-grid">
+    ${moduleCard("Отчеты на начало года","Формы отчетов")}
+    <div class="module-card" onclick="openTerm1Folder()"><div class="module-icon">📊</div><div class="module-card-title">Отчеты за 1 триместр</div><div class="muted">Формы отчетов</div><div class="module-folder">📂 Открыть папку →</div></div>
+    ${moduleCard("Отчеты за 2 триместр","Формы отчетов")}
+    ${moduleCard("Отчеты за год","Формы отчетов")}
+  </div>`);
 };
 
 </script>
