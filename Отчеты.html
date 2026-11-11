@@ -375,7 +375,7 @@ window.openTerm1Summary=async function(){
      <div class="term1-inline-field"><label>Классный руководитель</label><input type="text" readonly value="${term1Esc(ctx.user.name||'')}"></div>
     </div>
     <section class="term1-district-panel">
-     <h4>Распределение по микрорайонам</h4>
+     <h4>Проживают на территориях:</h4>
      <div class="term1-district-grid">${districts}</div>
      <div id="t1districtcheck" class="muted"></div>
     </section>
@@ -419,6 +419,8 @@ window.openTerm1Summary=async function(){
    const style=document.createElement("style");style.id="term1FormStyles";
    style.textContent=`
     .term1-form-card{padding:16px!important}.term1-form-card h3{margin:0 0 12px}.term1-form-card h4{margin:0 0 9px;font-size:14px}
+    .term1-summary-table-scroll{max-height:550px;overflow-y:auto;overflow-x:auto}
+    .term1-summary-table-scroll thead th{position:sticky;top:0;z-index:2;background:var(--card,#fff)}
     .term1-top-row{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin-bottom:12px}
     .term1-inline-field{display:flex;flex-direction:column;gap:4px;min-width:0}.term1-inline-field label,.term1-district-item label{font-size:12px;font-weight:600}
     .term1-inline-field input,.term1-inline-field select{width:100%;min-width:0;box-sizing:border-box}
@@ -534,7 +536,7 @@ window.viewTerm1Summaries=async function(){
   if(!sorted.length){box.innerHTML='<div class="empty">В текущем учебном году не найдено активных классов.</div>';return;}
   const submitted=sorted.filter(r=>reportsByClass.has(String(r.class_id))).length;
   const h=term1Headers();
-  box.innerHTML=`<div class="table-wrap"><table class="data-table"><thead><tr>${h.map(x=>`<th>${term1Esc(x)}</th>`).join('')}</tr></thead><tbody>${sorted.map(r=>`<tr>${term1Row(r).map(x=>`<td>${term1Esc(x??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">В своде все активные классы учебного года: ${sorted.length}. Отчёты отправили: ${submitted}. Данные отправленного отчёта отображаются в строке соответствующего класса; остальные строки остаются пустыми до отправки. Успеваемость и качество рассчитаны автоматически.</p>`;
+  box.innerHTML=`<div class="table-wrap term1-summary-table-scroll"><table class="data-table"><thead><tr>${h.map(x=>`<th>${term1Esc(x)}</th>`).join('')}</tr></thead><tbody>${sorted.map(r=>`<tr>${term1Row(r).map(x=>`<td>${term1Esc(x??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">В своде все активные классы учебного года: ${sorted.length}. Отчёты отправили: ${submitted}. Данные отправленного отчёта отображаются в строке соответствующего класса; остальные строки остаются пустыми до отправки. Успеваемость и качество рассчитаны автоматически.</p>`;
  }catch(e){console.error(e);box.innerHTML='<div class="empty">Не удалось загрузить таблицу.</div>';alert('Ошибка просмотра: '+(e.message||e));}
 };
 window.exportTerm1Summaries=async function(){
