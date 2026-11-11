@@ -368,7 +368,7 @@ window.openTerm1Summary=async function(){
  try{
   const ctx=await term1Context();window.__term1SummaryContext=ctx;
   const opts=ctx.classes.map(x=>`<option value="${x.id}">${term1Esc(x.name)}</option>`).join('');
-  const districts=term1Districts.map(([k,l])=>`<div class="diag-field"><label for="t1${k}">${term1Esc(l)}</label><input id="t1${k}" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>`).join('');
+  const districts=term1Districts.map(([k,l])=>`<div class="diag-field"><label for="t1_${k}">${term1Esc(l)}</label><input id="t1_${k}" type="number" min="0" step="1" value="0" oninput="recalcTerm1Summary()"></div>`).join('');
   const form=ctx.classes.length?`
    <div class="card">
     <h3>Итоги 1 триместр</h3>
