@@ -521,11 +521,20 @@ window.viewTerm1Summaries=async function(){
  const box=document.getElementById('t1table');if(!box)return;box.innerHTML='<p class="muted">Загрузка…</p>';
  try{
   const ctx=window.__term1SummaryContext||await term1Context();
-  const rows=await window.sbRest('term1_class_summaries','select=*&academic_year_id=eq.'+ctx.year);
-  const sorted=(rows||[]).slice().sort((a,b)=>term1Sort(a.class_name,b.class_name));
-  if(!sorted.length){box.innerHTML='<div class="empty">Сохранённых отчётов пока нет.</div>';return;}
+  const [classes,reports]=await Promise.all([
+   window.sbRest('classes','select=id,grade,letter,student_count,academic_year_id&is_active=eq.true&academic_year_id=eq.'+ctx.year),
+   window.sbRest('term1_class_summaries','select=*&academic_year_id=eq.'+ctx.year)
+  ]);
+  const reportsByClass=new Map((reports||[]).map(r=>[String(r.class_id),r]));
+  const sorted=(classes||[]).map(c=>{
+   const className=String(c.grade||'')+String(c.letter||'');
+   const saved=reportsByClass.get(String(c.id));
+   return {class_id:c.id,class_name:className,student_count:Number(c.student_count)||0,teacher_name:'',...(saved||{})};
+  }).filter(r=>r.class_name).sort((a,b)=>term1Sort(a.class_name,b.class_name));
+  if(!sorted.length){box.innerHTML='<div class="empty">В текущем учебном году не найдено активных классов.</div>';return;}
+  const submitted=sorted.filter(r=>reportsByClass.has(String(r.class_id))).length;
   const h=term1Headers();
-  box.innerHTML=`<div class="table-wrap"><table class="data-table"><thead><tr>${h.map(x=>`<th>${term1Esc(x)}</th>`).join('')}</tr></thead><tbody>${sorted.map(r=>`<tr>${term1Row(r).map(x=>`<td>${term1Esc(x??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">В свод включено классов: ${sorted.length}. Успеваемость и качество рассчитаны автоматически.</p>`;
+  box.innerHTML=`<div class="table-wrap"><table class="data-table"><thead><tr>${h.map(x=>`<th>${term1Esc(x)}</th>`).join('')}</tr></thead><tbody>${sorted.map(r=>`<tr>${term1Row(r).map(x=>`<td>${term1Esc(x??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">В своде все активные классы учебного года: ${sorted.length}. Отчёты отправили: ${submitted}. Данные отправленного отчёта отображаются в строке соответствующего класса; остальные строки остаются пустыми до отправки. Успеваемость и качество рассчитаны автоматически.</p>`;
  }catch(e){console.error(e);box.innerHTML='<div class="empty">Не удалось загрузить таблицу.</div>';alert('Ошибка просмотра: '+(e.message||e));}
 };
 window.exportTerm1Summaries=async function(){
