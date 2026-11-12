@@ -336,7 +336,7 @@ const term1Manager = () => ['admin','director','deputy'].some(r => (term1User().
 const term1AuthId = () => term1User().authUserId || term1User().auth_user_id || null;
 const term1Percent = value => Number(value || 0).toFixed(2).replace('.',',') + '%';
 const term1Sort = (a,b) => (window.classSort || ((x,y)=>String(x).localeCompare(String(y),'ru')))(a,b);
-const term1NoGrades = className => [1,10,11].includes(Number(String(className||'').match(/^(\\d+)/)?.[1]));
+const term1NoGrades = className => [1,10,11].includes(Number(String(className||'').match(/^(\d+)/)?.[1]));
 async function term1Context(){
  const user=term1User(), authId=term1AuthId();
  if(!authId) throw new Error('Не удалось определить учётную запись пользователя.');
