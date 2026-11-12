@@ -600,7 +600,7 @@ window.openTerm1SubjectQuality=async function(){
    '<div class="term1-sq-rates"><div><span>Успеваемость</span><strong id="tsq_achievement">—</strong></div><div><span>Качество</span><strong id="tsq_quality">—</strong></div></div></section>'+
    '<section class="term1-sq-block term1-sq-hours"><h4>Количество часов за 1 триместр</h4><div class="term1-sq-pair"><strong>Всего часов</strong>'+term1SQField('hours_plan','План')+term1SQField('hours_fact','Факт')+'</div></section>'+
    '<section class="term1-sq-block term1-sq-practical"><h4>Практическая часть программы</h4><div class="term1-sq-pair-grid">'+practical+'</div><p class="muted">Показатели отображаются только для выбранного предмета. Необязательные поля можно оставить пустыми.</p></section>'+
-   '<div class="term1-sq-actions"><button class="btn green" onclick="saveTerm1SubjectQuality()">Сохранить и отправить</button><button class="btn" onclick="loadTerm1SubjectQuality()">Редактировать сохраненный отчет</button>'+
+   '<div class="term1-sq-actions"><button class="btn green" onclick="saveTerm1SubjectQuality()">Сохранить и отправить</button><button class="btn" onclick="editTerm1SubjectQuality()">Редактировать сохраненный отчет</button>'+
    (term1SQManager()?'<button class="btn" onclick="exportTerm1SubjectQuality()">Скачать Excel</button>':'')+
    '</div><div id="tsq_message" class="muted"></div><div id="tsq_saved_list"></div></div>';
   if(!document.getElementById('term1SubjectQualityStyles')){
@@ -629,6 +629,34 @@ window.loadTerm1SubjectQuality=async function(){
   term1SQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tsq_'+p[1]+'_'+t);if(el)el.value=r?.[p[1]+'_'+t]??'';}));
   window.term1SQRecalc();if(msg)msg.textContent=r?'Загружен ранее сохраненный отчет. После изменений нажмите «Сохранить отчет».':'Сохраненного отчета для выбранных параметров пока нет.';
  }catch(e){console.error(e);if(msg)msg.textContent='Не удалось загрузить данные: '+(e.message||e);}
+};
+window.editTerm1SubjectQuality=async function(){
+ const ctx=window.__term1SQ,auth=term1SQAuth();
+ const s=document.getElementById('tsq_subject')?.value||'';
+ const classId=Number(document.getElementById('tsq_class')?.value);
+ const subgroup=(s==='Английский язык'||s==='Информатика')?Number(document.getElementById('tsq_subgroup')?.value):0;
+ const msg=document.getElementById('tsq_message');
+ if(!ctx||!auth||!s||!classId){alert('Сначала выберите предмет и класс.');return;}
+ if(msg)msg.textContent='Ищу сохраненный отчет…';
+ try{
+  const q='select=*&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+classId+'&subject=eq.'+encodeURIComponent(s)+'&subgroup=eq.'+subgroup+'&teacher_user_id=eq.'+encodeURIComponent(auth)+'&order=updated_at.desc&limit=1';
+  const rows=await window.sbRest('term1_subject_quality_reports',q);
+  const r=Array.isArray(rows)?rows[0]:null;
+  if(!r){
+   if(msg)msg.textContent='Для выбранных предмета, класса и подгруппы сохраненный вами отчет не найден.';
+   alert('Сохраненный отчет не найден. Проверьте выбранные предмет, класс и подгруппу.');
+   return;
+  }
+  const ids={students_count:'total',grade_5:'g5',grade_4:'g4',grade_3:'g3',grade_2:'g2',grade_na:'gna',total_hours_plan:'hours_plan',total_hours_fact:'hours_fact'};
+  Object.entries(ids).forEach(([key,id])=>{const el=document.getElementById('tsq_'+id);if(el)el.value=r[key]??'';});
+  term1SQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tsq_'+p[1]+'_'+t);if(el)el.value=r[p[1]+'_'+t]??'';}));
+  window.term1SQRecalc();
+  if(msg)msg.textContent='Сохраненный отчет загружен. Измените нужные значения и нажмите «Сохранить и отправить» — запись будет обновлена.';
+ }catch(e){
+  console.error(e);
+  if(msg)msg.textContent='Ошибка загрузки сохраненного отчета: '+(e.message||e);
+  alert('Не удалось загрузить сохраненный отчет: '+(e.message||e));
+ }
 };
 window.saveTerm1SubjectQuality=async function(){
  const ctx=window.__term1SQ,u=term1SQUser(),auth=term1SQAuth();if(!ctx||!auth)return alert('Не удалось определить пользователя или учебный год.');
