@@ -588,7 +588,8 @@ window.openTerm1SubjectQuality=async function(){
   const subjects=term1SQSubjects.map(s=>'<option value="'+term1SQEsc(s)+'">'+term1SQEsc(s)+'</option>').join('');
   const classOptions=classes.map(x=>'<option value="'+x.id+'">'+term1SQEsc(x.name)+'</option>').join('');
   const grades=[['total','Всего детей'],['g5','Оценок «5»'],['g4','Оценок «4»'],['g3','Оценок «3»'],['g2','Оценок «2»'],['gna','«н/а»']].map(x=>term1SQField(x[0],x[1])).join('');
-  const practical=term1SQPairs.map(p=>'<div class="term1-sq-pair" data-sq-subject="'+term1SQEsc(p[0])+'"><strong>'+term1SQEsc(p[2])+'</strong>'+term1SQField(p[1]+'_plan','План')+term1SQField(p[1]+'_fact','Факт')+'</div>').join('');
+  const sqColors={'Литература':'#f5eef8','русский язык':'#edf4fc','математика':'#eef6ef','УК Геометрия':'#f4f1fb','химия':'#fff3e8','Физика':'#eef5fa','биология':'#eff7ed','география':'#f5f3e9','История':'#f8eff0','Английский язык':'#f1f0fb'};
+  const practical=term1SQPairs.map(p=>'<div class="term1-sq-pair" data-sq-subject="'+term1SQEsc(p[0])+'" style="background:'+(sqColors[p[0]]||'#f6f7f6')+'"><strong>'+term1SQEsc(p[2])+'</strong>'+term1SQField(p[1]+'_plan','План')+term1SQField(p[1]+'_fact','Факт')+'</div>').join('');
   const body='<div class="card term1-sq-card"><h3>Качество (отчет предметника) 5–9 кл</h3>'+
    '<p class="muted">Отдельный отчет по каждому предмету и классу. Для английского языка и информатики выберите подгруппу.</p>'+
    '<div class="term1-sq-selects"><label class="term1-sq-field"><span>Предмет</span><select id="tsq_subject" onchange="term1SQSubjectChanged()">'+subjects+'</select></label>'+
@@ -634,7 +635,9 @@ window.saveTerm1SubjectQuality=async function(){
  try{
   const s=document.getElementById('tsq_subject').value,c=Number(document.getElementById('tsq_class').value),cl=ctx.classes.find(x=>x.id===c),g=(s==='Английский язык'||s==='Информатика')?Number(document.getElementById('tsq_subgroup').value):0,t=term1SQVal('total');
   if(!s||!cl||!t)throw new Error('Выберите предмет и класс, укажите количество детей.');
-  const p={academic_year_id:ctx.year,class_id:c,subject:s,subgroup:g,teacher_user_id:auth,teacher_employee_id:Number(u.id)||null,teacher_name:String(u.name||'').trim(),students_count:t,grade_5:term1SQVal('g5')??0,grade_4:term1SQVal('g4')??0,grade_3:term1SQVal('g3')??0,grade_2:term1SQVal('g2')??0,grade_na:term1SQVal('gna')??0,total_hours_plan:term1SQVal('hours_plan'),total_hours_fact:term1SQVal('hours_fact'),updated_at:new Date().toISOString()};
+  const g5=term1SQVal('g5'),g4=term1SQVal('g4'),g3=term1SQVal('g3'),g2=term1SQVal('g2'),gna=term1SQVal('gna');
+  if([g5,g4,g3,g2,gna].some(x=>x===null))throw new Error('Заполните количество оценок «5», «4», «3», «2» и «н/а».');
+  const p={academic_year_id:ctx.year,class_id:c,subject:s,subgroup:g,teacher_user_id:auth,teacher_employee_id:Number(u.id)||null,teacher_name:String(u.name||'').trim(),students_count:t,grade_5:g5,grade_4:g4,grade_3:g3,grade_2:g2,grade_na:gna,total_hours_plan:term1SQVal('hours_plan'),total_hours_fact:term1SQVal('hours_fact'),updated_at:new Date().toISOString()};
   p.achievement_percent=Number(((p.grade_5+p.grade_4+p.grade_3)/t*100).toFixed(2));p.quality_percent=Number(((p.grade_5+p.grade_4)/t*100).toFixed(2));
   term1SQPairs.forEach(x=>{p[x[1]+'_plan']=x[0]===s?term1SQVal(x[1]+'_plan'):null;p[x[1]+'_fact']=x[0]===s?term1SQVal(x[1]+'_fact'):null;});
   const q='select=id&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+c+'&subject=eq.'+encodeURIComponent(s)+'&subgroup=eq.'+g+'&teacher_user_id=eq.'+encodeURIComponent(auth),old=await window.sbRest('term1_subject_quality_reports',q);
@@ -668,7 +671,8 @@ window.exportTerm1SubjectQuality=async function(){
    ['','','','','','','','','','','','','','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф']];
   const ws=window.XLSX.utils.aoa_to_sheet(h.concat(data));ws['!merges']=[];
   ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(x=>{const n=x.charCodeAt(0)-65;ws['!merges'].push({s:{r:0,c:n},e:{r:3,c:n}});});
-  [[12,13,2],[14,43,0],[14,15,2],[16,21,1],[22,23,1],[24,25,1],[26,31,1],[32,37,1],[38,39,1],[40,41,1],[42,43,1],[44,45,0]].forEach(x=>ws['!merges'].push({s:{r:x[2]===0?0:1,c:x[0]},e:{r:x[2]===0?0:x[2]===2?3:1,c:x[1]}}));
+  [[12,13,0,2],[14,43,0,0],[14,15,1,2],[16,21,1,1],[22,23,1,1],[24,25,1,1],[26,31,1,1],[32,37,1,1],[38,39,1,1],[40,41,1,1],[42,43,1,1],[44,45,0,0],[44,45,1,2]].forEach(x=>ws['!merges'].push({s:{r:x[2],c:x[0]},e:{r:x[3],c:x[1]}}));
+  data.forEach((r,i)=>{const row=i+4;['K','L'].forEach(col=>{const cell=ws[col+(row+1)];if(cell)cell.z='0.00%';});});
   ws['!cols']=Array.from({length:46},(_,i)=>({wch:i<4?19:i<12?14:9}));
   const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Качество 5-9');window.XLSX.writeFile(wb,'Качество_отчет_предметника_5-9.xlsx');
  }catch(e){console.error(e);alert('Не удалось выгрузить Excel: '+(e.message||e));}
