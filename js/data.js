@@ -815,44 +815,15 @@ function noticeHtml(n){
   window.markNotificationsRead=function(){state.notifications.forEach(n=>n.read=true);save();render();};
   window.saveMyData=function(){const d={};document.querySelectorAll('[id^="md_"]').forEach(e=>d[e.id.slice(3)]=e.value.trim());state.myData[state.currentUser.login]=d;save();alert("Анкета сохранена.");render();};
   window.exportMyData=function(){const keys=Object.keys(state.myData), rows=keys.map(k=>[k,...Object.values(state.myData[k])]);downloadCSV(["Логин","Данные анкеты"],rows,"мои_данные.csv");};
-  window.addUser=async function(){
+  window.addUser=function(){
     if(!isAdmin())return;
-    const name=prompt("ФИО нового сотрудника:");if(!name||!name.trim())return;
-    const login=(prompt("Логин для входа:","")||"").trim().toLowerCase();if(!login)return;
-    if(!/^[a-z0-9._-]{3,40}$/.test(login))return alert("Логин: 3–40 символов, только латинские буквы, цифры, точка, дефис или _.");
-    const password=prompt("Пароль (не менее 6 символов):");if(password===null)return;
-    if(password.length<6)return alert("Пароль должен содержать не менее 6 символов.");
-    const roleInput=prompt("Роли через запятую: teacher, director, deputy, dispatcher, secretary, admin","teacher");
-    if(roleInput===null)return;
-    const allowedRoles=["teacher","director","deputy","dispatcher","secretary","admin"];
-    const roleKeys=[...new Set(roleInput.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean))];
-    if(!roleKeys.length||roleKeys.some(x=>!allowedRoles.includes(x)))return alert("Укажите роли из списка: "+allowedRoles.join(", ")+".");
-    try{
-      const inserted=await sbMutate("employees","POST","",{full_name:name.trim(),role:roleKeys.join(","),is_active:true});
-      const employee=Array.isArray(inserted)?inserted[0]:null;
-      if(!employee?.id)throw new Error("Сотрудник не добавлен: база не вернула идентификатор новой записи.");
-      const {data:{session}}=await supabase.auth.getSession();
-      if(!session)throw new Error("Сотрудник добавлен, но сессия администратора завершена. Назначьте логин и пароль через кнопку «Логин / пароль».");
-      const response=await fetch(SUPABASE_FUNCTION_URL,{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":`Bearer ${session.access_token}`,"apikey":SUPABASE_PUBLISHABLE_KEY},
-        body:JSON.stringify({employeeId:Number(employee.id),login,password})
-      });
-      const payload=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(payload.error||`Не удалось создать учётную запись (HTTP ${response.status}).`);
-      const {data:{user:authUser},error:userError}=await supabase.auth.getUser();
-      if(userError||!authUser)throw new Error("Сотрудник и учётная запись созданы, но не удалось обновить список. Обновите страницу.");
-      await loadRealEmployees(authUser);
-      save();render();
-      alert(`Сотрудник «${name.trim()}» добавлен в базу. Учётная запись создана. Логин: ${login}`);
-    }catch(e){
-      console.error("Не удалось добавить сотрудника:",e);
-      try{
-        const {data:{user:authUser}}=await supabase.auth.getUser();
-        if(authUser){await loadRealEmployees(authUser);save();render();}
-      }catch(refreshError){console.warn("Не удалось обновить список сотрудников:",refreshError);}
-      alert("Не удалось полностью добавить сотрудника: "+(e.message||String(e)));
-    }
+    const name=prompt("ФИО:");if(!name)return;
+    const login=prompt("Логин:","newuser");if(!login)return;
+    const password=prompt("Пароль:","1234")||"1234";
+    const roleInput=prompt("Роли через запятую: teacher, director, deputy, dispatcher, secretary, admin","teacher")||"teacher";
+    const roleKeys=roleInput.split(",").map(x=>x.trim()).filter(Boolean);
+    state.users.push({id:Date.now(),name,login,password,roleKeys,roles:rolesText(roleKeys),classes:[],shift:{},attendanceClasses:[],replacement:[]});
+    save();render();
   };
   window.editUser=function(id){
     if(!isAdmin())return;
