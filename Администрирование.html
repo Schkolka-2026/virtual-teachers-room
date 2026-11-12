@@ -214,14 +214,17 @@ window.setUserCredentials=async function(id){
     if(password.length<6){err.textContent="Пароль должен содержать не менее 6 символов.";return;}
     if(btn)btn.disabled=true; err.textContent="Сохраняем…";
     try{
-      const {data:{session}}=await supabase.auth.getSession();
+      const base=window.__schoolBase;
+      const client=base?.supabase;
+      if(!client?.auth?.getSession)throw new Error("Не удалось подключиться к Supabase Auth. Обновите страницу и попробуйте снова.");
+      const {data:{session}}=await client.auth.getSession();
       if(!session)throw new Error("Сессия администратора завершена. Войдите заново.");
-      const r=await fetch(SUPABASE_FUNCTION_URL,{
+      const r=await fetch(base.SUPABASE_FUNCTION_URL,{
         method:"POST",
         headers:{
           "Content-Type":"application/json",
           "Authorization":`Bearer ${session.access_token}`,
-          "apikey":SUPABASE_PUBLISHABLE_KEY
+          "apikey":base.SUPABASE_PUBLISHABLE_KEY
         },
         body:JSON.stringify({employeeId:Number(u.id),login,password})
       });
