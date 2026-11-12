@@ -336,6 +336,7 @@ const term1Manager = () => ['admin','director','deputy'].some(r => (term1User().
 const term1AuthId = () => term1User().authUserId || term1User().auth_user_id || null;
 const term1Percent = value => Number(value || 0).toFixed(2).replace('.',',') + '%';
 const term1Sort = (a,b) => (window.classSort || ((x,y)=>String(x).localeCompare(String(y),'ru')))(a,b);
+const term1NoGrades = className => [1,10,11].includes(Number(String(className||'').match(/^(\\d+)/)?.[1]));
 async function term1Context(){
  const user=term1User(), authId=term1AuthId();
  if(!authId) throw new Error('Не удалось определить учётную запись пользователя.');
@@ -453,6 +454,9 @@ window.term1ClassChanged=function(){
  if(!ctx||!sel)return;
  const c=ctx.classes.find(x=>String(x.id)===String(sel.value));
  const count=document.getElementById('t1count');if(count)count.value=c?c.count:0;
+ const noGrades=term1NoGrades(c?.name);
+ const gradeFields=['t1excellent','t1excellentnames','t1good','t1goodone4','t1three','t1threeone3','t1fail','t1failnames','t1na','t1nadetails'];
+ gradeFields.forEach(id=>{const el=document.getElementById(id);if(!el)return;el.disabled=noGrades;if(noGrades)el.value='';else if(el.type==='number'&&el.value==='')el.value='0';});
  window.recalcTerm1Summary();
 };
 window.recalcTerm1Summary=function(){
@@ -461,13 +465,14 @@ window.recalcTerm1Summary=function(){
   const district=term1Districts.reduce((s,[k])=>s+term1N('t1_'+k),0);
   const ex=term1N('t1excellent'),good=term1N('t1good'),three=term1N('t1three'),fail=term1N('t1fail'),na=term1N('t1na');
   const grade=ex+good+three+fail+na,one4=term1N('t1goodone4'),one3=term1N('t1threeone3');
+  const ctx=window.__term1SummaryContext,selectedId=Number(document.getElementById('t1class')?.value),selected=ctx?.classes.find(x=>x.id===selectedId),noGrades=term1NoGrades(selected?.name);
   const d=document.getElementById('t1districtcheck'),g=document.getElementById('t1gradecheck');
   if(d)d.textContent='По микрорайонам: '+district+' из '+total+'. '+(district===total?'Сумма совпадает.':'Сумма должна совпадать с количеством учеников.');
-  if(g)g.textContent='По категориям: '+grade+' из '+total+'. '+(grade===total?'Сумма совпадает.':'Сумма должна совпадать с количеством учеников.')+(one4>good?' Количество с одной «4» больше числа хорошистов.':'')+(one3>three?' Количество с одной «3» больше числа троечников.':'');
+  if(g)g.textContent=noGrades?'Для этого класса выставление оценок за 1 триместр не предусмотрено.':'По категориям: '+grade+' из '+total+'. '+(grade===total?'Сумма совпадает.':'Сумма должна совпадать с количеством учеников.')+(one4>good?' Количество с одной «4» больше числа хорошистов.':'')+(one3>three?' Количество с одной «3» больше числа троечников.':'');
   const achievement=total?(ex+good+three)/total*100:0,quality=total?(ex+good)/total*100:0;
   const a=document.getElementById('t1achievement'),q=document.getElementById('t1quality');
-  if(a)a.value=term1Percent(achievement);if(q)q.value=term1Percent(quality);
-  return {total,district,grade,one4,one3};
+  if(a)a.value=noGrades?'':term1Percent(achievement);if(q)q.value=noGrades?'':term1Percent(quality);
+  return {total,district,grade,one4,one3,noGrades};
  }catch(e){const g=document.getElementById('t1gradecheck');if(g)g.textContent=e.message||String(e);return null;}
 };
 function term1Payload(){
@@ -484,8 +489,8 @@ window.saveTerm1Summary=async function(){
  try{
   const c=window.recalcTerm1Summary();if(!c)return alert('Проверьте числовые поля формы.');
   if(c.district!==c.total)return alert('Нельзя отправить отчёт: сумма по 8 микрорайонам не совпадает с количеством учеников.');
-  if(c.grade!==c.total)return alert('Нельзя отправить отчёт: сумма пяти категорий не совпадает с количеством учеников.');
-  if(c.one4>term1N('t1good')||c.one3>term1N('t1three'))return alert('Количество учеников с одной «4» или одной «3» не может превышать соответствующую категорию.');
+  if(!c.noGrades&&c.grade!==c.total)return alert('Нельзя отправить отчёт: сумма пяти категорий не совпадает с количеством учеников.');
+  if(!c.noGrades&&(c.one4>term1N('t1good')||c.one3>term1N('t1three')))return alert('Количество учеников с одной «4» или одной «3» не может превышать соответствующую категорию.');
   const p=term1Payload();if(!p.teacher_name)throw new Error('Не удалось определить ФИО классного руководителя.');
   const old=await window.sbRest('term1_class_summaries','select=id&class_id=eq.'+p.class_id+'&academic_year_id=eq.'+p.academic_year_id);
   if(old?.length)await window.sbMutate('term1_class_summaries','PATCH','id=eq.'+encodeURIComponent(old[0].id),p);
@@ -513,10 +518,9 @@ function term1Headers(){
  'Неуспевающие — количество','ФИ неуспевающих','Неаттестованные — количество','ФИ, предмет и причина','Успеваемость','Качество','Достижения класса'];
 }
 function term1Row(r){
- const rate=term1Rate(r);
+ const rate=term1Rate(r),noGrades=term1NoGrades(r.class_name);
  return [r.class_name,r.student_count,r.teacher_name,...term1Districts.map(x=>r[x[0]]),
- r.excellent_count,r.excellent_names,r.good_count,r.good_one_four_count,r.satisfactory_count,r.satisfactory_one_three_count,
- r.failing_count,r.failing_names,r.not_assessed_count,r.not_assessed_details,term1Percent(rate.achievement),term1Percent(rate.quality),r.achievements_text||''];
+ ...(noGrades?['','','','','','','','','','','','']:[r.excellent_count,r.excellent_names,r.good_count,r.good_one_four_count,r.satisfactory_count,r.satisfactory_one_three_count,r.failing_count,r.failing_names,r.not_assessed_count,r.not_assessed_details,term1Percent(rate.achievement),term1Percent(rate.quality)]),r.achievements_text||''];
 }
 window.viewTerm1Summaries=async function(){
  if((term1User().roleKeys||[]).includes('guest'))return alert('Гостям просмотр отчёта недоступен.');
