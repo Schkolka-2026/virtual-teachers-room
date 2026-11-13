@@ -629,7 +629,7 @@ window.loadTerm1SubjectQuality=async function(){
   const q='select=*&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+c+'&subject=eq.'+encodeURIComponent(s)+'&subgroup=eq.'+g+'&teacher_user_id=eq.'+encodeURIComponent(term1SQAuth());
   const rows=await window.sbRest('term1_subject_quality_reports',q),r=rows?.[0],ids={students_count:'total',grade_5:'g5',grade_4:'g4',grade_3:'g3',grade_2:'g2',grade_na:'gna',total_hours_plan:'hours_plan',total_hours_fact:'hours_fact'};
   Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById('tsq_'+id);if(el)el.value=r?.[k]??'';});
-  term1SQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tsq_'+p[1]+'_'+t);if(el)el.value=r?.[p[1]+'_'+t]??'';}));
+  term1SQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tsq_'+p[1]+'_'+t),dbKey=p[3]||p[1];if(el)el.value=r?.[dbKey+'_'+t]??'';}));
   window.term1SQRecalc();if(msg)msg.textContent=r?'Загружен ранее сохраненный отчет. После изменений нажмите «Сохранить отчет».':'Сохраненного отчета для выбранных параметров пока нет.';
  }catch(e){console.error(e);if(msg)msg.textContent='Не удалось загрузить данные: '+(e.message||e);}
 };
@@ -652,7 +652,7 @@ window.editTerm1SubjectQuality=async function(){
   }
   const ids={students_count:'total',grade_5:'g5',grade_4:'g4',grade_3:'g3',grade_2:'g2',grade_na:'gna',total_hours_plan:'hours_plan',total_hours_fact:'hours_fact'};
   Object.entries(ids).forEach(([key,id])=>{const el=document.getElementById('tsq_'+id);if(el)el.value=r[key]??'';});
-  term1SQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tsq_'+p[1]+'_'+t);if(el)el.value=r[p[1]+'_'+t]??'';}));
+  term1SQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tsq_'+p[1]+'_'+t),dbKey=p[3]||p[1];if(el)el.value=r[dbKey+'_'+t]??'';}));
   window.term1SQRecalc();
   if(msg)msg.textContent='Сохраненный отчет загружен. Измените нужные значения и нажмите «Сохранить и отправить» — запись будет обновлена.';
  }catch(e){
@@ -768,11 +768,12 @@ window.exportTerm1SubjectQuality=async function(){
    const a=makeRow(r,r.subject,cls,Number(r.subgroup||0));a[1]=r.subject;a[0]='Доп.';
    data.push(a);
   });
+  const header=(entries)=>{const a=Array(46).fill('');entries.forEach(([col,value])=>a[col]=value);return a;};
   const h=[
-   ['№','Предметы уч.пл.','Класс по парал.','Учитель','Всего детей в классе','Кол-во «5»','Кол-во «4»','Кол-во «3»','Кол-во «2»','Кол-во «н/а»','Успеваемость','Качество','Кол-во часов за 1 триместр','','В т.ч. выполнение практической части программ по следующим предметам'],
-   ['','','','','','','','','','','','','','','Литература','Русский язык','Математика — кол-во часов к/р','Геометрия — кол-во часов к/р','Химия','Физика','Биология','География','История','Английский язык'],
-   ['','','','','','','','','','','','','','', 'Сочинения','Диктанты','Сочинения','Изложения','Контрольные работы','Контрольные работы','Практические работы','Лабораторные работы','Контрольные работы','Практические работы','Лабораторные работы','Контрольные работы','Лабораторные работы','Практические работы','Контрольные работы','Контрольные работы','Контрольные работы'],
-   ['','','','','','','','','','','','','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт']
+   header([[0,'№'],[1,'Предметы уч.пл.'],[2,'Класс по парал.'],[3,'Учитель'],[4,'Всего детей в классе'],[5,'Кол-во «5»'],[6,'Кол-во «4»'],[7,'Кол-во «3»'],[8,'Кол-во «2»'],[9,'Кол-во «н/а»'],[10,'Успеваемость'],[11,'Качество'],[12,'Кол-во часов за 1 триместр'],[14,'В т.ч. выполнение практической части программ по следующим предметам']]),
+   header([[14,'Литература'],[16,'Русский язык'],[22,'Математика — кол-во часов к/р'],[24,'Геометрия — кол-во часов к/р'],[26,'Химия'],[32,'Физика'],[38,'Биология'],[40,'География'],[42,'История'],[44,'Английский язык']]),
+   header([[14,'Сочинения'],[16,'Диктанты'],[18,'Сочинения'],[20,'Изложения'],[22,'Контрольные работы'],[24,'Контрольные работы'],[26,'Практические работы'],[28,'Лабораторные работы'],[30,'Контрольные работы'],[32,'Практические работы'],[34,'Лабораторные работы'],[36,'Контрольные работы'],[38,'Лабораторные работы'],[40,'Практические работы'],[42,'Контрольные работы'],[44,'Контрольные работы']]),
+   header([[12,'План'],[13,'Факт'],...[...Array(16)].flatMap((_,i)=>[[14+i*2,'План'],[15+i*2,'Факт']])])
   ];
   const ws=window.XLSX.utils.aoa_to_sheet(h.concat(data));
   ws['!merges']=[
