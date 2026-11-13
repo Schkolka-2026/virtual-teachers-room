@@ -564,7 +564,10 @@ const term1SQSubjects=['математика','УК Алгебра','УК Гео
 const term1SQPairs=[
  ['Литература','literature_essays','Сочинения'],
  ['русский язык','russian_dictations','Диктанты'],['русский язык','russian_essays','Сочинения'],['русский язык','russian_expositions','Изложения'],
- ['математика','math_tests','Контрольные работы'],['УК Геометрия','geometry_tests','Контрольные работы'],
+ ['математика','math_tests','Контрольные работы'],
+ ['УК Алгебра','algebra_tests','Количество часов к/р','math_tests'],
+ ['УК Вероятность','probability_tests','Количество часов к/р','math_tests'],
+ ['УК Геометрия','geometry_tests','Контрольные работы'],
  ['химия','chemistry_practicals','Практические работы'],['химия','chemistry_labs','Лабораторные работы'],['химия','chemistry_tests','Контрольные работы'],
  ['Физика','physics_practicals','Практические работы'],['Физика','physics_labs','Лабораторные работы'],['Физика','physics_tests','Контрольные работы'],
  ['биология','biology_labs','Лабораторные работы'],['география','geography_practicals','Практические работы'],
@@ -667,7 +670,10 @@ window.saveTerm1SubjectQuality=async function(){
   if([g5,g4,g3,g2,gna].some(x=>x===null))throw new Error('Заполните количество оценок «5», «4», «3», «2» и «н/а».');
   const p={academic_year_id:ctx.year,class_id:c,subject:s,subgroup:g,teacher_user_id:auth,teacher_employee_id:Number(u.id)||null,teacher_name:String(u.name||'').trim(),students_count:t,grade_5:g5,grade_4:g4,grade_3:g3,grade_2:g2,grade_na:gna,total_hours_plan:term1SQVal('hours_plan'),total_hours_fact:term1SQVal('hours_fact'),updated_at:new Date().toISOString()};
   // Эти два показателя рассчитываются автоматически в Supabase (generated columns).
-  term1SQPairs.forEach(x=>{p[x[1]+'_plan']=x[0]===s?term1SQVal(x[1]+'_plan'):null;p[x[1]+'_fact']=x[0]===s?term1SQVal(x[1]+'_fact'):null;});
+  const dbPracticalKeys=[...new Set(term1SQPairs.map(x=>x[3]||x[1]))];
+  dbPracticalKeys.forEach(k=>{p[k+'_plan']=null;p[k+'_fact']=null;});
+  const activePractical=term1SQPairs.find(x=>x[0]===s);
+  if(activePractical){const dbKey=activePractical[3]||activePractical[1];p[dbKey+'_plan']=term1SQVal(activePractical[1]+'_plan');p[dbKey+'_fact']=term1SQVal(activePractical[1]+'_fact');}
   const q='select=id&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+c+'&subject=eq.'+encodeURIComponent(s)+'&subgroup=eq.'+g+'&teacher_user_id=eq.'+encodeURIComponent(auth),old=await window.sbRest('term1_subject_quality_reports',q);
   if(old?.length)await window.sbMutate('term1_subject_quality_reports','PATCH','id=eq.'+old[0].id,p);else await window.sbMutate('term1_subject_quality_reports','POST','',p);
   const m=document.getElementById('tsq_message');if(m)m.textContent='Отчет сохранен. Повторное сохранение обновит запись, не создавая дубликат.';alert('Отчет предметника сохранен.');
@@ -687,22 +693,102 @@ window.exportTerm1SubjectQuality=async function(){
  if(!term1SQManager())return alert('Выгрузка доступна только директору, заместителям и администратору.');
  try{
   const ctx=window.__term1SQ,year=ctx?.year??await window.getCurrentAcademicYearId();
-  const result=await Promise.all([window.sbRest('term1_subject_quality_reports','select=*&academic_year_id=eq.'+year),window.sbRest('classes','select=id,grade,letter&academic_year_id=eq.'+year)]);
-  const rows=result[0]||[],classes=result[1]||[];if(!rows.length)return alert('Нет данных для выгрузки.');if(!window.XLSX)throw new Error('Библиотека Excel не загружена.');
-  const cm=new Map(classes.map(x=>[Number(x.id),String(x.grade||'')+String(x.letter||'')])),order=new Map(term1SQSubjects.map((s,i)=>[s,i]));
-  rows.sort((a,b)=>(order.get(a.subject)||0)-(order.get(b.subject)||0)||String(cm.get(Number(a.class_id))||'').localeCompare(String(cm.get(Number(b.class_id))||''),'ru')||Number(a.subgroup)-Number(b.subgroup));
-  const col={literature_essays:14,russian_dictations:16,russian_essays:18,russian_expositions:20,math_tests:22,geometry_tests:24,chemistry_practicals:26,chemistry_labs:28,chemistry_tests:30,physics_practicals:32,physics_labs:34,physics_tests:36,biology_labs:38,geography_practicals:40,history_tests:42,english_tests:44};
-  const data=rows.map((r,i)=>{const a=Array(46).fill('');a[0]=i+1;a[1]=r.subject;a[2]=(cm.get(Number(r.class_id))||'')+(r.subgroup?'-'+r.subgroup:'');a[3]=r.teacher_name;a[4]=r.students_count;a[5]=r.grade_5;a[6]=r.grade_4;a[7]=r.grade_3;a[8]=r.grade_2;a[9]=r.grade_na;a[10]=Number(r.achievement_percent||0)/100;a[11]=Number(r.quality_percent||0)/100;a[12]=r.total_hours_plan??'';a[13]=r.total_hours_fact??'';Object.entries(col).forEach(([k,j])=>{a[j]=r[k+'_plan']??'';a[j+1]=r[k+'_fact']??'';});return a;});
-  const h=[['№','Предметы уч.пл.','Класс по парал.','учитель','всего детей в классе','кол-во "5"','кол-во "4"','кол-во "3"','кол-во "2"','кол-во "н/а"','Успеваемость','Качество','Кол-во час за 1 триместр','','В т.ч. выполнение практической части программ по следующим предметам'],
-   ['','','','','','','','','','','','','','','Лит. кол-во сочин','','Рус.яз. Кол-во часов по к/р','','','','Матем кол-во час по к/р','','геометрия кол-во час. по к/р','','Химия','','','','Физика','','','','Биология','','География','','История','','английский язык',''],
-   ['','','','','','','','','','','','','','','','','Дикт','','Соч','','Изл','','','','Пр','','Л','','К','','Пр','','Л','','К','','Л','','Пр','','к/р','','к/р',''],
-   ['','','','','','','','','','','','','','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф','Пл','Ф']];
-  const ws=window.XLSX.utils.aoa_to_sheet(h.concat(data));ws['!merges']=[];
-  ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(x=>{const n=x.charCodeAt(0)-65;ws['!merges'].push({s:{r:0,c:n},e:{r:3,c:n}});});
-  [[12,13,0,2],[14,43,0,0],[14,15,1,2],[16,21,1,1],[22,23,1,1],[24,25,1,1],[26,31,1,1],[32,37,1,1],[38,39,1,1],[40,41,1,1],[42,43,1,1],[44,45,0,0],[44,45,1,2]].forEach(x=>ws['!merges'].push({s:{r:x[2],c:x[0]},e:{r:x[3],c:x[1]}}));
-  data.forEach((r,i)=>{const row=i+4;['K','L'].forEach(col=>{const cell=ws[col+(row+1)];if(cell)cell.z='0.00%';});});
-  ws['!cols']=Array.from({length:46},(_,i)=>({wch:i<4?19:i<12?14:9}));
-  const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Качество 5-9');window.XLSX.writeFile(wb,'Качество_отчет_предметника_5-9.xlsx');
+  const [saved,classes]=await Promise.all([
+   window.sbRest('term1_subject_quality_reports','select=*&academic_year_id=eq.'+year+'&order=subject.asc,class_id.asc,subgroup.asc&limit=5000'),
+   window.sbRest('classes','select=id,grade,letter&academic_year_id=eq.'+year+'&limit=1000')
+  ]);
+  if(!window.XLSX)throw new Error('Библиотека Excel не загружена.');
+  const norm=v=>String(v??'').trim().toLowerCase().replace(/\s+/g,' ');
+  const classById=new Map((classes||[]).map(x=>[Number(x.id),String(x.grade||'')+String(x.letter||'')]));
+  const blocks=[
+   {n:1,s:'математика',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м'},
+   {n:2,s:'УК Алгебра',c:'7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:3,s:'УК Геометрия',c:'7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:'',s:'УК Вероятность',c:'7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:4,s:'русский язык',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:5,s:'Литература',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:6,s:'Английский язык',split:true,c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6л 6м 6н 6о 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9д 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:7,s:'Информатика',split:true,c:'7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:8,s:'История',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:9,s:'Обществознание',c:'8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:10,s:'география',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:11,s:'Физика',c:'7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:12,s:'химия',c:'8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:13,s:'биология',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:14,s:'музыка',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю'},
+   {n:15,s:'ИЗО',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю'},
+   {n:16,s:'труд',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:17,s:'ОБЗР',c:'8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:18,s:'Физическая культура',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:20,s:'УК "Основы смыслового чтения"',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м 7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю 9а 9б 9в 9г 9д 9и 9с 9э 9ю'},
+   {n:21,s:'УК "Практикум по геометрии"',c:'7а 7б 7в 7г 7д 7и 7л 7с 7п 7э 7ю 8а 8б 8в 8г 8и 8л 8с 8п 8э 8ю'},
+   {n:22,s:'Модуль "Легкая атлетика"',c:'5а 5б 5в 5г 5д 5е 5ж 5з 5и 5к 5л 5м 5н 6а 6б 6в 6г 6д 6е 6ж 6з 6и 6к 6м'}
+  ];
+  const groups=new Map();
+  (saved||[]).forEach(r=>{
+   const cls=classById.get(Number(r.class_id))||'';
+   const key=norm(r.subject)+'|'+norm(cls)+'|'+Number(r.subgroup||0);
+   if(!groups.has(key))groups.set(key,[]);
+   groups.get(key).push(r);
+  });
+  const used=new Set(),data=[],blockMerges=[];
+  const practicalCols={literature_essays:14,russian_dictations:16,russian_essays:18,russian_expositions:20,math_tests:22,geometry_tests:24,chemistry_practicals:26,chemistry_labs:28,chemistry_tests:30,physics_practicals:32,physics_labs:34,physics_tests:36,biology_labs:38,geography_practicals:40,history_tests:42,english_tests:44};
+  const makeRow=(r,subject,cls,subgroup)=>{
+   const a=Array(46).fill('');
+   a[2]=cls+(subgroup?'-'+subgroup:'');
+   if(r){
+    used.add(Number(r.id));a[3]=r.teacher_name||'';a[4]=r.students_count??'';a[5]=r.grade_5??'';a[6]=r.grade_4??'';a[7]=r.grade_3??'';a[8]=r.grade_2??'';a[9]=r.grade_na??'';
+    a[10]=r.achievement_percent==null?'':Number(r.achievement_percent)/100;a[11]=r.quality_percent==null?'':Number(r.quality_percent)/100;
+    a[12]=r.total_hours_plan??'';a[13]=r.total_hours_fact??'';
+    Object.entries(practicalCols).forEach(([key,col])=>{a[col]=r[key+'_plan']??'';a[col+1]=r[key+'_fact']??'';});
+   }
+   return a;
+  };
+  blocks.forEach(block=>{
+   const first=data.length,classesList=block.c.split(/\s+/).filter(Boolean);
+   classesList.forEach(cls=>{
+    const subgroups=block.split?[1,2]:[0];
+    subgroups.forEach(subgroup=>{
+     const key=norm(block.s)+'|'+norm(cls)+'|'+subgroup;
+     const list=groups.get(key)||[];
+     const r=list.shift()||null;
+     data.push(makeRow(r,block.s,cls,subgroup));
+    });
+   });
+   const last=data.length-1;
+   if(last>first)blockMerges.push({s:{r:first+4,c:0},e:{r:last+4,c:0}},{s:{r:first+4,c:1},e:{r:last+4,c:1}});
+   const top=data[first];if(top){top[0]=block.n;top[1]=block.s;}
+  });
+  // Все ранее сохраненные записи, которым не нашлось строки в шаблоне, также включаем в конец выгрузки.
+  const extras=[];
+  groups.forEach((list,key)=>list.forEach(r=>extras.push(r)));
+  (saved||[]).filter(r=>!used.has(Number(r.id))).forEach(r=>{
+   if(extras.some(x=>Number(x.id)===Number(r.id)))return;
+   const cls=classById.get(Number(r.class_id))||'Класс не найден';
+   const a=makeRow(r,r.subject,cls,Number(r.subgroup||0));a[1]=r.subject;a[0]='Доп.';
+   data.push(a);
+  });
+  const h=[
+   ['№','Предметы уч.пл.','Класс по парал.','Учитель','Всего детей в классе','Кол-во «5»','Кол-во «4»','Кол-во «3»','Кол-во «2»','Кол-во «н/а»','Успеваемость','Качество','Кол-во часов за 1 триместр','','В т.ч. выполнение практической части программ по следующим предметам'],
+   ['','','','','','','','','','','','','','','Литература','Русский язык','Математика — кол-во часов к/р','Геометрия — кол-во часов к/р','Химия','Физика','Биология','География','История','Английский язык'],
+   ['','','','','','','','','','','','','','', 'Сочинения','Диктанты','Сочинения','Изложения','Контрольные работы','Контрольные работы','Практические работы','Лабораторные работы','Контрольные работы','Практические работы','Лабораторные работы','Контрольные работы','Лабораторные работы','Практические работы','Контрольные работы','Контрольные работы','Контрольные работы'],
+   ['','','','','','','','','','','','','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт','План','Факт']
+  ];
+  const ws=window.XLSX.utils.aoa_to_sheet(h.concat(data));
+  ws['!merges']=[
+   ...'ABCDEFGHIJKL'.split('').map(x=>{const n=x.charCodeAt(0)-65;return {s:{r:0,c:n},e:{r:3,c:n}};}),
+   {s:{r:0,c:12},e:{r:2,c:13}},{s:{r:0,c:14},e:{r:0,c:45}},
+   ...[[14,15],[16,21],[22,23],[24,25],[26,31],[32,37],[38,39],[40,41],[42,43],[44,45]].map(([s,e])=>({s:{r:1,c:s},e:{r:1,c:e}})),
+   ...Array.from({length:16},(_,i)=>({s:{r:2,c:14+i*2},e:{r:2,c:15+i*2}})),
+   ...blockMerges
+  ];
+  data.forEach((r,i)=>{const row=i+5;['K','L'].forEach(col=>{const cell=ws[col+row];if(cell&&cell.v!=='')cell.z='0.00%';});});
+  ws['!cols']=Array.from({length:46},(_,i)=>({wch:i<4?18:i<12?14:8}));
+  ws['!freeze']={xSplit:4,ySplit:4};
+  const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Качество 5-9');
+  window.XLSX.writeFile(wb,'Качество_отчет_предметника_5-9.xlsx');
+  const filled=used.size,missing=data.length-filled;
+  alert('Выгрузка сформирована. Заполнено строк: '+filled+'. Пустых строк по шаблону: '+Math.max(0,missing)+'. Все сохраненные записи включены.');
  }catch(e){console.error(e);alert('Не удалось выгрузить Excel: '+(e.message||e));}
 };
 /* END TERM1_SUBJECT_QUALITY_FORM_V1 */
