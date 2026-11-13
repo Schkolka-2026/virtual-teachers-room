@@ -926,19 +926,19 @@ window.exportTerm1PrimaryQuality=async function(){
   ];
   const data=[],merges=[],used=new Set();
   const makeRow=(r,cls)=>{
-   const a=Array(26).fill('');a[2]=cls.name;
+   const a=Array(27).fill('');a[2]=cls.name;
    if(r){
-    used.add(Number(r.id));a[3]=r.students_count??'';a[4]=r.grade_5??'';a[5]=r.grade_4??'';a[6]=r.grade_3??'';a[7]=r.grade_2??'';a[8]=r.grade_na??'';
-    a[9]=r.achievement_percent==null?'':Number(r.achievement_percent)/100;a[10]=r.quality_percent==null?'':Number(r.quality_percent)/100;
-    a[11]=r.total_hours_plan??'';a[12]=r.total_hours_fact??'';
-    a[14]=r.literature_essays_plan??'';a[15]=r.literature_essays_fact??'';
-    a[16]=r.russian_dictations_plan??'';a[17]=r.russian_dictations_fact??'';
-    a[18]=r.russian_essays_plan??'';a[19]=r.russian_essays_fact??'';
-    a[20]=r.russian_expositions_plan??'';a[21]=r.russian_expositions_fact??'';
-    a[22]=r.math_tests_plan??'';a[23]=r.math_tests_fact??'';
-    a[24]=r.english_tests_plan??'';a[25]=r.english_tests_fact??'';
+    used.add(Number(r.id));a[3]=r.teacher_name||'';a[4]=r.students_count??'';a[5]=r.grade_5??'';a[6]=r.grade_4??'';a[7]=r.grade_3??'';a[8]=r.grade_2??'';a[9]=r.grade_na??'';
+    a[10]=r.achievement_percent==null?'':Number(r.achievement_percent)/100;a[11]=r.quality_percent==null?'':Number(r.quality_percent)/100;
+    a[12]=r.total_hours_plan??'';a[13]=r.total_hours_fact??'';
+    a[15]=r.literature_essays_plan??'';a[16]=r.literature_essays_fact??'';
+    a[17]=r.russian_dictations_plan??'';a[18]=r.russian_dictations_fact??'';
+    a[19]=r.russian_essays_plan??'';a[20]=r.russian_essays_fact??'';
+    a[21]=r.russian_expositions_plan??'';a[22]=r.russian_expositions_fact??'';
+    a[23]=r.math_tests_plan??'';a[24]=r.math_tests_fact??'';
+    a[25]=r.english_tests_plan??'';a[26]=r.english_tests_fact??'';
    }
-   if(r?.total_hours_plan>0&&r?.total_hours_fact!=null)a[13]=Number(r.total_hours_fact)/Number(r.total_hours_plan);
+   if(r?.total_hours_plan>0&&r?.total_hours_fact!=null)a[14]=Number(r.total_hours_fact)/Number(r.total_hours_plan);
    return a;
   };
   blocks.forEach(block=>{
@@ -947,24 +947,24 @@ window.exportTerm1PrimaryQuality=async function(){
    const last=data.length-1;
    if(last>=first){merges.push({s:{r:first+4,c:0},e:{r:last+4,c:0}},{s:{r:first+4,c:1},e:{r:last+4,c:1}});data[first][0]=block.n;data[first][1]=block.s;}
   });
-  const header=entries=>{const a=Array(26).fill('');entries.forEach(([c,v])=>a[c]=v);return a;};
+  const header=entries=>{const a=Array(27).fill('');entries.forEach(([c,v])=>a[c]=v);return a;};
   const h=[
-   header([[0,'№'],[1,'Предметы учебного плана'],[2,'Класс по параллелям'],[3,'Всего детей в классе'],[4,'Количество «5»'],[5,'Количество «4»'],[6,'Количество «3»'],[7,'Количество «2»'],[8,'Количество «н/а»'],[9,'Успеваемость'],[10,'Качество'],[11,'Количество часов за 1 триместр'],[14,'Литературное чтение'],[16,'Русский язык'],[22,'Математика'],[24,'Английский язык']]),
-   header([[11,'План'],[12,'Факт'],[13,'% выполнения'],[14,'Количество сочинений'],[16,'Диктант'],[18,'Сочинение'],[20,'Изложение'],[22,'Контрольные работы'],[24,'Контрольные работы']]),
-   header([[14,'План'],[15,'Факт'],[16,'План'],[17,'Факт'],[18,'План'],[19,'Факт'],[20,'План'],[21,'Факт'],[22,'План'],[23,'Факт'],[24,'План'],[25,'Факт']]),
+   header([[0,'№'],[1,'Предметы учебного плана'],[2,'Класс по параллелям'],[3,'Учитель'],[4,'Всего детей в классе'],[5,'Количество «5»'],[6,'Количество «4»'],[7,'Количество «3»'],[8,'Количество «2»'],[9,'Количество «н/а»'],[10,'Успеваемость'],[11,'Качество'],[12,'Количество часов за 1 триместр'],[15,'Литературное чтение'],[17,'Русский язык'],[23,'Математика'],[25,'Английский язык']]),
+   header([[12,'План'],[13,'Факт'],[14,'% выполнения'],[15,'Количество сочинений'],[17,'Диктант'],[19,'Сочинение'],[21,'Изложение'],[23,'Контрольные работы'],[25,'Контрольные работы']]),
+   header([[15,'План'],[16,'Факт'],[17,'План'],[18,'Факт'],[19,'План'],[20,'Факт'],[21,'План'],[22,'Факт'],[23,'План'],[24,'Факт'],[25,'План'],[26,'Факт']]),
    header([])
   ];
   const ws=window.XLSX.utils.aoa_to_sheet(h.concat(data));
   ws['!merges']=[
-   ...Array.from({length:11},(_,c)=>({s:{r:0,c},e:{r:3,c}})),
+   ...Array.from({length:12},(_,c)=>({s:{r:0,c},e:{r:3,c}})),{s:{r:0,c:12},e:{r:0,c:14}}, 
    {s:{r:0,c:11},e:{r:0,c:13}},
-   ...[[14,15],[16,21],[22,23],[24,25]].map(([s,e])=>({s:{r:0,c:s},e:{r:0,c:e}})),
-   ...[[14,15],[16,17],[18,19],[20,21],[22,23],[24,25]].map(([s,e])=>({s:{r:1,c:s},e:{r:1,c:e}})),
+   ...[[15,16],[17,22],[23,24],[25,26]].map(([s,e])=>({s:{r:0,c:s},e:{r:0,c:e}})), 
+   ...[[15,16],[17,18],[19,20],[21,22],[23,24],[25,26]].map(([s,e])=>({s:{r:1,c:s},e:{r:1,c:e}})), 
    ...merges
   ];
-  data.forEach((r,i)=>{const row=i+5;['J','K','N'].forEach(col=>{const cell=ws[col+row];if(cell&&cell.v!=='')cell.z='0.00%';});});
-  ws['!cols']=Array.from({length:26},(_,i)=>({wch:i<3?23:i<11?14:12}));
-  ws['!freeze']={xSplit:3,ySplit:4};
+  data.forEach((r,i)=>{const row=i+5;['J','K','O'].forEach(col=>{const cell=ws[col+row];if(cell&&cell.v!=='')cell.z='0.00%';});});
+  ws['!cols']=Array.from({length:27},(_,i)=>({wch:i===3?25:i<3?23:i<12?14:12}));
+  ws['!freeze']={xSplit:4,ySplit:4};
   const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Качество 1-4');
   window.XLSX.writeFile(wb,'Качество_отчет_предметника_1-4.xlsx');
   alert('Выгрузка сформирована. Строк шаблона: '+data.length+'. Сохраненных отчетов в шаблоне: '+used.size+'.');
