@@ -794,6 +794,186 @@ window.exportTerm1SubjectQuality=async function(){
 };
 /* END TERM1_SUBJECT_QUALITY_FORM_V1 */
 
+
+/* TERM1_PRIMARY_QUALITY_FORM_V1 */
+const term1PQSubjects=['Математика','Русский язык','Литературное чтение','ОРКСЭ','ИЗО','Окружающий мир','Физическая культура','Технология','Музыка','Английский язык'];
+const term1PQPairs=[
+ ['Литературное чтение','literature_essays','Количество сочинений'],
+ ['Русский язык','russian_dictations','Диктанты'],
+ ['Русский язык','russian_essays','Сочинения'],
+ ['Русский язык','russian_expositions','Изложения'],
+ ['Математика','math_tests','Контрольные работы'],
+ ['Английский язык','english_tests','Контрольные работы']
+];
+const term1PQUser=()=>window.App?.state?.currentUser||{};
+const term1PQAuth=()=>term1PQUser().authUserId||term1PQUser().auth_user_id||null;
+const term1PQManager=()=>['admin','director','deputy'].some(r=>(term1PQUser().roleKeys||[]).includes(r));
+const term1PQEsc=v=>(window.escapeHtml||(x=>String(x??'')))(v);
+function term1PQField(id,label){return '<label class="term1-sq-field"><span>'+label+'</span><input id="tpq_'+id+'" type="number" min="0" step="1" inputmode="numeric" oninput="term1PQRecalc()"></label>';}
+function term1PQVal(id){const v=String(document.getElementById('tpq_'+id)?.value??'').trim();if(!v)return null;const n=Number(v);if(!Number.isInteger(n)||n<0)throw new Error('В числовых полях допускаются только целые неотрицательные числа.');return n;}
+window.openTerm1PrimaryQuality=async function(){
+ try{
+  const user=term1PQUser(),auth=term1PQAuth();if(!auth)throw new Error('Не удалось определить учетную запись пользователя.');
+  if((user.roleKeys||[]).includes('guest'))return alert('Гостям заполнение отчета недоступно.');
+  const year=typeof window.getCurrentAcademicYearId==='function'?await window.getCurrentAcademicYearId():null;if(year==null)throw new Error('Не удалось определить текущий учебный год.');
+  const rows=await window.sbRest('classes','select=id,grade,letter,student_count&is_active=eq.true&academic_year_id=eq.'+year+'&grade=gte.1&grade=lte.4');
+  const classes=(rows||[]).map(x=>({id:Number(x.id),grade:Number(x.grade),name:String(x.grade||'')+String(x.letter||''),count:Number(x.student_count)||0})).filter(x=>x.name).sort((a,b)=>(window.classSort||((x,y)=>String(x).localeCompare(String(y),'ru')))(a.name,b.name));
+  if(classes.length!==42)console.warn('В активных классах 1–4 найдено строк:',classes.length,'ожидалось 42.');
+  if(!classes.length)throw new Error('Не найдены активные классы 1–4.');
+  window.__term1PQ={year:Number(year),classes,user};
+  const subjects=term1PQSubjects.map(s=>'<option value="'+term1PQEsc(s)+'">'+term1PQEsc(s)+'</option>').join('');
+  const classOptions=classes.map(x=>'<option value="'+x.id+'">'+term1PQEsc(x.name)+'</option>').join('');
+  const grades=[['total','Всего детей'],['g5','Оценок «5»'],['g4','Оценок «4»'],['g3','Оценок «3»'],['g2','Оценок «2»'],['gna','«н/а»']].map(x=>term1PQField(x[0],x[1])).join('');
+  const colors={'Литературное чтение':'#f5eef8','Русский язык':'#edf4fc','Математика':'#eef6ef','Английский язык':'#f1f0fb'};
+  const practical=term1PQPairs.map(p=>'<div class="term1-sq-pair" data-pq-subject="'+term1PQEsc(p[0])+'" style="background:'+(colors[p[0]]||'#f6f7f6')+'"><strong>'+term1PQEsc(p[2])+'</strong>'+term1PQField(p[1]+'_plan','План')+term1PQField(p[1]+'_fact','Факт')+'</div>').join('');
+  const body='<div class="card term1-sq-card"><h3>Качество (отчет предметника) 1–4 кл</h3>'+
+   '<p class="muted">Выберите предмет и класс, заполните показатели и сохраните отчет. Для английского языка доступны классы со 2-го по 4-й.</p>'+
+   '<div class="term1-sq-selects"><label class="term1-sq-field"><span>Предмет</span><select id="tpq_subject" onchange="term1PQSubjectChanged()">'+subjects+'</select></label>'+
+   '<label class="term1-sq-field"><span>Класс</span><select id="tpq_class" onchange="loadTerm1PrimaryQuality()">'+classOptions+'</select></label>'+
+   '<label class="term1-sq-field"><span>Учитель</span><input id="tpq_teacher" readonly value="'+term1PQEsc(user.name||'')+'"></label></div>'+
+   '<section class="term1-sq-block term1-sq-grades"><h4>Результаты успеваемости</h4><div class="term1-sq-grade-grid">'+grades+'</div>'+
+   '<div class="term1-sq-rates"><div><span>Успеваемость</span><strong id="tpq_achievement">—</strong></div><div><span>Качество</span><strong id="tpq_quality">—</strong></div></div></section>'+
+   '<section class="term1-sq-block term1-sq-hours"><h4>Количество часов за 1 триместр</h4><div class="term1-sq-pair"><strong>Всего часов</strong>'+term1PQField('hours_plan','План')+term1PQField('hours_fact','Факт')+'</div><p class="muted">Процент выполнения рассчитывается при выгрузке в Excel.</p></section>'+
+   '<section class="term1-sq-block term1-sq-practical"><h4>Практическая часть программы</h4><div class="term1-sq-pair-grid">'+practical+'</div><p class="muted">Отображаются показатели только выбранного предмета. Необязательные поля можно оставить пустыми.</p></section>'+
+   '<div class="term1-sq-actions"><button class="btn green" onclick="saveTerm1PrimaryQuality()">Сохранить и отправить</button><button class="btn" onclick="editTerm1PrimaryQuality()">Редактировать сохраненный отчет</button>'+
+   (term1PQManager()?'<button class="btn" onclick="exportTerm1PrimaryQuality()">Скачать Excel</button>':'')+
+   '</div><div id="tpq_message" class="muted"></div></div>';
+  if(!document.getElementById('term1PrimaryQualityStyles')){
+   const st=document.createElement('style');st.id='term1PrimaryQualityStyles';st.textContent='.term1-pq-card{max-width:1100px}#tpq_teacher{background:#f7f8f7}.term1-sq-card:has(#tpq_subject) .term1-sq-selects{grid-template-columns:1.1fr .8fr 1.2fr}@media(max-width:850px){.term1-sq-card:has(#tpq_subject) .term1-sq-selects{grid-template-columns:1fr 1fr}}@media(max-width:560px){.term1-sq-card:has(#tpq_subject) .term1-sq-selects{grid-template-columns:1fr}}';document.head.appendChild(st);
+  }
+  window.shell('Отчеты за 1 триместр','Качество (отчет предметника) 1–4 кл',body);
+  window.term1PQSubjectChanged();
+ }catch(e){console.error(e);alert('Не удалось открыть форму отчета 1–4 классов: '+(e.message||e));}
+};
+window.term1PQSubjectChanged=function(){
+ const s=document.getElementById('tpq_subject')?.value||'';
+ document.querySelectorAll('[data-pq-subject]').forEach(x=>x.style.display=x.dataset.pqSubject===s?'grid':'none');
+ const select=document.getElementById('tpq_class');if(select){
+  const current=select.value;
+  [...select.options].forEach(o=>{const cl=window.__term1PQ?.classes.find(x=>String(x.id)===o.value);o.hidden=s==='Английский язык'&&cl?.grade===1;});
+  if(select.selectedOptions[0]?.hidden){const first=[...select.options].find(o=>!o.hidden);if(first)select.value=first.value;}
+ }
+ window.term1PQRecalc();window.loadTerm1PrimaryQuality();
+};
+window.term1PQRecalc=function(){
+ const v=id=>Number(document.getElementById('tpq_'+id)?.value)||0,t=v('total'),a=t?(v('g5')+v('g4')+v('g3'))/t*100:0,q=t?(v('g5')+v('g4'))/t*100:0;
+ const x=document.getElementById('tpq_achievement'),y=document.getElementById('tpq_quality');if(x)x.textContent=t?a.toFixed(2).replace('.',',')+'%':'—';if(y)y.textContent=t?q.toFixed(2).replace('.',',')+'%':'—';
+};
+window.loadTerm1PrimaryQuality=async function(){
+ const ctx=window.__term1PQ;if(!ctx)return;
+ const s=document.getElementById('tpq_subject')?.value,c=Number(document.getElementById('tpq_class')?.value),msg=document.getElementById('tpq_message');
+ if(s==='Английский язык'&&ctx.classes.find(x=>x.id===c)?.grade===1)return;
+ try{
+  const q='select=*&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+c+'&subject=eq.'+encodeURIComponent(s)+'&teacher_user_id=eq.'+encodeURIComponent(term1PQAuth());
+  const rows=await window.sbRest('term1_primary_quality_reports',q),r=rows?.[0],ids={students_count:'total',grade_5:'g5',grade_4:'g4',grade_3:'g3',grade_2:'g2',grade_na:'gna',total_hours_plan:'hours_plan',total_hours_fact:'hours_fact'};
+  Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById('tpq_'+id);if(el)el.value=r?.[k]??(k==='students_count'?(ctx.classes.find(x=>x.id===c)?.count??''):'');});
+  term1PQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tpq_'+p[1]+'_'+t);if(el)el.value=r?.[p[1]+'_'+t]??'';}));
+  window.term1PQRecalc();if(msg)msg.textContent=r?'Загружен ранее сохраненный отчет. После изменений нажмите «Сохранить и отправить».':'Сохраненного отчета для выбранных параметров пока нет.';
+ }catch(e){console.error(e);if(msg)msg.textContent='Не удалось загрузить данные: '+(e.message||e);}
+};
+window.editTerm1PrimaryQuality=async function(){
+ const ctx=window.__term1PQ,auth=term1PQAuth(),s=document.getElementById('tpq_subject')?.value||'',c=Number(document.getElementById('tpq_class')?.value),msg=document.getElementById('tpq_message');
+ if(!ctx||!auth||!s||!c)return alert('Сначала выберите предмет и класс.');
+ if(msg)msg.textContent='Ищу сохраненный отчет…';
+ try{
+  const q='select=*&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+c+'&subject=eq.'+encodeURIComponent(s)+'&teacher_user_id=eq.'+encodeURIComponent(auth)+'&order=updated_at.desc&limit=1';
+  const rows=await window.sbRest('term1_primary_quality_reports',q),r=Array.isArray(rows)?rows[0]:null;
+  if(!r){if(msg)msg.textContent='Сохраненный вами отчет не найден.';alert('Сохраненный отчет не найден.');return;}
+  const ids={students_count:'total',grade_5:'g5',grade_4:'g4',grade_3:'g3',grade_2:'g2',grade_na:'gna',total_hours_plan:'hours_plan',total_hours_fact:'hours_fact'};
+  Object.entries(ids).forEach(([key,id])=>{const el=document.getElementById('tpq_'+id);if(el)el.value=r[key]??'';});
+  term1PQPairs.forEach(p=>['plan','fact'].forEach(t=>{const el=document.getElementById('tpq_'+p[1]+'_'+t);if(el)el.value=r[p[1]+'_'+t]??'';}));
+  window.term1PQRecalc();if(msg)msg.textContent='Сохраненный отчет загружен. Измените значения и нажмите «Сохранить и отправить».';
+ }catch(e){console.error(e);if(msg)msg.textContent='Ошибка загрузки сохраненного отчета: '+(e.message||e);alert('Не удалось загрузить сохраненный отчет: '+(e.message||e));}
+};
+window.saveTerm1PrimaryQuality=async function(){
+ const ctx=window.__term1PQ,u=term1PQUser(),auth=term1PQAuth();if(!ctx||!auth)return alert('Не удалось определить пользователя или учебный год.');
+ try{
+  const s=document.getElementById('tpq_subject').value,c=Number(document.getElementById('tpq_class').value),cl=ctx.classes.find(x=>x.id===c),t=term1PQVal('total');
+  if(!s||!cl||(s==='Английский язык'&&cl.grade===1)||!t)throw new Error('Выберите предмет и класс, укажите количество детей.');
+  const g5=term1PQVal('g5'),g4=term1PQVal('g4'),g3=term1PQVal('g3'),g2=term1PQVal('g2'),gna=term1PQVal('gna');
+  if([g5,g4,g3,g2,gna].some(x=>x===null))throw new Error('Заполните количество оценок «5», «4», «3», «2» и «н/а».');
+  if(g5+g4+g3+g2+gna>t)throw new Error('Сумма оценок и «н/а» не может превышать количество детей.');
+  const p={academic_year_id:ctx.year,class_id:c,subject:s,teacher_user_id:auth,teacher_employee_id:Number(u.id)||null,teacher_name:String(u.name||'').trim(),students_count:t,grade_5:g5,grade_4:g4,grade_3:g3,grade_2:g2,grade_na:gna,total_hours_plan:term1PQVal('hours_plan'),total_hours_fact:term1PQVal('hours_fact'),updated_at:new Date().toISOString()};
+  term1PQPairs.forEach(x=>{p[x[1]+'_plan']=null;p[x[1]+'_fact']=null;});
+  term1PQPairs.filter(x=>x[0]===s).forEach(x=>{p[x[1]+'_plan']=term1PQVal(x[1]+'_plan');p[x[1]+'_fact']=term1PQVal(x[1]+'_fact');});
+  const q='select=id&academic_year_id=eq.'+ctx.year+'&class_id=eq.'+c+'&subject=eq.'+encodeURIComponent(s)+'&teacher_user_id=eq.'+encodeURIComponent(auth),old=await window.sbRest('term1_primary_quality_reports',q);
+  if(old?.length)await window.sbMutate('term1_primary_quality_reports','PATCH','id=eq.'+old[0].id,p);else await window.sbMutate('term1_primary_quality_reports','POST','',p);
+  const m=document.getElementById('tpq_message');if(m)m.textContent='Отчет сохранен. Повторное сохранение обновит запись, не создавая дубликат.';alert('Отчет предметника 1–4 классов сохранен.');
+ }catch(e){console.error(e);alert('Не удалось сохранить отчет: '+(e.message||e));}
+};
+window.exportTerm1PrimaryQuality=async function(){
+ if(!term1PQManager())return alert('Выгрузка доступна только директору, заместителям и администратору.');
+ try{
+  const ctx=window.__term1PQ,year=ctx?.year??await window.getCurrentAcademicYearId();
+  const [saved,classes]=await Promise.all([
+   window.sbRest('term1_primary_quality_reports','select=*&academic_year_id=eq.'+year+'&order=subject.asc,class_id.asc&limit=5000'),
+   window.sbRest('classes','select=id,grade,letter&is_active=eq.true&academic_year_id=eq.'+year+'&grade=gte.1&grade=lte.4&limit=1000')
+  ]);
+  if(!window.XLSX)throw new Error('Библиотека Excel не загружена.');
+  const sorted=(classes||[]).map(x=>({id:Number(x.id),grade:Number(x.grade),name:String(x.grade||'')+String(x.letter||'')})).sort((a,b)=>(window.classSort||((x,y)=>String(x).localeCompare(String(y),'ru')))(a.name,b.name));
+  const classById=new Map(sorted.map(x=>[x.id,x.name])),recordMap=new Map((saved||[]).map(r=>[String(r.subject)+'|'+Number(r.class_id),r]));
+  const blocks=[
+   {n:1,s:'Математика',classes:sorted},
+   {n:2,s:'Русский язык',classes:sorted},
+   {n:3,s:'Литературное чтение',classes:sorted},
+   {n:4,s:'ОРКСЭ',classes:sorted.filter(x=>x.grade===4)},
+   {n:5,s:'ИЗО',classes:sorted},
+   {n:6,s:'Окружающий мир',classes:sorted},
+   {n:7,s:'Физическая культура',classes:sorted},
+   {n:8,s:'Технология',classes:sorted},
+   {n:9,s:'Музыка',classes:sorted},
+   {n:10,s:'Английский язык',classes:sorted.filter(x=>x.grade>=2)}
+  ];
+  const data=[],merges=[],used=new Set();
+  const makeRow=(r,cls)=>{
+   const a=Array(26).fill('');a[2]=cls.name;
+   if(r){
+    used.add(Number(r.id));a[3]=r.students_count??'';a[4]=r.grade_5??'';a[5]=r.grade_4??'';a[6]=r.grade_3??'';a[7]=r.grade_2??'';a[8]=r.grade_na??'';
+    a[9]=r.achievement_percent==null?'':Number(r.achievement_percent)/100;a[10]=r.quality_percent==null?'':Number(r.quality_percent)/100;
+    a[11]=r.total_hours_plan??'';a[12]=r.total_hours_fact??'';
+    a[14]=r.literature_essays_plan??'';a[15]=r.literature_essays_fact??'';
+    a[16]=r.russian_dictations_plan??'';a[17]=r.russian_dictations_fact??'';
+    a[18]=r.russian_essays_plan??'';a[19]=r.russian_essays_fact??'';
+    a[20]=r.russian_expositions_plan??'';a[21]=r.russian_expositions_fact??'';
+    a[22]=r.math_tests_plan??'';a[23]=r.math_tests_fact??'';
+    a[24]=r.english_tests_plan??'';a[25]=r.english_tests_fact??'';
+   }
+   if(r?.total_hours_plan>0&&r?.total_hours_fact!=null)a[13]=Number(r.total_hours_fact)/Number(r.total_hours_plan);
+   return a;
+  };
+  blocks.forEach(block=>{
+   const first=data.length;
+   block.classes.forEach(cls=>data.push(makeRow(recordMap.get(block.s+'|'+cls.id)||null,cls)));
+   const last=data.length-1;
+   if(last>=first){merges.push({s:{r:first+4,c:0},e:{r:last+4,c:0}},{s:{r:first+4,c:1},e:{r:last+4,c:1}});data[first][0]=block.n;data[first][1]=block.s;}
+  });
+  const header=entries=>{const a=Array(26).fill('');entries.forEach(([c,v])=>a[c]=v);return a;};
+  const h=[
+   header([[0,'№'],[1,'Предметы учебного плана'],[2,'Класс по параллелям'],[3,'Всего детей в классе'],[4,'Количество «5»'],[5,'Количество «4»'],[6,'Количество «3»'],[7,'Количество «2»'],[8,'Количество «н/а»'],[9,'Успеваемость'],[10,'Качество'],[11,'Количество часов за 1 триместр'],[14,'Литературное чтение'],[16,'Русский язык'],[22,'Математика'],[24,'Английский язык']]),
+   header([[11,'План'],[12,'Факт'],[13,'% выполнения'],[14,'Количество сочинений'],[16,'Диктант'],[18,'Сочинение'],[20,'Изложение'],[22,'Контрольные работы'],[24,'Контрольные работы']]),
+   header([[14,'План'],[15,'Факт'],[16,'План'],[17,'Факт'],[18,'План'],[19,'Факт'],[20,'План'],[21,'Факт'],[22,'План'],[23,'Факт'],[24,'План'],[25,'Факт']]),
+   header([])
+  ];
+  const ws=window.XLSX.utils.aoa_to_sheet(h.concat(data));
+  ws['!merges']=[
+   ...Array.from({length:11},(_,c)=>({s:{r:0,c},e:{r:3,c}})),
+   {s:{r:0,c:11},e:{r:0,c:13}},
+   {s:{r:1,c:11},e:{r:1,c:13}},
+   ...[[14,15],[16,21],[22,23],[24,25]].map(([s,e])=>({s:{r:0,c:s},e:{r:0,c:e}})),
+   ...[[14,15],[16,17],[18,19],[20,21],[22,23],[24,25]].map(([s,e])=>({s:{r:1,c:s},e:{r:1,c:e}})),
+   ...merges
+  ];
+  data.forEach((r,i)=>{const row=i+5;['J','K','N'].forEach(col=>{const cell=ws[col+row];if(cell&&cell.v!=='')cell.z='0.00%';});});
+  ws['!cols']=Array.from({length:26},(_,i)=>({wch:i<3?23:i<11?14:12}));
+  ws['!freeze']={xSplit:3,ySplit:4};
+  const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,'Качество 1-4');
+  window.XLSX.writeFile(wb,'Качество_отчет_предметника_1-4.xlsx');
+  alert('Выгрузка сформирована. Строк шаблона: '+data.length+'. Сохраненных отчетов в шаблоне: '+used.size+'.');
+ }catch(e){console.error(e);alert('Не удалось выгрузить Excel: '+(e.message||e));}
+};
+/* END TERM1_PRIMARY_QUALITY_FORM_V1 */
+
+
   window.App = window.App || {};
   window.App.reports = window.App.reports || {};
   
@@ -879,6 +1059,14 @@ window.openTerm1Folder=function(){
           <h3>Качество (отчет предметника) 5–9 кл</h3>
           <p>Результаты успеваемости и выполнение практической части программы.</p>
           <button class="btn" onclick="openTerm1SubjectQuality()">Открыть форму</button>
+        </div>
+      </section>
+      <section class="term1-folder-card term1-folder-quality">
+        <div class="term1-folder-icon">📊</div>
+        <div class="term1-folder-content">
+          <h3>Качество (отчет предметника) 1–4 кл</h3>
+          <p>Результаты успеваемости и выполнение практической части программы.</p>
+          <button class="btn" onclick="openTerm1PrimaryQuality()">Открыть форму</button>
         </div>
       </section>
     </div>`;
