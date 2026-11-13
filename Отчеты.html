@@ -890,9 +890,13 @@ window.saveTerm1PrimaryQuality=async function(){
  try{
   const s=document.getElementById('tpq_subject').value,c=Number(document.getElementById('tpq_class').value),cl=ctx.classes.find(x=>x.id===c),t=term1PQVal('total');
   if(!s||!cl||(s==='Английский язык'&&cl.grade===1)||!t)throw new Error('Выберите предмет и класс, укажите количество детей.');
-  const g5=term1PQVal('g5'),g4=term1PQVal('g4'),g3=term1PQVal('g3'),g2=term1PQVal('g2'),gna=term1PQVal('gna');
-  if([g5,g4,g3,g2,gna].some(x=>x===null))throw new Error('Заполните количество оценок «5», «4», «3», «2» и «н/а».');
-  if(g5+g4+g3+g2+gna>t)throw new Error('Сумма оценок и «н/а» не может превышать количество детей.');
+  const noGrades=Number(cl.grade)===1;
+  let g5=term1PQVal('g5'),g4=term1PQVal('g4'),g3=term1PQVal('g3'),g2=term1PQVal('g2'),gna=term1PQVal('gna');
+  if(noGrades){g5=0;g4=0;g3=0;g2=0;gna=0;}
+  else{
+   if([g5,g4,g3,g2,gna].some(x=>x===null))throw new Error('Заполните количество оценок «5», «4», «3», «2» и «н/а».');
+   if(g5+g4+g3+g2+gna>t)throw new Error('Сумма оценок и «н/а» не может превышать количество детей.');
+  }
   const p={academic_year_id:ctx.year,class_id:c,subject:s,teacher_user_id:auth,teacher_employee_id:Number(u.id)||null,teacher_name:String(u.name||'').trim(),students_count:t,grade_5:g5,grade_4:g4,grade_3:g3,grade_2:g2,grade_na:gna,total_hours_plan:term1PQVal('hours_plan'),total_hours_fact:term1PQVal('hours_fact'),updated_at:new Date().toISOString()};
   term1PQPairs.forEach(x=>{p[x[1]+'_plan']=null;p[x[1]+'_fact']=null;});
   term1PQPairs.filter(x=>x[0]===s).forEach(x=>{p[x[1]+'_plan']=term1PQVal(x[1]+'_plan');p[x[1]+'_fact']=term1PQVal(x[1]+'_fact');});
